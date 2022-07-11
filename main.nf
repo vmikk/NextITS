@@ -357,3 +357,85 @@ process itsx {
     """
 }
 
+
+// Homopolymer compression
+process homopolymer {
+
+    label "main_container"
+
+    publishDir "${out_4_homop}", mode: 'symlink'
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName()}"
+
+    input:
+      path input
+
+    output:
+      path "${input.getSimpleName()}_Homopolymer_compressed.fa.gz", emit: hc, optional: true
+      path "${input.getSimpleName()}_uch.uc.gz", emit: uch, optional: true
+
+    script:
+    sampID="${input.getSimpleName()}"
+
+    """
+
+    ## Homopolymer compression
+    echo -e "Homopolymer compression"
+
+    zcat ${input} \
+      | homopolymer_compression.sh - \
+      > homo_compressed.fa
+    
+    echo -e "..Done"
+
+    ## Re-cluster homopolymer-compressed data
+    echo -e "\nRe-clustering homopolymer-compressed data"
+    vsearch \
+      --cluster_size homo_compressed.fa \
+      --id ${params.hp_similarity} \
+      --iddef ${params.hp_iddef} \
+      --qmask "dust" \
+      --strand "both" \
+      --fasta_width 0 \
+      --threads ${task.cpus} \
+      --sizein --sizeout \
+      --centroids homo_clustered.fa \
+      --uc ${sampID}_uch.uc
+    echo -e "..Done"
+
+    ## Compress UC file
+    gzip -7 ${sampID}_uch.uc
+
+    ## Substitute homopolymer-comressed sequences with uncompressed ones
+    ## (update size annotaions)
+    echo -e "\nExtracting sequences"
+
+    seqkit fx2tab ${input} > inp_tab.txt
+    seqkit fx2tab homo_clustered.fa > clust_tab.txt
+
+    if [ -s inp_tab.txt ]; then
+      substitute_compressed_seqs.R \
+        inp_tab.txt clust_tab.txt res.fa
+
+      echo -e "..Done"
+    else
+      echo -e "..Input data looks empty, nothin to proceed with"
+    fi
+
+    if [ -s res.fa ]; then
+      gzip -c res.fa > ${sampID}_Homopolymer_compressed.fa.gz
+    fi
+
+    ## Remove temporary files
+    rm homo_compressed.fa
+    rm homo_clustered.fa
+    rm inp_tab.txt
+    rm clust_tab.txt
+    rm res.fa
+
+    """
+}
+
+
