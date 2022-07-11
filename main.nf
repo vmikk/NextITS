@@ -5,7 +5,7 @@
   NextITS: Pipeline to process fungal ITS amplicons
 ============================================================================
   Version: v0.0.1
-  License: MIT
+  License: Apache-2.0 
   Github : https://github.com/vmikk/NextITS
   Website: TBA
 ----------------------------------------------------------------------------
