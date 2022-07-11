@@ -247,3 +247,113 @@ process primer_check {
     """
 }
 
+
+// Extract ITS region with ITSx
+process itsx {
+
+    label "main_container"
+
+    publishDir "${out_3_itsx}", mode: 'symlink'
+    // cpus 2
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
+
+    input:
+      path input
+
+    output:
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_hash_table.txt.gz", emit: hashes
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_uc.uc.gz", emit: uc
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.full.fasta.gz", emit: itsx_full, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.SSU.fasta.gz",  emit: itsx_ssu, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS1.fasta.gz", emit: itsx_its1, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.5_8S.fasta.gz", emit: itsx_58s, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS2.fasta.gz", emit: itsx_its2, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.LSU.fasta.gz",  emit: itsx_lsu, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.positions.txt", optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.problematic.txt", optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_no_detections.fasta.gz", emit: itsx_nondetects, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.summary.txt", emit: itsx_summary
+
+    script:
+    
+    sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
+    
+    // Allow inclusion of sequences that only find a single domain, given that they meet the given E-value and score thresholds, on with parameters 1e-9,0 by default
+    // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
+
+    """
+
+    ## Sequence ID - Hash - Length - Average Phred score
+    echo -e "Creating sequence hash table with average sequence quality"
+    seqkit fx2tab --length --avg-qual ${input} \
+      | hash_sequences.sh \
+      | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
+      > ${sampID}_hash_table.txt
+    echo -e "..Done"
+
+    ## Dereplicate at sample level
+    echo -e "\nDereplicating at sample level"
+    seqkit fq2fa -w 0 ${input} \
+      | vsearch \
+        --derep_fulllength - \
+        --output - \
+        --strand both \
+        --fasta_width 0 \
+        --threads 1 \
+        --relabel_sha1 \
+        --sizein --sizeout \
+        --uc ${sampID}_uc.uc \
+        --quiet \
+      > derep.fasta
+    echo -e "..Done"
+
+    ## ITSx extraction
+    echo -e "\nITSx extraction"
+    ITSx \
+      -i derep.fasta \
+      --complement T \
+      --save_regions all \
+      --graphical F \
+      --positions T \
+      --not_found T \
+      -E ${params.ITSx_evalue} \
+      -t ${params.ITSx_tax} \
+      --partial ${params.ITSx_partial} \
+      --cpu ${task.cpus} \
+      --preserve T \
+      -o ${sampID}
+    
+    echo -e "..Done"
+
+      # ITSx.full.fasta
+      # ITSx.SSU.fasta
+      # ITSx.ITS1.fasta
+      # ITSx.5_8S.fasta
+      # ITSx.ITS2.fasta
+      # ITSx.LSU.fasta
+      # ITSx.positions.txt
+      # ITSx.problematic.txt
+      # ITSx_no_detections.fasta
+      # ITSx_no_detections.txt
+      # ITSx.summary.txt
+
+    ## Remove empty files (no sequences)
+    echo -e "\nRemoving empty files"
+    find . -type f -name "*.fasta" -empty -print -delete
+    echo -e "..Done"
+
+    ## Remove temporary file
+    rm derep.fasta
+
+    ## Compress results
+    echo -e "\nCompressing files"
+    gzip -7 ${sampID}_hash_table.txt
+    gzip -7 ${sampID}_uc.uc
+    gzip -7 *.fasta
+    echo -e "..Done"
+
+    """
+}
+
