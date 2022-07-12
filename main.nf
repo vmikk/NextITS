@@ -439,3 +439,37 @@ process homopolymer {
 }
 
 
+
+
+//  The default workflow
+workflow {
+
+    // Input file with multiplexed reads (FASTQ.gz)
+    ch_input = Channel.value(params.input)
+
+    // Input file with barcodes (FASTA)
+    ch_barcodes = Channel.value(params.barcodes)
+
+    // Demultiplexing
+    demux(ch_input, ch_barcodes)
+
+    // Primer disambiguation
+    disambiguate()
+
+    // Check primers
+    primer_check(
+      demux.out.samples_demux.flatten(),
+      disambiguate.out.F,
+      disambiguate.out.R,
+      disambiguate.out.Fr,
+      disambiguate.out.Rr
+      )
+
+    // Extract ITS
+    itsx(primer_check.out.fq_primer_checked)
+
+    // Homopolymer compression on full-length ITS sequences
+    homopolymer(itsx.out.itsx_full)
+
+}
+
