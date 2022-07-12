@@ -635,5 +635,8 @@ workflow {
     // Homopolymer compression on full-length ITS sequences
     homopolymer(itsx.out.itsx_full)
 
+    // Reference-based chimera removal
+    ch_chimerabd = Channel.value(params.chimera_db)
+    chimera_ref(homopolymer.out.hc, ch_chimerabd)
 }
 
