@@ -602,6 +602,70 @@ process chimera_ref {
 }
 
 
+// Recovery of ref-based chimeric sequences with high occurrence
+process chimera_rescue {
+
+    label "main_container"
+
+    publishDir "${out_5_chim}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path input
+
+    output:
+      path "*_RescuedChimera.fa.gz", emit: rescuedchimeric, optional: true
+
+    script:
+    """
+
+    ## Aggregate chimeric sequences from different samples
+    echo -e "\nAggregating chimeric sequences"
+    find . -name "*_Chimera.fa.gz" \
+      | parallel -j1 "zcat {}" \
+      | seqkit fx2tab \
+      | sed -r 's:\t+:\t:g' | sed 's/\t\$//g' \
+      | gzip > All_chimeras.txt.gz
+    echo -e "..Done"
+
+    ### Inspect chimerae occurrence
+    ## Rescue sequences that were annotated as chimeric, 
+    ## but have high occurrence within sequenceing run (e.g., occurrence > 2)
+    echo -e "\nInspecting occurrence of chimeric sequences"
+
+    chimera_rescue.R \
+      "All_chimeras.txt.gz" \
+      ${params.chimera_rescueoccurrence} \
+      "Rescued_Chimeric_sequences.fa.gz"
+
+    echo -e "..Done"
+
+    ## Split rescured sequences by sample
+    if [ -e Rescued_Chimeric_sequences.fa.gz ]
+    then
+      echo -e "\n..Splitting rescued sequences by sample"
+      seqkit split -i \
+        --id-regexp ";sample=(.*);" \
+        --threads ${task.cpus} \
+        -w 0 \
+        -O Rescued_by_sample \
+        Rescued_Chimeric_sequences.fa.gz
+
+      rename \
+        --filename 's/^Rescued_Chimeric_sequences.id_//g; s/.fa.gz/_RescuedChimera.fa.gz/' \
+        \$(find Rescued_by_sample -name "*.fa.gz")
+
+      mv *_RescuedChimera.fa.gz .
+
+      echo -e "..Done"
+    fi
+
+    ## Remove temporary files
+    rm All_chimeras.txt.gz
+    if [ -f Rescued_Chimeric_sequences.fa.gz ]; then rm Rescued_Chimeric_sequences.fa.gz; fi
+
+    """
+}
 //  The default workflow
 workflow {
 
