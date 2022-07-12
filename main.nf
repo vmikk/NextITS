@@ -41,6 +41,11 @@ params.primer_mismatches = 2
 params.primer_foverlap = params.primer_forward.length() - 2
 params.primer_roverlap = params.primer_reverse.length() - 2
 
+// ITSx
+params.ITSx_evalue = 1e-1
+params.ITSx_partial = 0     // off, otherwise specify min length cutoff for partial ITS sequences to keep
+params.ITSx_tax = "all"
+/// params.ITSx_singledomain = true ....  optional arguments
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
