@@ -32,6 +32,14 @@ params.lima_dualbarcode = true
 params.lima_W = 70
 params.lima_minlen = 40
 
+// Primer checks
+params.primer_forward = "GTACACACCGCCCGTCG"    // ITS9mun
+params.primer_reverse = "CCTSCSCTTANTDATATGC"  // ITS4ngsUni
+params.primer_mismatches = 2
+// params.primer_mismatches_insertions = 1
+// params.primer_mismatches_deletions = 1
+params.primer_foverlap = params.primer_forward.length() - 2
+params.primer_roverlap = params.primer_reverse.length() - 2
 
 // Print the parameters to the console and to the log
 log.info """
