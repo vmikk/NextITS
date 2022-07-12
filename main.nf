@@ -298,148 +298,6 @@ process primer_check {
 }
 
 
-
-// Check primers
-process primer_check {
-
-    label "main_container"
-
-    publishDir "${out_2_primer}", mode: 'symlink'
-    // cpus 1
-
-    // Add sample ID to the log file
-    tag "${input.getSimpleName()}"
-
-    input:
-      path input
-
-    output:
-      path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked
-
-    script:
-
-    """
-
-    echo -e "Reorinting sequences"
-    echo -e "Input file: " ${input}
-    echo -e "Forward primer: " ${params.primer_forward}
-    echo -e "Reverse primer: " ${params.primer_reverse}
-    echo -e "Number of mismathces allowed: " ${params.primer_mismatches}
-
-    ## Convert IUPAC codes
-    echo -e "\nConverting IUPAC codes"
-    fwd_primer=\$(convert_IUPAC.sh ${params.primer_forward})
-    rev_primer=\$(convert_IUPAC.sh ${params.primer_reverse})
-    echo -e "IUPAC-expanded forward primer: " "\$fwd_primer"
-    echo -e "IUPAC-expanded reverse primer: " "\$rev_primer"
-
-    ## Forward (5' - 3' orinetation)
-    ## + remove LIMA information from the header
-    echo -e "\nSearching for forward primer"
-    seqkit replace -p "\\s.+" ${input} \
-    | fqgrep \
-      -m ${params.primer_mismatches} \
-      -i ${params.primer_mismatches_insertions} \
-      -d ${params.primer_mismatches_deletions} \
-      -e \
-      -p "\$fwd_primer" \
-      - \
-      > 5_3.fastq
-    echo -e "..Done"
-
-    ## Reverse (3'-5' orientation - needs to be reverse-complemented)
-    ## + remove LIMA information from the header
-    echo -e "\nSearching for reverse primer"
-    seqkit replace -p "\\s.+" ${input} \
-    | fqgrep \
-      -m ${params.primer_mismatches} \
-      -i ${params.primer_mismatches_insertions} \
-      -d ${params.primer_mismatches_deletions} \
-      -e \
-      -p "\$rev_primer" \
-      - \
-      > 3_5.fastq
-    echo -e "..Done"
-
-    ## If rev primer found, then make reverse complementary and merge with 5_3.fastq file
-    echo -e "\nReverse-complementig 3'-5' sequences"
-    if [ -s 3_5.fastq ]; then
-
-      seqkit seq -t dna --validate-seq -r -p 3_5.fastq \
-        >> 5_3.fastq
-
-    fi
-    echo -e "..Done"
-
-    ## Searching for multi-primer artefacts
-    echo -e "\nSearching for multi-primer artefacts"
-    seqkit rmdup --by-name --threads ${task.cpus} \
-      --dup-num-file duplicates.temp \
-      --out-file 5_3.fastx.temp \
-      5_3.fastq
-    echo -e "..Done"
-
-
-    # fqgrep -p "CGCCTGCGCTTAATTAT" -r Barcod01__A2201.fq.gz \
-    #  | awk -F "\t" ' NR > 1 { print \$1 }' | sort | uniq -c | sort -r
-
-
-
-    ## Remove multi-primer artefacts
-    echo -e "\nRemoving multi-primer artefacts"
-    ## If any duplicated sequences found
-    if [ -s duplicates.temp ]; then
-      
-      ## Extract duplicate names
-      awk 'BEGIN{FS=","}{print \$2}' duplicates.temp \
-        | sed -e 's/^ //' > duplicates.names
-      
-      ## Remove duplicate seqs
-      seqkit grep --invert-match --by-name \
-        --pattern-file duplicates.names \
-        --out-file out.fq \
-        5_3.fastx.temp
-
-      ## Get multi-primer artefacts
-      # seqkit grep --by-name \
-      #   --pattern-file duplicates.names \
-      #   --out-file multiprimer_artefacts.fq \
-      #   5_3.fastx.temp
-
-      ## Count number of artefacts
-      multiprimer_count=\$(wc -l duplicates.names | awk '{print \$1}')
-      printf "Number of 'multi-primer' chimeric sequences found: \$multiprimer_count\n"
-
-    ## No duplicated sequences found
-    else
-
-      mv 5_3.fastx.temp out.fq
-      printf "No 'multi-primer' chimeric sequences found\n"
-
-    fi
-    echo -e "..Done"
-
-    ## Check if reoriented output is empty; if yes, then report WARNING
-    if [ -s out.fq ]; then
-      :
-    else
-      printf '%s\n' "WARNING: primers not found (output is empty)"
-    fi
-
-    ## Compress results
-    gzip -7 --stdout out.fq > "${input.getSimpleName()}_PrimerChecked.fq.gz"
-
-    ## Remove temporary file
-    rm out.fq
-    if [ -f 5_3.fastq ];       then rm 5_3.fastq;       fi
-    if [ -f 3_5.fastq ];       then rm 3_5.fastq;       fi
-    if [ -f 5_3.fastx.temp ];  then rm 5_3.fastx.temp;  fi
-    if [ -f duplicates.temp ]; then rm duplicates.temp; fi
-
-    """
-}
-
-
 // Extract ITS region with ITSx
 process itsx {
 
@@ -544,6 +402,34 @@ process itsx {
     gzip -7 ${sampID}_hash_table.txt
     gzip -7 ${sampID}_uc.uc
     gzip -7 *.fasta
+    echo -e "..Done"
+
+    """
+}
+
+
+// Merge tables with sequence qualities
+process seq_qual {
+
+    label "main_container"
+
+    // cpus 1
+
+    input:
+      path input
+
+    output:
+      path "SeqQualities.txt.gz", emit: quals
+
+    script:
+    """
+    echo -e "Aggregating sequence qualities"
+
+    find . -maxdepth 1 -name "*_hash_table.txt.gz" \
+      | parallel -j1 "merge_sequnce_qualities.sh {} {/.}" \
+      | gzip -7 \
+      > SeqQualities.txt.gz
+
     echo -e "..Done"
 
     """
