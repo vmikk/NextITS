@@ -46,6 +46,10 @@ params.ITSx_evalue = 1e-1
 params.ITSx_partial = 0     // off, otherwise specify min length cutoff for partial ITS sequences to keep
 params.ITSx_tax = "all"
 /// params.ITSx_singledomain = true ....  optional arguments
+
+// Homopolymer compression
+params.hp_similarity = 0.999
+params.hp_iddef = 2
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
