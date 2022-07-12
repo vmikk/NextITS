@@ -107,6 +107,44 @@ process demux {
 }
 
 
+// Primer disambiguation
+process disambiguate {
+
+    label "main_container"
+
+    // publishDir "${out_2_primer}", mode: 'symlink'
+    // cpus 1
+
+    output:
+      path "primer_F.fasta",  emit: F
+      path "primer_R.fasta",  emit: R
+      path "primer_Fr.fasta", emit: Fr
+      path "primer_Rr.fasta", emit: Rr
+
+    script:
+
+    """
+
+    ## Disambiguate forward primer
+    echo -e "Disambiguating forward primer"
+    disambiguate_primers.R \
+      ${params.primer_forward} \
+      primer_F.fasta
+
+    ## Disambiguate reverse primer
+    echo -e "\nDisambiguating reverse primer"
+    disambiguate_primers.R \
+      ${params.primer_reverse} \
+      primer_R.fasta
+
+    ## Reverse-complement primers
+    echo -e "\nReverse-complementing primers"
+    seqkit seq -r -p primer_F.fasta > primer_Fr.fasta
+    seqkit seq -r -p primer_R.fasta > primer_Rr.fasta
+
+    """
+}
+
 
 // Check primers + QC  //////////////////////////////////////////////////
 // Count number of primer occurrences withnin a read,
