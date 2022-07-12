@@ -546,6 +546,9 @@ workflow {
     // Extract ITS
     itsx(primer_check.out.fq_primer_checked)
 
+    // Merge tables with sequence qualities
+    seq_qual(itsx.out.hashes.collect())
+
     // Homopolymer compression on full-length ITS sequences
     homopolymer(itsx.out.itsx_full)
 
