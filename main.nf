@@ -50,6 +50,10 @@ params.ITSx_tax = "all"
 // Homopolymer compression
 params.hp_similarity = 0.999
 params.hp_iddef = 2
+
+// Reference-based chimera removal
+params.chimera_db = "/mnt/Dat2/DB/UNITE/Leho_Subset/UN95_chimera.udb"
+params.chimera_rescueoccurrence = 2
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
@@ -517,6 +521,85 @@ process homopolymer {
 }
 
 
+
+// Reference-based chimera removal
+process chimera_ref {
+
+    label "main_container"
+
+    publishDir "${out_5_chim}", mode: 'symlink'
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}"
+
+    input:
+      path input
+      path DB
+
+    output:
+      path "${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}_NoChimera.fa.gz", emit: nonchimeric, optional: true
+      path "${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}_Chimera.fa.gz", emit: chimeric, optional: true
+
+    script:
+    sampID="${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}"
+
+    """
+
+    ## Sample name will be added to the header of chimeric sequences
+    # sampID="\$(basename ${input} _Homopolymer_compressed.fa.gz)"
+
+    ## Reference database based chimera filtering
+    echo -e "Reference-based chimera removal"
+    vsearch \
+      --uchime_ref ${input} \
+      --db ${DB} \
+      --selfid \
+      --fasta_width 0 \
+      --threads ${task.cpus} \
+      --sizein --sizeout \
+      --chimeras chimeras.fasta \
+      --nonchimeras nonchimeras.fasta \
+      --borderline borderline.fasta
+
+    # --selfid = ignore reference sequences that are 100% identical to the query
+    echo -e "..Done"
+
+
+    ## Add borderline sequences to non-chimeric sequences
+    if [ -e borderline.fasta ]
+    then
+        echo -e "\nBorderline sequences were added to non-chimeric sequences"
+        cat borderline.fasta nonchimeras.fasta > nc_bo.fasta
+        mv nc_bo.fasta nonchimeras.fasta
+        rm borderline.fasta
+    fi
+
+    ## Chimeric sequences
+    if [ -e chimeras.fasta ]
+    then
+      ## Add sample ID to the header and compress the file
+      sed 's/>.*/&;sample='"${sampID}"';/' chimeras.fasta \
+        | gzip -7 \
+        > "${sampID}_Chimera.fa.gz"
+      rm chimeras.fasta
+    else
+      echo -e "\nNo chimeras detected"
+      touch "${sampID}_Chimera.fa.gz"
+    fi
+
+    ## Non-chimeric sequences
+    if [ -e nonchimeras.fasta ]
+    then
+      gzip -c nonchimeras.fasta > "${sampID}_NoChimera.fa.gz"
+      rm nonchimeras.fasta
+    else
+      echo "No non-chimeric sequences left"
+      touch "${sampID}_NoChimera.fa.gz"
+    fi
+
+    """
+}
 
 
 //  The default workflow
