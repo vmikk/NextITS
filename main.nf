@@ -107,6 +107,143 @@ process demux {
 }
 
 
+
+// Check primers + QC  //////////////////////////////////////////////////
+// Count number of primer occurrences withnin a read,
+// discard reads with > 1 primer occurrence
+process primer_check {
+
+    label "main_container"
+
+    publishDir "${out_2_primer}", mode: 'symlink'
+
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName()}"
+
+    input:
+      path input
+      path primer_F
+      path primer_R
+      path primer_Fr
+      path primer_Rr
+
+    output:
+      path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked
+      path "${input.getSimpleName()}_Mutiprimer.fq.gz", emit: mutiprimer, optional: true
+
+    script:
+    """
+    echo -e "Input file: " ${input}
+
+    ### Count number of pattern occurrences for each sequence
+    count_primers (){
+      # \$1 = file with primers
+
+      seqkit locate \
+        --max-mismatch ${params.primer_mismatches} \
+        --only-positive-strand \
+        --pattern-file "\$1" \
+        --threads ${task.cpus} \
+        ${input} \
+        | awk -vOFS='\\t' 'NR > 1 { print \$1 , \$5 , \$6 }' \
+        | bedtools merge -i stdin
+    }
+
+    echo -e "\nCounting primers"
+    echo -e "..forward primer"
+    count_primers ${primer_F}  >  PF.txt
+
+    echo -e "..rc-forward primer"
+    count_primers ${primer_Fr} >> PF.txt
+    
+    echo -e "..reverse primer"
+    count_primers ${primer_R}  >  PR.txt
+
+    echo -e "..rc-reverse primer"
+    count_primers ${primer_Rr} >> PR.txt
+
+    ## Sort by seqID and start position, remove overlapping regions,
+    ## Find duplicated records
+    echo -e "\nLooking for multiple primer occurrences"
+    echo -e "..Processing forward primers"
+    csvtk sort \
+      -t -T -k 1:N -k 2:n \
+      --num-cpus ${task.cpus} \
+      PF.txt \
+    | bedtools merge -i stdin \
+    | awk '{ print \$1 }' \
+    | runiq -i - \
+    > multiprimer.txt
+
+    echo -e "..Processing reverse primers"
+    csvtk sort \
+      -t -T -k 1:N -k 2:n \
+      --num-cpus ${task.cpus} \
+      PF.txt \
+    | bedtools merge -i stdin \
+    | awk '{ print \$1 }' \
+    | runiq -i - \
+    >> multiprimer.txt
+
+    ## If some artifacts are found
+    if [ -s multiprimer.txt ]; then
+ 
+      ## Keep only uinque seqIDs
+      runiq multiprimer.txt > multiprimers.txt
+      rm multiprimer.txt
+ 
+      echo -e "\nNumber of artefacts found: " \$(wc -l < multiprimers.txt)
+
+      echo -e "..Removing artefacts"
+      ## Remove multiprimer artefacts
+      seqkit grep --invert-match --by-name \
+        --threads ${task.cpus} \
+        --pattern-file multiprimers.txt \
+        --out-file no_multiprimers.fq.gz \
+        ${input}
+
+      ## Extract multiprimer artefacts
+      echo -e "..Extracting artefacts"
+      seqkit grep --by-name \
+        --threads ${task.cpus} \
+        --pattern-file multiprimers.txt \
+        --out-file "${input.getSimpleName()}_Mutiprimer.fq.gz" \
+        ${input}
+
+      echo -e "..done"
+
+    else
+
+      echo -e "\nNo primer artefacts found"
+      ln -s ${input} no_multiprimers.fq.gz
+    
+    fi
+    echo -e "..Done"
+
+    echo -e "\nReorienting sequences"
+
+    cutadapt \
+      -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"...${params.primer_reverse}";required;min_overlap=${params.primer_roverlap}" \
+      --errors ${params.primer_mismatches} \
+      --revcomp --rename "{header}" \
+      --cores ${task.cpus} \
+      --action none \
+      --output ${input.getSimpleName()}_PrimerChecked.fq.gz \
+      no_multiprimers.fq.gz \
+      2> cutadapt.log
+
+    echo -e "All done"
+
+    ## Clean up
+    if [ -f no_multiprimers.fq.gz ]; then rm no_multiprimers.fq.gz; fi
+
+    """
+}
+
+
+
 // Check primers
 process primer_check {
 
