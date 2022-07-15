@@ -925,6 +925,46 @@ process otu_clust {
     """
 }
 
+
+// Pool sequences and add sample ID into header (for OTU and ASV table creation)
+process pool_seqs {
+
+    label "main_container"
+    
+    publishDir "${out_6_tj}", mode: 'symlink'
+    // cpus 3
+
+    input:
+      path input
+
+    output:
+      path "ASV_tab_not_filtered.txt.gz", emit: asvtabnf
+      path "ASV_not_filtered.fa.gz", emit: asvsnf
+
+    script:
+    """
+
+    echo -e "\nPooling and renaming sequences"
+
+    parallel -j ${task.cpus} --group \
+      "zcat {} \
+        | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera//g '" \
+      ::: *.fa.gz \
+    | gzip -7 > ASV_not_filtered.fa.gz
+
+    echo "..Done"
+
+
+    echo -e "\nExtracting sequence count table"
+    seqkit seq --name ASV_not_filtered.fa.gz \
+      | sed 's/;/\t/g; s/size=//; s/sample=// ; s/\t*\$//' \
+      | gzip -7 > ASV_tab_not_filtered.txt.gz
+
+    echo "..Done"
+
+    """
+}
+
 //  The default workflow
 workflow {
 
@@ -979,5 +1019,8 @@ workflow {
 
     // Global dereplication
     glob_derep(ch_filteredseqs)
+
+    // Pool sequences (for ASV table)
+    pool_seqs(ch_filteredseqs)
 }
 
