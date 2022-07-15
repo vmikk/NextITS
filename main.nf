@@ -112,6 +112,25 @@ log.info """
     """
     .stripIndent()
 
+log.info """
+        Pipeline info:
+          Pipeline profile:       ${workflow.profile}
+          Config file used:       ${workflow.configFiles}
+          Container engine:       ${workflow.containerEngine}
+        """
+        .stripIndent()
+
+log.info """
+        Core Nextflow options:
+          launchDir:              ${workflow.launchDir}
+          workDir:                ${workflow.workDir}
+          projectDir:             ${workflow.projectDir}
+        """
+        .stripIndent()
+
+log.info "======================================================================="
+log.info "\n"
+
 
 
 // Demultiplexing
