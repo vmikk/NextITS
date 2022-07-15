@@ -57,6 +57,13 @@ params.hp_iddef = 2
 params.chimera_db = "/mnt/Dat2/DB/UNITE/Leho_Subset/UN95_chimera.udb"
 params.chimera_rescueoccurrence = 2
 
+// De novo chimera identification (UCHIME1)
+params.chimeranov_abskew = 2.0
+params.chimeranov_dn = 1.4
+params.chimeranov_mindiffs = 3
+params.chimeranov_mindiv = 0.8
+params.chimeranov_minh = 0.28
+params.chimeranov_xn = 8.0
 // Pipeline help message
 def helpMsg() {
     log.info"""
@@ -729,6 +736,65 @@ process chimera_rescue {
     ## Remove temporary files
     rm All_chimeras.txt.gz
     if [ -f Rescued_Chimeric_sequences.fa.gz ]; then rm Rescued_Chimeric_sequences.fa.gz; fi
+
+    """
+}
+
+
+
+// De novo chimera identification
+// NB! in uchime_denovo, sequences are compared on their plus strand only!
+process chimera_denovo {
+
+    label "main_container"
+
+    publishDir "${out_5_chim}", mode: 'symlink'
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}"
+
+    input:
+      path input
+
+    output:
+      path "${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}_DeNovoChim.txt", emit: denovochim, optional: true
+
+    script:
+    sampID="${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}"
+
+    """
+
+    ## Input order matters for chimera detection,
+    ## so sequences will be automatically sorted by decreasing abundance first
+
+    echo -e "De novo chimera identification"
+
+    vsearch \
+      --uchime_denovo ${input} \
+      --abskew ${params.chimeranov_abskew} \
+      --dn ${params.chimeranov_dn} \
+      --mindiffs ${params.chimeranov_mindiffs} \
+      --mindiv ${params.chimeranov_mindiv} \
+      --minh ${params.chimeranov_minh} \
+      --xn ${params.chimeranov_xn} \
+      --threads 1 \
+      --qmask dust \
+      --sizein --xsize \
+      --fasta_width 0 \
+      --fasta_score \
+      --chimeras - \
+    | seqkit seq --name \
+    | sed 's/;+/;/g ; s/;/\t/g ; s/uchime_denovo=//' \
+    | sed 's/\$/\t${sampID}/' \
+    > ${sampID}_DeNovoChim.txt
+      
+      # --uchimeout uchimeout.txt
+
+    ## Remove file, if empty
+    find . -maxdepth 1 -name ${sampID}_DeNovoChim.txt -size 0 -print -delete
+
+    echo -e "..Done"
 
     """
 }
