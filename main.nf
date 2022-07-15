@@ -868,5 +868,14 @@ workflow {
 
     // De novo chimera search
     chimera_denovo(homopolymer.out.hc)
+
+    // Aggregate de novo chimeras into a single file
+    chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
+
+    // Create channel with filtered reads
+    ch_filteredseqs = chimera_ref.out.nonchimeric
+      .concat(chimera_rescue.out.rescuedchimeric)
+      .collect()
+
 }
 
