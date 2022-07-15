@@ -85,6 +85,22 @@ if (params.helpMsg){
     helpMsg()
     exit(0)
 }
+
+// Check if input path was provided
+if (params.input == false) {
+    println( "Please provide the input file with sequences in FASTQ.gz format with `--input` parameter.")
+    exit(1)
+}
+if (params.barcodes == false) {
+    println( "Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
+    exit(1)
+}
+if (params.chimera_db == false) {
+    println( "Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.")
+    exit(1)
+}
+
+
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
