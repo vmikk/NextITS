@@ -798,6 +798,33 @@ process chimera_denovo {
 
     """
 }
+
+// Aggregate de novo chimeras into a single file
+process chimera_denovo_agg {
+
+    label "main_container"
+    // cpus 1
+
+    input:
+      path input
+
+    output:
+      path "DeNovo_Chimera.txt", emit: alldenovochim
+
+    script:
+    """
+    echo -e "Aggregating de novo chimeric sequences"
+
+    find . -name "*_DeNovoChim.txt" \
+      | parallel -j1 "cat {}" \
+      > DeNovo_Chimera.txt
+
+    echo -e "..Done"
+
+    """
+}
+
+
 //  The default workflow
 workflow {
 
