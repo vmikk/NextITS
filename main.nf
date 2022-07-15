@@ -884,6 +884,47 @@ process glob_derep {
     """
 }
 
+
+// De-novo clustering of sequences into OTUs (for tag-jump removal)
+process otu_clust {
+
+    label "main_container"
+
+    publishDir "${out_6_tj}", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path input
+
+    output:
+      path "OTUs.fa.gz", emit: otus
+      path "OTUs.uc.gz", emit: otus_uc
+
+    script:
+    """
+
+    echo -e "\nClustering sequences"
+    vsearch \
+      --cluster_size ${input} \
+      --id ${params.otu_id} \
+      --iddef ${params.otu_iddef} \
+      --sizein --sizeout \
+      --qmask dust --strand both \
+      --fasta_width 0 \
+      --uc OTUs.uc \
+      --threads ${task.cpus} \
+      --centroids - \
+    | gzip -7 > OTUs.fa.gz
+    
+    echo -e "..Done"
+
+    ## Compress UC file
+    echo -e "\nCompressing UC file"
+    gzip -7 OTUs.uc
+
+    """
+}
+
 //  The default workflow
 workflow {
 
