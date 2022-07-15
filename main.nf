@@ -24,6 +24,8 @@ params.data_path = "${projectDir}/pipeline_data"
 params.input = false
 params.outdir = "${launchDir}/results"
 
+// Help message flag
+params.helpMsg = false
 
 // Demultiplexing
 params.barcodes = false
@@ -54,6 +56,35 @@ params.hp_iddef = 2
 // Reference-based chimera removal
 params.chimera_db = "/mnt/Dat2/DB/UNITE/Leho_Subset/UN95_chimera.udb"
 params.chimera_rescueoccurrence = 2
+
+// Pipeline help message
+def helpMsg() {
+    log.info"""
+    =====================================================================
+    NextITS ${version}
+    =====================================================================
+    
+    Pipeline Usage:
+    To run the pipeline, enter the following in the command line:
+        nextflow run vmikk/nextits -r ${version} --input ... --outdir ...
+    
+    Options:
+    REQUIRED:
+        --input               Path to the directory with parquet files (GBIF occurrcence dump)
+        --outdir              The output directory where the results will be saved
+
+    OPTIONAL:
+        --phylum              Phylum to analyze (multiple comma-separated values allowed); e.g., "Chordata"
+        --class               Class to analyze (multiple comma-separated values allowed); e.g., "Mammalia"
+    NEXTFLOW-SPECIFIC:
+        -qs                   Queue size (max number of processes that can be executed in parallel); e.g., 8
+    """.stripIndent()
+}
+// Show help msg
+if (params.helpMsg){
+    helpMsg()
+    exit(0)
+}
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
