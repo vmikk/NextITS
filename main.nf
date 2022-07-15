@@ -1022,5 +1022,9 @@ workflow {
 
     // Pool sequences (for ASV table)
     pool_seqs(ch_filteredseqs)
+
+    // OTU clustering
+    otu_clust(glob_derep.out.globderep)
+
 }
 
