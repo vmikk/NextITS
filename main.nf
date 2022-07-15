@@ -825,6 +825,65 @@ process chimera_denovo_agg {
 }
 
 
+
+// Merge and dereplicate sequences from all samples
+process glob_derep {
+
+    label "main_container"
+
+    // cpus 1
+
+    input:
+      path input
+
+    output:
+      path "Derep_for_clust.fa.gz", emit: globderep
+      path "Derep_for_clust.uc.gz", emit: globderep_uc
+
+    script:
+    """
+
+    ## Concatenate non-chimeric sequences
+    # zcat *_NoChimera.fa.gz *_RescuedChimera.fa.gz
+
+    echo -e "\n ===== Files with non-chimeric sequences:"
+    if test -n "\$(find . -maxdepth 1 -name '*_NoChimera.fa.gz' -print -quit)"
+    then
+        ls -l *_NoChimera.fa.gz;
+    else
+        echo "..No files"
+    fi
+
+    echo -e "\n ===== Files with rescued chimeric sequences:"
+    if test -n "\$(find . -maxdepth 1 -name '*_RescuedChimera.fa.gz' -print -quit)"
+    then
+        ls -l *_RescuedChimera.fa.gz;
+    else
+        echo "..No files"
+    fi
+
+    echo -e "\nDereplicating sequences"
+    find . -name "*Chimera.fa.gz" | parallel -j1 \
+      "zcat {}" \
+      | sed '/^>/ s/;sample=.*;/;/' \
+      | vsearch \
+        --derep_fulllength - \
+        --output - \
+        --strand both \
+        --fasta_width 0 \
+        --threads 1 \
+        --sizein --sizeout \
+        --uc Derep_for_clust.uc \
+      | gzip -7 > Derep_for_clust.fa.gz
+    echo -e "..Done"
+
+    ## Compress UC file
+    echo -e "\nCompressing UC file"
+    gzip -7 Derep_for_clust.uc
+
+    """
+}
+
 //  The default workflow
 workflow {
 
