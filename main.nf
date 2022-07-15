@@ -839,5 +839,7 @@ workflow {
     ch_chimerafiles = chimera_ref.out.chimeric.collect()
     chimera_rescue(ch_chimerafiles)
 
+    // De novo chimera search
+    chimera_denovo(homopolymer.out.hc)
 }
 
