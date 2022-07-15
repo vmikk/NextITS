@@ -977,5 +977,7 @@ workflow {
       .concat(chimera_rescue.out.rescuedchimeric)
       .collect()
 
+    // Global dereplication
+    glob_derep(ch_filteredseqs)
 }
 
