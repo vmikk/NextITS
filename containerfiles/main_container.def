@@ -1,0 +1,156 @@
+# NextITS - Singularity definition file, main container
+
+## Build stage (Rust and Cargo), for runiq
+Bootstrap: docker
+From: rust:1.62
+Stage: build
+
+%post
+  # rustup --version   # 1.24.3
+  # rustc  --version   # 1.62.0
+  # cargo  --version   # 1.62.0
+  cargo install runiq
+
+
+## Main stage
+Bootstrap: docker
+From: rocker/r-ver:4.2.1
+Stage: final
+
+%labels
+  Maintainer vladimir.mikryukov@ut.ee
+  R_Version 4.2.1
+
+%runscript
+  exec "$@"
+
+%apprun R
+  exec R "${@}"
+
+%apprun Rscript
+  exec Rscript "${@}"
+
+%environment
+  export PATH=$PATH:"/opt/software/conda/bin/"
+  echo 'source' "'/opt/software/conda/init.bash'" | bash
+
+## Install the required dependencies
+%post
+  export R_VERSION=4.2.1
+
+  apt-get update -qq \
+  && apt-get -y --no-install-recommends install \
+    tar zip unzip pigz gzip coreutils \
+    curl wget git less gawk nano rename \
+    ca-certificates locales  \
+    libtre-dev libtre5 zlib1g zlib1g-dev \
+    build-essential
+
+  ## Configure default locale
+  # echo "C.UTF-8" >> /etc/locale.gen
+  # locale-gen C.UTF-8
+  /usr/sbin/update-locale LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
+  export LANG=C.UTF-8
+
+  ## Install additional R packages
+  install2.r --error --skipinstalled --ncpus -1 \
+    optparse \
+    R.utils \
+    data.table \
+    BiocManager \
+    plyr \
+    ggplot2 \
+    doFuture \
+    openxlsx \
+    && R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
+    && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
+    && rm -rf /tmp/downloaded_packages/
+
+  ## Install conda
+  readonly conda_prefix="/opt/software/conda"
+
+  mkdir -p /opt/software
+  cd /opt/software
+  curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  bash ./Miniconda3-latest-Linux-x86_64.sh -u -b -p ${conda_prefix}
+  rm Miniconda3-latest-Linux-x86_64.sh
+
+  ${conda_prefix}/bin/conda config --add channels defaults
+  ${conda_prefix}/bin/conda config --add channels conda-forge
+  ${conda_prefix}/bin/conda config --add channels bioconda
+  ${conda_prefix}/bin/conda install -y -c conda-forge mamba
+
+  ## Conda initialization script by Antoine Prouvost
+  # https://github.com/ds4dm/singularity-conda/blob/main/conda.def
+  # Singularity does all the environment sourcing as shell (only latter calls bash), which conda does not support.
+  # We put the content in a file, manually call bash, and source it.
+  {
+      echo 'eval "$(' "'${conda_prefix}/bin/conda' 'shell.bash' 'hook' 2> /dev/null" ')"'
+      echo 'if [ $? -eq 0 ]; then'
+      echo '  eval "$__conda_setup"'
+      echo 'else'
+      echo '  if [ -f ' "'${conda_prefix}/etc/profile.d/conda.sh'" ']; then'
+      echo '    .' "'${conda_prefix}/opt/mamba/etc/profile.d/conda.sh'"
+      echo '  else'
+      echo '    export PATH="/opt/software/conda/bin:$PATH"'
+      echo '  fi'
+      echo 'fi'
+      echo 'unset __conda_setup'
+  } >> ${conda_prefix}/init.bash
+
+  ## Create conda environment and install software
+  ${conda_prefix}/bin/mamba install -y \
+    "lima>=2.6.0" \
+    "vsearch>=2.21.1" \
+    "seqkit>=2.2.0" \
+    "fastp>=0.23.2" \
+    "blast>=2.12.0" \
+    "bioawk" \
+    "miller>=6.2.0" \
+    "bedtools>=2.30.0" \
+    "parallel>=20220522" \
+    "csvtk>=0.23.0" \
+    "itsx>=1.1.3" \
+    "itsxpress>=1.8.0" \
+    "cutadapt>=4.1" \
+    "bbmap>=38.96" \
+    "ripgrep>=13.0.0" \
+    "fd-find>=8.3.2"
+
+  ## fqgrep
+  git clone --depth 1 https://github.com/indraniel/fqgrep
+  cd fqgrep
+  make
+  mv fqgrep ${conda_prefix}/bin/
+  cd ..
+  rm -r fqgrep
+
+  ## rush
+  wget https://github.com/shenwei356/rush/releases/download/v0.4.2/rush_linux_amd64.tar.gz
+  tar -xzf rush_linux_amd64.tar.gz
+  mv rush ${conda_prefix}/bin/
+  rm rush_linux_amd64.tar.gz
+
+  ## Clean up
+  apt-get autoremove -y \
+    && apt-get autoclean -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && ${conda_prefix}/bin/mamba clean --all --yes
+
+  ## Activate environment
+  # source ${conda_prefix}/bin/activate ${conda_prefix}
+
+  ## Use bash to properly activate the conda environment
+  echo 'source' "'${conda_prefix}/init.bash'" | bash
+
+  cd /opt/software
+
+
+## Add binary from the stage one - runiq
+%files from build
+  /usr/local/cargo/bin/runiq /opt/software/conda/bin/
+
+
+%test
+  R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')"
