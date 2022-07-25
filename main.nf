@@ -64,6 +64,10 @@ params.chimeranov_mindiffs = 3
 params.chimeranov_mindiv = 0.8
 params.chimeranov_minh = 0.28
 params.chimeranov_xn = 8.0
+
+// OTU clustering (for tag-jump removal)
+params.otu_id = 0.98
+params.otu_iddef = 2
 // Pipeline help message
 def helpMsg() {
     log.info"""
