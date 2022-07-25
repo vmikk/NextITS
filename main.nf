@@ -1070,5 +1070,9 @@ workflow {
     // OTU clustering
     otu_clust(glob_derep.out.globderep)
 
+    // Create OTU table
+    otu_tab(
+      otu_clust.out.otus,
+      pool_seqs.out.asvsnf)
 }
 
