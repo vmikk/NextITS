@@ -965,6 +965,50 @@ process pool_seqs {
     """
 }
 
+
+// Create OTU table (for tag-jump removal)
+process otu_tab {
+
+    label "main_container"
+
+    publishDir "${out_6_tj}", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path otus
+      path sample_seqs
+
+    output:
+      path "OTU_tab_not_filtered.txt.gz", emit: otutab
+      path "Sample_mapping.uc.gz", emit: samples_uc
+
+    script:
+    """
+    
+    ## Read mapping (for OTU table)
+    echo -e "\nRead mapping"
+    vsearch \
+      --usearch_global "${sample_seqs}" \
+      --db "${otus}" \
+      --id ${params.otu_id} \
+      --strand both \
+      --qmask none \
+      --dbmask none \
+      --sizein --sizeout \
+      --otutabout "OTU_tab_not_filtered.txt" \
+      --uc Sample_mapping.uc \
+      --threads ${task.cpus}
+
+    echo -e "..Done"
+
+    ## Compress UC file
+    echo -e "\nCompressing results"
+    gzip -7 OTU_tab_not_filtered.txt
+    gzip -7 Sample_mapping.uc
+
+    """
+}
+
 //  The default workflow
 workflow {
 
