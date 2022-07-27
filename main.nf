@@ -1049,6 +1049,51 @@ process tj {
     """
 }
 
+
+// Prepare ASV table only with non-tag-jumped sequences
+// Add quality estimate to singletons
+// Add chimera-scores for putative de novo chimeras
+process prep_asvtab {
+
+    label "main_container"
+
+    publishDir "${out_7_asv}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path asvtabnf
+      path asvsnf
+      path mappings
+      path tagjumps
+      path denovos
+      path quals
+
+    output:
+      path "ASVs.txt.gz", emit: asv_tl
+      path "ASV_tab.txt.gz", emit: asv_tw
+      path "ASVs.fa.gz", emit: asv_fa
+      path "ASVs.RData", emit: asv_rd
+
+
+    script:
+    """
+
+    echo -e "ASV table creation"
+    
+    asv_table_assembly.R \
+      ${asvtabnf} \
+      ${asvsnf}   \
+      ${mappings} \
+      ${tagjumps} \
+      ${denovos}  \
+      ${quals}
+
+    echo "..Done"
+
+    """
+}
+
+
 //  The default workflow
 workflow {
 
