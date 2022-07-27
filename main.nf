@@ -1114,5 +1114,8 @@ workflow {
     otu_tab(
       otu_clust.out.otus,
       pool_seqs.out.asvsnf)
+
+    // Tag-jump removal
+    tj(otu_tab.out.otutab)
 }
 
