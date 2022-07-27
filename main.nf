@@ -1013,6 +1013,38 @@ process otu_tab {
     """
 }
 
+
+// Tag-jump removal
+process tj {
+
+    label "main_container"
+
+    publishDir "${out_6_tj}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path otutab
+
+    output:
+      path "OTU_tab_TagJumpFiltered.txt.gz", emit: otutabtj
+      path "TagJump_OTUs.RData", emit: tjs
+      path "TagJump_plot.pdf"
+
+    script:
+    """
+
+    echo -e "Tag-jump removal"
+    
+    tag_jump_removal.R \
+      ${otutab} \
+      ${params.tj_f} \
+      ${params.tj_p}
+
+    echo "..Done"
+
+    """
+}
+
 //  The default workflow
 workflow {
 
