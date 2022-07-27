@@ -68,6 +68,10 @@ params.chimeranov_xn = 8.0
 // OTU clustering (for tag-jump removal)
 params.otu_id = 0.98
 params.otu_iddef = 2
+
+// Tag-jump removal
+params.tj_f = 0.01    // UNCROSS parameter f
+params.tj_p = 1
 // Pipeline help message
 def helpMsg() {
     log.info"""
