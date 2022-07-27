@@ -12,6 +12,35 @@
 */
 
 
+// Dependencies:
+//  - lima >= 2.6.0
+//  - fqgrep >= 0.4.4
+//  - vsearch >= 2.21.1
+//  - seqkit >= 2.2.0
+//  - cutadapt >= 4.1
+//  - ITSx >= 1.1.3
+//  - BLAST 2.12.0+
+//  - R >= 4.1.0
+//    -- data.table >= 1.14.0
+//    -- Biostrings >= 2.60.0
+//    -- plyr
+//    -- DECIPHER >= 2.24.0
+//    -- R.utils
+//    -- ggplot2
+//    -- openxlsx
+//    -- optparse
+//  - bioawk >= 20110810
+//  - bedtools >= 2.30.0
+//  - GNU parallel
+//  - csvtk >= 0.23.0
+//  - runiq >= 1.2.1
+//  - awk, sed, gzip, find, rename, cat, zcat, sha1sum
+//
+// Databases:
+//  - UDB for chimera identification
+//  - BlastDB for taxonomy annotation
+
+
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
