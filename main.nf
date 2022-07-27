@@ -1162,5 +1162,16 @@ workflow {
 
     // Tag-jump removal
     tj(otu_tab.out.otutab)
+
+    // Create ASV table
+    prep_asvtab(
+      pool_seqs.out.asvtabnf,               // non-filtered ASV table
+      pool_seqs.out.asvsnf,                 // ASV sequences in FASTA
+      otu_tab.out.samples_uc,               // sequence mapping to OTUs
+      tj.out.tjs,                           // tag-jumped OTU list
+      chimera_denovo_agg.out.alldenovochim, // de novo chimera scores
+      seq_qual.out.quals                    // sequence qualities
+      )
+
 }
 
