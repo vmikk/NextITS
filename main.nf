@@ -1123,6 +1123,45 @@ process prep_asvtab {
 }
 
 
+
+
+// // Count number of reads
+// process read_counts {
+// 
+//     label "main_container"
+// 
+//     publishDir "${out_0}", mode: 'symlink'
+//     // cpus 5
+// 
+//     input:
+//       path input_fastq
+//       path samples_demux
+//       path samples_primerch
+// 
+//     output:
+//       path "Counts_1.RawData.txt",     emit: counts_1
+//       path "Counts_2.Demux.txt",       emit: counts_2
+//       path "Counts_3.PrimerCheck.txt", emit: counts_3
+// 
+//     script:
+// 
+//     """
+// 
+//     ## Count raw reads
+//     seqkit stat --basename --tabular --threads ${task.cpus} \
+//       ${input_fastq} > Counts_1.RawData.txt
+// 
+//     ## Count demultiplexed reads
+//     seqkit stat --basename --tabular --threads ${task.cpus} \
+//       ${samples_demux} > Counts_2.Demux.txt
+// 
+//     ## Count primer-checked reads
+//     seqkit stat --basename --tabular --threads ${task.cpus} \
+//       ${samples_demux} > Counts_3.PrimerCheck.txt
+// 
+//     """
+// }
+
 //  The default workflow
 workflow {
 
