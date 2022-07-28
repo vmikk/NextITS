@@ -1162,6 +1162,51 @@ process prep_asvtab {
 //     """
 // }
 
+
+
+// Taxonomy annotation
+// use globally-dereplicated sequences
+process blastn {
+
+    label "main_container"
+
+    // publishDir "${out_8_blast}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path input
+      path taxdb_dir
+
+    output:
+      path "${input.getBaseName()}.m8.gz", emit: blast
+
+    script:
+    """
+
+    echo -e "Taxonomy annotation with BLASTn"
+    echo -e "Input file: " ${input}
+
+    blastn \
+      -task ${params.blast_task} \
+      -outfmt=6 -strand both \
+      -query ${input} \
+      -db ${taxdb_dir}/${bastdb_name} \
+      -max_target_seqs ${params.blast_maxts} \
+      -max_hsps ${params.blast_hsps} \
+      -out ${input.getBaseName()}.m8 \
+      -num_threads ${task.cpus}
+
+      # -word_size
+      # -evalue
+      # -perc_identity
+
+    ## Compress results
+    gzip -7 ${input.getBaseName()}.m8
+
+    echo "..Done"
+
+    """
+}
 //  The default workflow
 workflow {
 
