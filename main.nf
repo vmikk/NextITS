@@ -101,6 +101,14 @@ params.otu_iddef = 2
 // Tag-jump removal
 params.tj_f = 0.01    // UNCROSS parameter f
 params.tj_p = 1
+
+// Taxonomy annotation
+params.blast_taxdb = false
+params.blast_task = "blastn"   // or "megablast" 
+params.blast_maxts = 10
+params.blast_hsps = 1
+// params.blast_wordsize
+
 // Pipeline help message
 def helpMsg() {
     log.info"""
