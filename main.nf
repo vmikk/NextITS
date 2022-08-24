@@ -1215,6 +1215,33 @@ process blastn {
 
     """
 }
+
+
+// Aggregate BLAST results
+process blast_merge {
+
+    label "main_container"
+
+    publishDir "${out_8_blast}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path input
+
+    output:
+      path "Blast_hits.m8.gz", emit: blast
+
+    script:
+    """
+
+    echo -e "Aggregating BLASTn hits"
+    
+    cat *.m8.gz > Blast_hits.m8.gz
+
+    echo "..Done"
+
+    """
+}
 //  The default workflow
 workflow {
 
