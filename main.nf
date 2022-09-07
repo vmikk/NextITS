@@ -109,6 +109,13 @@ params.blast_maxts = 10
 params.blast_hsps = 1
 // params.blast_wordsize
 
+
+if(params.blast_taxdb){
+  bastdb_name = file(params.blast_taxdb).name
+  bastdb_dir = file(params.blast_taxdb).parent
+}
+
+
 // Pipeline help message
 def helpMsg() {
     log.info"""
