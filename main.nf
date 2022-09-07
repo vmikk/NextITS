@@ -105,6 +105,7 @@ params.tj_p = 1
 // Taxonomy annotation
 params.blast_taxdb = false
 params.blast_task = "blastn"   // or "megablast" 
+params.blast_chunksize = 100
 params.blast_maxts = 10
 params.blast_hsps = 1
 // params.blast_wordsize
