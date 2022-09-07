@@ -206,7 +206,42 @@ out_8_blast  = params.outdir + "/08_Taxonomy"
 
 
 
-// Demultiplexing
+
+// Quality filtering for single-end reads
+process qc_se {
+
+    label "main_container"
+
+    // cpus 10
+
+    input:
+      path input
+
+    output:
+      path "QC.fq.gz", emit: filtered
+
+    script:
+    filter_maxee      = params.qc_maxee      ? "--fastq_maxee ${params.qc_maxee}"          : ""
+    filter_maxeerate  = params.qc_maxeerate  ? "--fastq_maxee_rate ${params.qc_maxeerate}" : ""
+    """
+    echo -e "QC"
+    echo -e "Input file: " ${input}
+
+    vsearch \
+      --fastq_filter ${input} \
+      --fastq_qmax 93 \
+      ${filter_maxee} \
+      ${filter_maxeerate} \
+      --fastq_maxns ${params.qc_maxn} \
+      --threads ${task.cpus} \
+      --fastqout - \
+    | gzip -7 \
+    > QC.fq.gz
+
+    echo -e "\nQC finished"
+    """
+}
+
 process demux {
 
     label "main_container"
