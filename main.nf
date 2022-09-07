@@ -1328,5 +1328,26 @@ workflow {
       seq_qual.out.quals                    // sequence qualities
       )
 
+
+
+    // BLAST (optional)
+    if ( params.blast_taxdb ) {
+
+      // Split FASTA sequences (globally dereplicated) into 
+      ch_fasta = glob_derep.out.globderep
+          .splitFasta(by: params.blast_chunksize, file:true)
+
+      // Taxonomy annotation
+      blastn(ch_fasta, bastdb_dir)
+
+      // Aggregate BLAST results
+      ch_blasthits = blastn.out.blast.collect()
+      blast_merge(ch_blasthits)
+
+      // Parse BLAST results
+      // parse_blast()
+    }
+
+
 }
 
