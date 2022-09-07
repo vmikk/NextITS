@@ -193,6 +193,19 @@ log.info "\n"
 
 
 
+// Define output paths for different steps
+out_0        = params.outdir
+out_1_demux  = params.outdir + "/01_Demux"
+out_2_primer = params.outdir + "/02_PrimerCheck"
+out_3_itsx   = params.outdir + "/03_ITSx"
+out_4_homop  = params.outdir + "/04_Homopolymer"
+out_5_chim   = params.outdir + "/05_Chimera"
+out_6_tj     = params.outdir + "/06_TagJumpFiltration"
+out_7_asv    = params.outdir + "/07_ASV_table"
+out_8_blast  = params.outdir + "/08_Taxonomy"
+
+
+
 // Demultiplexing
 process demux {
 
