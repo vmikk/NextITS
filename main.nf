@@ -242,6 +242,56 @@ process qc_se {
     """
 }
 
+
+// Quality filtering for pair-end reads
+process qc_pe {
+
+    label "main_container"
+
+    // cpus 10
+
+    input:
+      path input_R1
+      path input_R2
+
+    output:
+      path "QC_R1.fq.gz", emit: filtered_R1
+      path "QC_R2.fq.gz", emit: filtered_R2
+
+    script:
+    filter_avgphred  = params.qc_avgphred  ? "--average_qual ${params.qc_avgphred}"                 : "--average_qual 0"
+    filter_phredmin  = params.qc_phredmin  ? "--qualified_quality_phred ${params.qc_phredmin}"      : ""
+    filter_phredperc = params.qc_phredperc ? "--unqualified_percent_limit ${params.qc_phredperc}"   : ""
+    filter_polyglen  = params.qc_polyglen  ? "--trim_poly_g --poly_g_min_len ${params.qc_polyglen}" : ""
+    """
+    echo -e "QC"
+    echo -e "Input R1: " ${input_R1}
+    echo -e "Input R2: " ${input_R2}
+
+    ## If `filter_phredmin` && `filter_phredperc` are specified,
+    # Filtering based on percentage of unqualified bases
+    # how many percents of bases are allowed to be unqualified (Q < 24)
+        
+    fastp \
+      --in1 ${input_R1} \
+      --in2 ${input_R2} \
+      --disable_adapter_trimming \
+      --n_base_limit ${params.qc_maxn} \
+      ${filter_avgphred} \
+      ${filter_phredmin} \
+      ${filter_phredperc} \
+      ${filter_polyglen} \
+      --length_required 100 \
+      --thread ${task.cpus} \
+      --html qc.html \
+      --json qc.json \
+      --out1 QC_R1.fq.gz \
+      --out2 QC_R2.fq.gz
+
+    echo -e "\nQC finished"
+    """
+}
+
 process demux {
 
     label "main_container"
