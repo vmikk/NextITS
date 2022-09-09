@@ -292,6 +292,10 @@ process qc_pe {
     """
 }
 
+
+
+
+// Demultiplexing with LIMA - for PacBio reads
 process demux {
 
     label "main_container"
