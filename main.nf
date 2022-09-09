@@ -444,6 +444,56 @@ process prep_barcodes {
     """
 }
 
+
+// Demultiplexing with cutadapt - for Illumina SE reads
+process demux_illumina {
+
+    label "main_container"
+
+    publishDir "${out_1_demux}", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path input_fastq
+      path barcodes
+
+    output:
+      path "*.fq.gz", emit: samples_demux
+
+    script:
+    """
+    echo -e "Input file: " ${input_fastq}
+    echo -e "Barcodes: " ${barcodes}
+
+    echo -e "\nDemultiplexing with cutadapt:"
+
+    ## Demultiplex with cutadapt
+    cutadapt \
+      -g file:${barcodes} \
+      --revcomp --rename "{header}" \
+      --errors ${params.barcode_errors} \
+      --overlap ${params.barcode_overlap} \
+      --no-indels \
+      --cores ${task.cpus} \
+      --discard-untrimmed \
+      --action none \
+      -o "{name}.fq.gz" \
+      ${input_fastq} \
+      > cutadapt.log
+
+    echo -e "\n..done"
+
+    ## Remove empty files (no sequences)
+    echo -e "\nRemoving empty files"
+    find . -type f -name "*.fq.gz" -size -29c -print -delete
+    echo -e "..Done"
+
+    echo -e "\nDemultiplexing finished"
+    """
+}
+
+
+
 // Primer disambiguation
 process disambiguate {
 
