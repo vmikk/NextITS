@@ -414,6 +414,36 @@ process merge_pe {
     """
 }
 
+
+// Modify barcodes for cutadapt (restrict the search window)
+process prep_barcodes {
+
+    label "main_container"
+
+    // publishDir "${out_1_demux}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path barcodes
+
+    output:
+      path "barcodes_modified.fa", emit: barcodesm
+
+    script:
+    """
+    echo -e "Restricting the search window for barcode lookup"
+    echo -e "Provided barcodes: " ${barcodes}
+
+    ## Add `XN{30}` to the barcodes
+
+    sed -e '/^>/! s/^/XN{${params.barcode_window}}/' \
+      ${barcodes} \
+      > barcodes_modified.fa
+
+    echo -e "..Done"
+    """
+}
+
 // Primer disambiguation
 process disambiguate {
 
