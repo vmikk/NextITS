@@ -702,6 +702,7 @@ process primer_check {
 
 
 // Extract ITS region with ITSx
+// NB. sequence header should not contain spaces!
 process itsx {
 
     label "main_container"
@@ -732,7 +733,7 @@ process itsx {
     script:
     
     sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
-    
+
     // Allow inclusion of sequences that only find a single domain, given that they meet the given E-value and score thresholds, on with parameters 1e-9,0 by default
     // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
 
@@ -740,10 +741,33 @@ process itsx {
 
     ## Sequence ID - Hash - Length - Average Phred score
     echo -e "Creating sequence hash table with average sequence quality"
-    seqkit fx2tab --length --avg-qual ${input} \
+    seqkit replace -p "\\s.+" ${input} \
+      | seqkit fx2tab --length --avg-qual \
       | hash_sequences.sh \
       | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
-      > ${sampID}_hash_table.txt
+      > tmp_hash_table.txt
+    echo -e "..Done"
+
+    ## Estimating MaxEE
+    echo -e "\nEstimating maximum number of expected errors per sequence"
+    seqkit replace -p "\\s.+" ${input} \
+      | vsearch \
+        --fastx_filter - \
+        --fastq_qmax 93 \
+        --eeout \
+        --fastaout - \
+      | seqkit seq --name \
+      | sed 's/;ee=/\t/g' \
+      > tmp_ee.txt
+    echo -e "..Done"
+
+    echo -e "\nMerging quality estimates"
+
+    max_ee.R \
+      tmp_hash_table.txt \
+      tmp_ee.txt \
+      ${sampID}_hash_table.txt
+
     echo -e "..Done"
 
     ## Dereplicate at sample level
@@ -799,6 +823,8 @@ process itsx {
 
     ## Remove temporary file
     rm derep.fasta
+    rm tmp_hash_table.txt
+    rm tmp_ee.txt
 
     ## Compress results
     echo -e "\nCompressing files"
