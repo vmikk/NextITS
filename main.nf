@@ -534,8 +534,8 @@ process disambiguate {
 
     ## Reverse-complement primers
     echo -e "\nReverse-complementing primers"
-    seqkit seq -r -p primer_F.fasta > primer_Fr.fasta
-    seqkit seq -r -p primer_R.fasta > primer_Rr.fasta
+    seqkit seq -r -p --seq-type dna primer_F.fasta > primer_Fr.fasta
+    seqkit seq -r -p --seq-type dna primer_R.fasta > primer_Rr.fasta
 
     """
 }
