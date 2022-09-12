@@ -61,6 +61,9 @@ params.outdir = "${launchDir}/results"
 // Help message flag
 params.helpMsg = false
 
+// Which sequencing platform was used?
+params.seqplatform = "PacBio"
+// params.seqplatform = "Illumina"
 // Demultiplexing
 params.barcodes = false
 params.lima_minscore = 93
