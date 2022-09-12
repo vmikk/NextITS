@@ -18,6 +18,7 @@
 //  - vsearch >= 2.21.1
 //  - seqkit >= 2.2.0
 //  - cutadapt >= 4.1
+//  - fastp >= 0.23.2
 //  - ITSx >= 1.1.3
 //  - BLAST 2.12.0+
 //  - R >= 4.1.0
@@ -30,8 +31,10 @@
 //    -- openxlsx
 //    -- optparse
 //  - bioawk >= 20110810
+//  - miller (mlr) >= 6.2.0
 //  - bedtools >= 2.30.0
 //  - GNU parallel
+//  - rush >= 0.4.2
 //  - csvtk >= 0.23.0
 //  - runiq >= 1.2.1
 //  - awk, sed, gzip, find, rename, cat, zcat, sha1sum
