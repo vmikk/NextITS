@@ -54,6 +54,8 @@ version = '0.0.2'
 params.data_path = "${projectDir}/pipeline_data"
 
 params.input = false
+params.input_R1 = false
+params.input_R2 = false
 params.outdir = "${launchDir}/results"
 
 // Help message flag
