@@ -544,6 +544,7 @@ process disambiguate {
 // Check primers + QC  //////////////////////////////////////////////////
 // Count number of primer occurrences withnin a read,
 // discard reads with > 1 primer occurrence
+// NB. read names should not contain spaces! (because of bedtools)
 process primer_check {
 
     label "main_container"
