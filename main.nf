@@ -564,25 +564,32 @@ process primer_check {
       path primer_Rr
 
     output:
-      path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked
+      path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked, optional: true
       path "${input.getSimpleName()}_Mutiprimer.fq.gz", emit: mutiprimer, optional: true
 
     script:
     """
     echo -e "Input file: " ${input}
+    echo -e "Forward primer: " ${params.primer_forward}
+    echo -e "Reverse primer: " ${params.primer_reverse}
 
     ### Count number of pattern occurrences for each sequence
     count_primers (){
       # \$1 = file with primers
 
-      seqkit locate \
-        --max-mismatch ${params.primer_mismatches} \
-        --only-positive-strand \
-        --pattern-file "\$1" \
-        --threads ${task.cpus} \
-        ${input} \
-        | awk -vOFS='\\t' 'NR > 1 { print \$1 , \$5 , \$6 }' \
-        | bedtools merge -i stdin
+      seqkit replace -p "\\s.+" ${input} \
+      | seqkit locate \
+          --max-mismatch ${params.primer_mismatches} \
+          --only-positive-strand \
+          --pattern-file "\$1" \
+          --threads ${task.cpus} \
+      | awk -vOFS='\\t' 'NR > 1 { print \$1 , \$5 , \$6 }' \
+      | runiq - \
+      | mlr --tsv \
+          --implicit-tsv-header \
+          --headerless-tsv-output \
+          sort -f 1 -n 2 \
+      | bedtools merge -i stdin
     }
 
     echo -e "\nCounting primers"
@@ -601,25 +608,39 @@ process primer_check {
     ## Sort by seqID and start position, remove overlapping regions,
     ## Find duplicated records
     echo -e "\nLooking for multiple primer occurrences"
+    
     echo -e "..Processing forward primers"
-    csvtk sort \
-      -t -T -k 1:N -k 2:n \
-      --num-cpus ${task.cpus} \
-      PF.txt \
-    | bedtools merge -i stdin \
-    | awk '{ print \$1 }' \
-    | runiq -i - \
-    > multiprimer.txt
+    if [ -s PF.txt ]; then
+
+      csvtk sort \
+        -t -T -H -k 1:N -k 2:n \
+        --num-cpus ${task.cpus} \
+        PF.txt \
+      | bedtools merge -i stdin \
+      | awk '{ print \$1 }' \
+      | runiq -i - \
+      > multiprimer.txt
+
+    else
+      echo -e "...No forward primer matches found (in both orientations)"
+    fi
 
     echo -e "..Processing reverse primers"
-    csvtk sort \
-      -t -T -k 1:N -k 2:n \
-      --num-cpus ${task.cpus} \
-      PF.txt \
-    | bedtools merge -i stdin \
-    | awk '{ print \$1 }' \
-    | runiq -i - \
-    >> multiprimer.txt
+    if [ -s PR.txt ]; then
+
+      csvtk sort \
+        -t -T -H -k 1:N -k 2:n \
+        --num-cpus ${task.cpus} \
+        PR.txt \
+      | bedtools merge -i stdin \
+      | awk '{ print \$1 }' \
+      | runiq -i - \
+      >> multiprimer.txt
+
+    else
+      echo -e "...No reverse primer matches found (in both orientations)"
+    fi
+
 
     ## If some artifacts are found
     if [ -s multiprimer.txt ]; then
@@ -632,7 +653,7 @@ process primer_check {
 
       echo -e "..Removing artefacts"
       ## Remove multiprimer artefacts
-      seqkit grep --invert-match --by-name \
+      seqkit grep --invert-match \
         --threads ${task.cpus} \
         --pattern-file multiprimers.txt \
         --out-file no_multiprimers.fq.gz \
@@ -640,7 +661,7 @@ process primer_check {
 
       ## Extract multiprimer artefacts
       echo -e "..Extracting artefacts"
-      seqkit grep --by-name \
+      seqkit grep \
         --threads ${task.cpus} \
         --pattern-file multiprimers.txt \
         --out-file "${input.getSimpleName()}_Mutiprimer.fq.gz" \
@@ -658,21 +679,24 @@ process primer_check {
 
     echo -e "\nReorienting sequences"
 
+    ## Reverse-complement rev primer
+    RR=\$(rc.sh ${params.primer_reverse})
+
+    ## Reorient sequences, discard sequences without both primers
     cutadapt \
-      -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"...${params.primer_reverse}";required;min_overlap=${params.primer_roverlap}" \
+      -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
       --errors ${params.primer_mismatches} \
       --revcomp --rename "{header}" \
+      --discard-untrimmed \
       --cores ${task.cpus} \
       --action none \
       --output ${input.getSimpleName()}_PrimerChecked.fq.gz \
-      no_multiprimers.fq.gz \
-      2> cutadapt.log
+      no_multiprimers.fq.gz
 
-    echo -e "All done"
+    echo -e "\nAll done"
 
     ## Clean up
     if [ -f no_multiprimers.fq.gz ]; then rm no_multiprimers.fq.gz; fi
-
     """
 }
 
