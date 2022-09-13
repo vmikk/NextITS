@@ -837,6 +837,124 @@ process itsx {
 }
 
 
+
+// Trim primers (do not extract ITS)
+// + Estimate sequence qualities
+process trim_primers {
+
+    label "main_container"
+
+    publishDir "${out_3_trim}", mode: 'symlink'
+    // cpus 2
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
+
+    input:
+      path input
+
+    output:
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_hash_table.txt.gz", emit: hashes, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.fq.gz", emit: primertrimmed_fq, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.fa.gz", emit: primertrimmed_fa, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_uc.uc.gz", emit: uc, optional: true
+
+    script:
+    sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
+    
+    """
+    echo -e "Input sample: " ${sampID}
+    echo -e "Forward primer: " ${params.primer_forward}
+    echo -e "Reverse primer: " ${params.primer_reverse}
+
+    ## Reverse-complement rev priver
+    RR=\$(rc.sh ${params.primer_reverse})
+    echo -e "Reverse primer RC: " "\$RR"
+
+    echo -e "\nTrimming primers"
+    cutadapt \
+      -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
+      --errors ${params.primer_mismatches} \
+      --revcomp --rename "{header}" \
+      --cores ${task.cpus} \
+      --action=trim \
+      --discard-untrimmed \
+      --minimum-length ${params.trim_minlen} \
+      --output ${sampID}.fq \
+      ${input}
+
+
+    if [ -s ${sampID}.fq ]; then 
+
+      ## Estimate sequence quality (for the extracted region)
+      ## Sequence ID - Hash - Length - Average Phred score
+      echo -e "\nCreating sequence hash table with average sequence quality"
+      seqkit replace -p "\\s.+" ${sampID}.fq \
+        | seqkit fx2tab --length --avg-qual \
+        | hash_sequences.sh \
+        | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
+        > tmp_hash_table.txt
+      echo -e "..Done"
+
+      ## Estimating MaxEE
+      echo -e "\nEstimating maximum number of expected errors per sequence"
+      seqkit replace -p "\\s.+" ${sampID}.fq \
+        | vsearch \
+          --fastx_filter - \
+          --fastq_qmax 93 \
+          --eeout \
+          --fastaout - \
+        | seqkit seq --name \
+        | sed 's/;ee=/\t/g' \
+        > tmp_ee.txt
+      echo -e "..Done"
+
+      echo -e "\nMerging quality estimates"
+      max_ee.R \
+        tmp_hash_table.txt \
+        tmp_ee.txt \
+        ${sampID}_hash_table.txt
+      echo -e "..Done"
+
+      ## Compress results
+      echo -e "Compressing result"
+      gzip -7 ${sampID}.fq
+      gzip -7 ${sampID}_hash_table.txt
+
+      ## Dereplicate at sample level
+      echo -e "\nDereplicating at sample level"
+      seqkit fq2fa -w 0 ${sampID}.fq.gz \
+      | vsearch \
+        --derep_fulllength - \
+        --output - \
+        --strand both \
+        --fasta_width 0 \
+        --threads 1 \
+        --relabel_sha1 \
+        --sizein --sizeout \
+        --uc ${sampID}_uc.uc \
+        --quiet \
+      | gzip -7 \
+      > ${sampID}.fa.gz
+
+      echo -e "..Done"
+
+      ## Compress UC file
+      gzip -7 ${sampID}_uc.uc
+
+    else
+
+      echo -e "\nNo sequences found after primer removal"
+      if [ -f ${sampID}.fq ]; then rm ${sampID}.fq; fi
+
+    fi
+
+    echo -e "..Done"
+
+    """
+}
+
+
 // Merge tables with sequence qualities
 process seq_qual {
 
