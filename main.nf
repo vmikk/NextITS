@@ -1064,6 +1064,46 @@ process homopolymer {
 }
 
 
+// If no homopolymer compression is required, just dereplicate the samples
+process just_derep {
+
+    label "main_container"
+
+    // publishDir "${out_4_homop}", mode: 'symlink'
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName()}"
+
+    input:
+      path input
+
+    output:
+      path "${input.getSimpleName()}.fa.gz", emit: nhc, optional: true
+      path "${input.getSimpleName()}_uch.uc.gz", emit: ucnh, optional: true
+
+    script:
+    sampID="${input.getSimpleName()}"
+
+    """
+
+     vsearch \
+          --derep_fulllength ${input} \
+          --output - \
+          --strand both \
+          --fasta_width 0 \
+          --threads 1 \
+          --relabel_sha1 \
+          --sizein --sizeout \
+          --uc ${sampID}_uc.uc \
+          --quiet \
+        | gzip -7 \
+        > ${sampID}.fa.gz
+
+    """
+}
+
+
 
 // Reference-based chimera removal
 process chimera_ref {
