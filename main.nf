@@ -1128,7 +1128,6 @@ process chimera_ref {
       rm chimeras.fasta
     else
       echo -e "\nNo chimeras detected"
-      touch "${sampID}_Chimera.fa.gz"
     fi
 
     ## Non-chimeric sequences
@@ -1138,7 +1137,6 @@ process chimera_ref {
       rm nonchimeras.fasta
     else
       echo "No non-chimeric sequences left"
-      touch "${sampID}_NoChimera.fa.gz"
     fi
 
     """
