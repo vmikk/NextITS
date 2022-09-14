@@ -64,6 +64,9 @@ params.helpMsg = false
 // Which sequencing platform was used?
 params.seqplatform = "PacBio"
 // params.seqplatform = "Illumina"
+
+// ITS part selector
+params.its_region = "full"    // full / ITS1 / ITS2 / none (just trim primers)
 // Demultiplexing
 params.barcodes = false
 params.lima_minscore = 93
