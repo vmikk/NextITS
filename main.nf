@@ -2038,6 +2038,116 @@ process trim_primers_pe {
     """
 }
 
+
+// Combine paired reads into single sequences 
+// by reverse-complementing the reverse read and inserting poly-N padding
+// + Estimate sequence qualities (without N pads!)
+process join_pe {
+
+    label "main_container"
+
+    // publishDir "${out_1_joinPE}", mode: 'symlink'
+    // cpus 2
+
+    // Add sample ID to the log file
+    tag "${input}"
+
+    input:
+      val input       // Sample name "(e.g., Barcode07_1__IS859)"
+      path all_samples
+
+    output:
+      path "${input}_JoinedPE.fq.gz", emit: jj_FQ, optional: true
+      path "${input}_JoinedPE_hash_table.txt.gz", emit: jj_hashes, optional: true
+
+    script:
+    sampID="${input}"
+    
+    """
+    echo -e "Joining non-merged Illumina reads"
+    echo -e "Input sample: " ${sampID}
+
+    echo -e "\nJoining with N-pads"
+    vsearch \
+      --fastq_join ${input}.R1.fastq.gz \
+      --reverse ${input}.R2.fastq.gz \
+      --join_padgap ${params.illumina_joinpadgap} \
+      --join_padgapq ${params.illumina_joinpadqual} \
+      --fastqout - \
+    | seqkit replace -p "\\s.+" \
+    | gzip -7 \
+    > ${sampID}_JoinedPE.fq.gz
+
+    ## Check if there are some sequences in the file
+    if [ -n "\$(find . -name ${sampID}_JoinedPE.fq.gz -prune -size +29c)" ]; then
+      
+      echo -e "\nJoining without N-pads (for quality estimation)"
+      vsearch \
+        --fastq_join ${input}.R1.fastq.gz \
+        --reverse ${input}.R2.fastq.gz \
+        --join_padgap "" \
+        --join_padgapq "" \
+        --fastqout - \
+      | seqkit replace -p "\\s.+" \
+      | gzip -7 \
+      > tmp_for_qual.fq.gz
+
+
+      ## Estimate sequence quality (without N pads!)
+      ## Sequence ID - Hash - Length - Average Phred score
+      echo -e "\nCreating sequence hash table with average sequence quality"
+        
+      seqkit fx2tab --length --avg-qual tmp_for_qual.fq.gz \
+        | hash_sequences.sh \
+        | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
+        > tmp_hash_table.txt
+      
+      echo -e "..Done"
+
+      ## Estimating MaxEE
+      echo -e "\nEstimating maximum number of expected errors per sequence"
+
+      vsearch \
+          --fastx_filter tmp_for_qual.fq.gz \
+          --fastq_qmax 93 \
+          --eeout \
+          --fastaout - \
+        | seqkit seq --name \
+        | sed 's/;ee=/\t/g' \
+        > tmp_ee.txt
+
+      echo -e "..Done"
+
+      echo -e "\nMerging quality estimates"
+
+      max_ee.R \
+        tmp_hash_table.txt \
+        tmp_ee.txt \
+        ${sampID}_JoinedPE_hash_table.txt
+
+      echo -e "..Done"
+
+      ## Compress results
+      gzip -7 ${sampID}_JoinedPE_hash_table.txt
+
+      ## Clean up
+      rm tmp_for_qual.fq.gz
+      rm tmp_hash_table.txt
+      rm tmp_ee.txt
+    
+    else
+      echo -e "\nIt looks like there are no joined reads"
+    fi
+
+    ## Remove redundant symlinks
+    find -L . -name "*.fastq.gz" | grep -v ${input} | parallel -j1 "rm {}"
+
+    """
+}
+
+
+
+
 //  The default workflow
 workflow {
 
