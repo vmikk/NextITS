@@ -1236,7 +1236,7 @@ process chimera_rescue {
         --filename 's/^Rescued_Chimeric_sequences.id_//g; s/.fa.gz/_RescuedChimera.fa.gz/' \
         \$(find Rescued_by_sample -name "*.fa.gz")
 
-      mv *_RescuedChimera.fa.gz .
+      mv Rescued_by_sample/*_RescuedChimera.fa.gz .
 
       echo -e "..Done"
     fi
