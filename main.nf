@@ -67,6 +67,23 @@ params.seqplatform = "PacBio"
 
 // ITS part selector
 params.its_region = "full"    // full / ITS1 / ITS2 / none (just trim primers)
+
+// Quality control
+params.qc_maxee     = false    // only for single-end reads
+params.qc_maxeerate = 0.01     // only for single-end reads
+params.qc_maxn      = 4
+params.qc_avgphred = false     // Only for PE reads
+params.qc_twocolor = false     // reduced resolution Phred-scores (two-color Illumina chemistry)
+if(params.qc_twocolor == true){
+  params.qc_phredmin  = 24
+  params.qc_phredperc = 30
+  params.qc_polyglen  = 8
+} else {
+  params.qc_phredmin  = false
+  params.qc_phredperc = false
+  params.qc_polyglen  = false
+}
+
 // Demultiplexing
 params.barcodes = false
 params.lima_minscore = 93
