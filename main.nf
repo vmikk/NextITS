@@ -1454,19 +1454,23 @@ process pool_seqs {
 
     echo -e "\nPooling and renaming sequences"
 
+    ## If there is a sample ID in the header already, remove it
     parallel -j ${task.cpus} --group \
       "zcat {} \
-        | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera//g '" \
+        | sed -r '/^>/ s/;sample=[^;]*/;/g ; s/;;/;/g' \
+        | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g' \
+        | sed -r '/^>/ s/;;/;/g'" \
       ::: *.fa.gz \
-    | gzip -7 > ASV_not_filtered.fa.gz
+      | gzip -7 \
+      > ASV_not_filtered.fa.gz
 
     echo "..Done"
-
 
     echo -e "\nExtracting sequence count table"
     seqkit seq --name ASV_not_filtered.fa.gz \
       | sed 's/;/\t/g; s/size=//; s/sample=// ; s/\t*\$//' \
-      | gzip -7 > ASV_tab_not_filtered.txt.gz
+      | gzip -7 \
+      > ASV_tab_not_filtered.txt.gz
 
     echo "..Done"
 
