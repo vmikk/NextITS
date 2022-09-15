@@ -96,6 +96,12 @@ params.barcode_window = 30
 params.barcode_errors = 1
 params.barcode_overlap = 11
 
+// Illimina pair-end read assembly
+params.pe_minoverlap = 20
+params.pe_difflimit = 5
+params.pe_diffperclimit = 20
+params.pe_nlimit = 10               // disabled
+params.pe_minlen = 30
 // Primer checks
 params.primer_forward = "GTACACACCGCCCGTCG"    // ITS9mun
 params.primer_reverse = "CCTSCSCTTANTDATATGC"  // ITS4ngsUni
