@@ -85,11 +85,16 @@ if(params.qc_twocolor == true){
 }
 
 // Demultiplexing
-params.barcodes = false
+params.barcodes = false                        // FASTA file
+// PacBio & LIMA
 params.lima_minscore = 93
 params.lima_dualbarcode = true
 params.lima_W = 70
 params.lima_minlen = 40
+// Illumina & cutadapt
+params.barcode_window = 30
+params.barcode_errors = 1
+params.barcode_overlap = 11
 
 // Primer checks
 params.primer_forward = "GTACACACCGCCCGTCG"    // ITS9mun
