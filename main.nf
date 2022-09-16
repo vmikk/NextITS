@@ -2192,46 +2192,204 @@ process join_pe {
 //  The default workflow
 workflow {
 
-    // Input file with multiplexed reads (FASTQ.gz)
-    ch_input = Channel.value(params.input)
-
     // Input file with barcodes (FASTA)
     ch_barcodes = Channel.value(params.barcodes)
-
-    // Demultiplexing
-    demux(ch_input, ch_barcodes)
 
     // Primer disambiguation
     disambiguate()
 
-    // Check primers
-    primer_check(
-      demux.out.samples_demux.flatten(),
-      disambiguate.out.F,
-      disambiguate.out.R,
-      disambiguate.out.Fr,
-      disambiguate.out.Rr
-      )
+    // PacBio
+    if ( params.seqplatform == "PacBio" ) {
+      
+      // Input file with multiplexed reads (FASTQ.gz)
+      ch_input = Channel.value(params.input)
+
+      // Initial QC
+      qc_se(ch_input)
+
+      // Demultiplexing
+      demux(
+        qc_se.out.filtered,
+        ch_barcodes)
+
+      // Check primers
+      primer_check(
+        demux.out.samples_demux.flatten(),
+        disambiguate.out.F,
+        disambiguate.out.R,
+        disambiguate.out.Fr,
+        disambiguate.out.Rr
+        )
+
+    } // end of PacBio-specific tasks
+
+    // Illumina 
+    if ( params.seqplatform == "Illumina" ) {
+      
+      // Input file with multiplexed pair-end reads (FASTQ.gz)
+      ch_inputR1 = Channel.value(params.input_R1)
+      ch_inputR2 = Channel.value(params.input_R2)
+
+      // Initial QC
+      qc_pe(ch_inputR1, ch_inputR2)
+
+      // PE assembly
+      merge_pe(
+        qc_pe.out.filtered_R1,
+        qc_pe.out.filtered_R2)
+
+      // Modify barcodes (restict search window)
+      prep_barcodes(ch_barcodes)
+
+      // Demultiplexing
+      demux_illumina(
+        merge_pe.out.r12,
+        prep_barcodes.out.barcodesm)
+
+      ch_demux_merged = demux_illumina.out.samples_demux.flatten()
+
+      // Illumina nonmerged PE reads sub-workflow (optional)
+      if(params.illumina_keep_notmerged == true){
+
+        // Demultiplexing non-merged reads
+        demux_illumina_notmerged(
+          merge_pe.out.nm,
+          prep_barcodes.out.barcodesm)
+
+        // Channel of non-merged reads by sample (split into sample tuples)
+        // ch_R1 = demux_illumina_notmerged.out.demux_pe....
+
+        // Non-merged sample list
+        ch_nonmerged = demux_illumina_notmerged.out.samples_nonm_pe.splitText().map{it -> it.trim()}
+
+        // Trim primers of nonmerged PE reads
+        // Estimate sequence qualities
+        // Dereplicate R1 and R2 independently
+        // trim_primers_pe(demux_illumina_notmerged.out.demux_pe.flatten())
+
+        // Join nonmerged reads with poly-N pads
+        join_pe(
+          ch_nonmerged,
+          demux_illumina_notmerged.out.demux_pe.flatten().collect()   // all non-merged R1 and R2 files
+          )
+
+        // Add joined reads to the merged reads
+        ch_joined = join_pe.out.jj_FQ.flatten()
+        ch_demuxed = ch_demux_merged.concat(ch_joined)
+
+      } else { // end of Illumina non-merged reads
+
+        // Channel with demultiplexed reads
+        ch_demuxed = ch_demux_merged
+
+      }
+
+      // Check primers
+      primer_check(
+        ch_demuxed,
+        disambiguate.out.F,
+        disambiguate.out.R,
+        disambiguate.out.Fr,
+        disambiguate.out.Rr
+        )
+
+    } // end of Illumina-specific tasks
+
 
     // Extract ITS
-    itsx(primer_check.out.fq_primer_checked)
+    if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2"){
 
-    // Merge tables with sequence qualities
-    seq_qual(itsx.out.hashes.collect())
+      // Run ITSx
+      itsx(primer_check.out.fq_primer_checked)
 
-    // Homopolymer compression on full-length ITS sequences
-    homopolymer(itsx.out.itsx_full)
+      // Merge tables with sequence qualities
+      seq_qual(itsx.out.hashes.collect())
+    }
 
-    // Reference-based chimera removal
-    ch_chimerabd = Channel.value(params.chimera_db)
-    chimera_ref(homopolymer.out.hc, ch_chimerabd)
+    // Trim the primers (instead of ITS extraction)
+    if(params.its_region == "none"){
+      
+      // Trim primers with cutadapt
+      trim_primers(primer_check.out.fq_primer_checked)
+
+      // Merge tables with sequence qualities
+      seq_qual(trim_primers.out.hashes.collect())
+    }
+
+
+    // Homopolymer compression
+    if(params.hp == true){
+
+        // --Full-length ITS sequences
+        if(params.its_region == "full"){
+          homopolymer(itsx.out.itsx_full)
+        }
+        // --ITS1 sequences
+        if(params.its_region == "ITS1"){
+          homopolymer(itsx.out.itsx_its1)
+        }
+        // --ITS2 sequences
+        if(params.its_region == "ITS2"){
+          homopolymer(itsx.out.itsx_its2)
+        }
+        // --Primer-trimmed sequences
+        if(params.its_region == "none"){
+          homopolymer(trim_primers.out.primertrimmed_fa)
+        }
+    
+    
+        // Reference-based chimera removal
+        ch_chimerabd = Channel.value(params.chimera_db)
+        chimera_ref(homopolymer.out.hc, ch_chimerabd)
+    
+        // De novo chimera search
+        chimera_denovo(homopolymer.out.hc)
+
+    } else {
+      // No homopolymer comression is required,
+      // Just dereplicate the data
+
+      if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2"){
+        // --Full-length ITS sequences
+        if(params.its_region == "full"){
+          just_derep(itsx.out.itsx_full)
+        }
+        // --ITS1 sequences
+        if(params.its_region == "ITS1"){
+          just_derep(itsx.out.itsx_its1)
+        }
+        // --ITS2 sequences
+        if(params.its_region == "ITS2"){
+          just_derep(itsx.out.itsx_its2)
+        }
+
+        // Reference-based chimera removal
+        ch_chimerabd = Channel.value(params.chimera_db)
+        chimera_ref(just_derep.out.nhc, ch_chimerabd)
+
+        // De novo chimera search
+        chimera_denovo(just_derep.out.nhc)
+
+      }  // end of ITS
+
+      // --Primer-trimmed sequences are already dereplicated
+      if(params.its_region == "none"){
+          
+        // just_derep(trim_primers.out.primertrimmed_fa)
+
+        // Reference-based chimera removal
+        ch_chimerabd = Channel.value(params.chimera_db)
+        chimera_ref(trim_primers.out.primertrimmed_fa, ch_chimerabd)
+
+        // De novo chimera search
+        chimera_denovo(trim_primers.out.primertrimmed_fa)
+      }
+
+    }
 
     // Chimera rescue
     ch_chimerafiles = chimera_ref.out.chimeric.collect()
     chimera_rescue(ch_chimerafiles)
-
-    // De novo chimera search
-    chimera_denovo(homopolymer.out.hc)
 
     // Aggregate de novo chimeras into a single file
     chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
@@ -2268,9 +2426,14 @@ workflow {
       seq_qual.out.quals                    // sequence qualities
       )
 
+    // // Read count summary
+    // read_counts(
+    //     ch_input,
+    //     demux.out.samples_demux
+    //     )
 
 
-    // BLAST (optional)
+    // BLAST sub-workflow (optional)
     if ( params.blast_taxdb ) {
 
       // Split FASTA sequences (globally dereplicated) into 
@@ -2286,7 +2449,8 @@ workflow {
 
       // Parse BLAST results
       // parse_blast()
-    }
+    
+    } // end of BLAST
 
 
 }
