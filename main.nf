@@ -102,6 +102,13 @@ params.pe_difflimit = 5
 params.pe_diffperclimit = 20
 params.pe_nlimit = 10               // disabled
 params.pe_minlen = 30
+
+// What to do with not merged reads (Illumina-only)
+params.illumina_keep_notmerged = true
+params.illumina_joinpadgap  = "NNNNNNNNNN"
+params.illumina_joinpadqual = "IIIIIIIIII"  // quality score of 40
+
+
 // Primer checks
 params.primer_forward = "GTACACACCGCCCGTCG"    // ITS9mun
 params.primer_reverse = "CCTSCSCTTANTDATATGC"  // ITS4ngsUni
