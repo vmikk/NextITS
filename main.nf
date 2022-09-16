@@ -125,6 +125,7 @@ params.ITSx_tax = "all"
 /// params.ITSx_singledomain = true ....  optional arguments
 
 // Homopolymer compression
+params.hp = true
 params.hp_similarity = 0.999
 params.hp_iddef = 2
 
