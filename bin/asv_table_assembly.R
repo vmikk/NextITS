@@ -1,0 +1,285 @@
+#!/usr/bin/Rscript
+
+## Script to perform tag-jump removal
+
+## To do:
+#  - check if putative chimeric sequences occurrs in the other samples
+#  - reorder sequences in FASTA output?
+#  - export data in Excel format? (if table is not too large)
+#  - compress output tabs?
+
+
+# Input is given as positional arguments:
+#   1. non-filtered ASV table   (`ASV_tab_not_filtered.txt.gz`)
+#   2. ASV sequences            (`ASV_not_filtered.fa.gz`)
+#   3. sequence mapping to OTUs (`Sample_mapping.uc.gz`)
+#   4. tag-jumped OTU list      (`TagJump_OTUs.RData`)
+#   5. de novo chimera scores   (`DeNovo_Chimera.txt`)
+#   6. sequence qualities       (`SeqQualities.txt.gz`)
+
+# Outputs:
+#  - FASTA with filtered ASVs       `ASVs.fa.gz`
+#  - ASV table in long format       `ASVs.txt.gz`  (with additional sequence info)
+#  - ASV table in wide format       `ASV_tab.txt.gz`
+#  - Data in R-serialization format `ASVs.RData`
+
+
+args <- commandArgs(trailingOnly = TRUE)
+
+## Debug:
+# args <- c(
+#   "ASV_tab_not_filtered.txt.gz",
+#   "ASV_not_filtered.fa.gz",
+#   "Sample_mapping.uc.gz",
+#   "TagJump_OTUs.RData",
+#   "DeNovo_Chimera.txt",
+#   "SeqQualities.txt.gz"
+#   )
+
+suppressMessages(library(data.table))
+suppressMessages(library(Biostrings))
+suppressMessages(library(plyr))
+suppressMessages(library(openxlsx))
+
+
+######################################
+###################################### Load the data
+######################################
+
+## Load ASV table
+cat("..Loading non-filtered ASV table\n")
+TAB <- fread(
+  file = args[1],
+  sep = "\t", header = FALSE,
+  col.names = c("SeqID", "Abundance", "SampleID"))
+
+
+## Load ASV sequences
+cat("..Loading ASV sequneces\n")
+SQS <- readDNAStringSet(filepath = args[2])
+
+
+## Load sequence mapping to OTUs
+cat("..Loading sequence mapping table\n")
+MAP <- fread(
+  file = args[3],
+  header = FALSE, sep = "\t")
+
+MAP <- MAP[ V1 != "S" ]
+MAP[, c("SeqID", "SampleID") := tstrsplit(V9, ";", keep = c(1,3)) ]
+MAP[, OTU := tstrsplit(V10, ";", keep = 1) ]
+MAP[V1 == "C", OTU := SeqID ]
+MAP[, SampleID := gsub(pattern = "sample=", replacement = "", x = SampleID) ]
+MAP <- MAP[, .(SeqID, SampleID, OTU) ]
+
+
+## Load list of tag-jumped OTUs
+cat("..Loading list of tag-jumped OTUs\n")
+JMP <- readRDS( args[4] )
+
+
+## Load de novo chimera scores
+cat("..Loading de novo chimera scores\n")
+CHI <- fread(
+  file = args[5],
+  header = FALSE, sep = "\t",
+  col.names = c("SeqID", "DeNovo_Chimera_Score", "SampleID"))
+
+
+## Load sequence quality scores
+cat("..Loading sequence quality scores\n")
+QLT <- fread(
+  file = args[6],
+  header = TRUE, sep = "\t")
+  # header = FALSE, col.names = c("SampleID", "SeqID", "SeqLen", "PhredScore", "MaxEE", "MEEP"))
+
+
+
+## Create SeqID___SampleID column
+TAB[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
+QLT[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
+MAP[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
+
+MAP[, c("SeqID", "SampleID") := NULL ]
+
+######################################
+###################################### Remove tag-jumps
+######################################
+
+cat("..Removing tag-jumped sequences\n")
+
+if(nrow(JMP) > 0){
+
+  JMP[ , TagJump := TRUE ]
+
+  ## Add OTU ID to sequences
+  cat("...Adding OTU IDs to sequences\n")
+
+  TAB <- merge(x = TAB, y = MAP,
+    by = "SeqID___SampleID", all.x = TRUE)
+
+  ## Add tag-jump information to the ASV table
+  TAB <- merge(x = TAB, y = JMP,
+    by = c("OTU", "SampleID"), all.x = TRUE)
+
+  cat("... ", sum(TAB$TagJump, na.rm = TRUE), " tag-jump occurrences detected\n")
+
+  ## Remove tag-jumps
+  if(any(TAB$TagJump)){
+    TAB <- TAB[(!TagJump %in% TRUE)]
+    # because of NAs, TAB[ ! TagJump ] does not work properly
+  }
+
+  TAB[, TagJump := NULL ]
+  TAB[, OTU := NULL ]
+
+# end of `nrow(JMP) > 0`
+} else {
+
+  cat("...no tag-jumps found\n")
+
+}
+
+
+######################################
+###################################### Add singleton qualities
+######################################
+
+cat("..Looking for singleton sequences\n")
+
+## Find singletons
+cat("...Counting sequence occurrence\n")
+SNG <- TAB[ , .(Occurrence = .N), by = "SeqID" ]
+SNG <- SNG[ Occurrence < 2 ]$SeqID
+
+cat("... ", length(SNG), " sequences with single occurrence found\n")
+
+## Remove non-singleton seqs from the quality table
+if(length(SNG) > 0){
+  cat("...Subsetting quality table\n")
+  
+  ## Remove sequences with multiple reads
+  dups <- QLT$SeqID___SampleID[ which(duplicated(QLT$SeqID___SampleID)) ]
+  if(length(dups) > 0){
+    QLT <- QLT[ ! SeqID___SampleID %in% dups ]
+  }
+
+  ## Keep only single-occurrence sequence
+  QLT <- QLT[ SeqID %in% SNG ]
+  QLT[ , SeqLen := NULL ]
+}
+
+## Add Phred scores to the main table
+if(nrow(QLT) > 0){
+
+cat("...Adding Phred-scores to the main table\n")
+TAB <- merge(x = TAB,
+  y = QLT[, .(SeqID___SampleID, PhredScore, MaxEE, MEEP) ],
+  by = c("SeqID___SampleID"), all.x = TRUE)
+
+## Remove scores for non-singleton sequences
+TAB[ Abundance > 1, PhredScore := NA ]
+TAB[ Abundance > 1, MaxEE := NA ]
+TAB[ Abundance > 1, MEEP := NA ]
+
+} else {
+## No singletons
+TAB[ , PhredScore := NA ]
+TAB[ , MaxEE := NA ]
+TAB[ , MEEP := NA ]
+}
+
+
+# with(TAB, plot(Abundance, PhredScore))
+
+
+######################################
+###################################### Add chimera info
+######################################
+
+cat("..Adding info about de novo chimeric sequences\n")
+
+TAB <- merge(x = TAB, y = CHI,
+  by = c("SeqID", "SampleID"), all.x = TRUE)
+
+TAB[ !is.na(DeNovo_Chimera_Score), DeNovo_Chimera := TRUE  ]
+TAB[  is.na(DeNovo_Chimera_Score), DeNovo_Chimera := FALSE ]
+
+cat("... ", sum( TAB$DeNovo_Chimera), " putative de novo chimeras found\n")
+cat("... ", sum(!TAB$DeNovo_Chimera), " non-chimeric sequences\n")
+
+
+######################################
+###################################### Add sequences
+######################################
+
+cat("..Processing sequences\n")
+
+SQTAB <- data.table(
+  SeqHeader = names(SQS),
+  Sequence = as.character(SQS))
+
+## Split the header  (`feb76b9;size=1;sample=ABCD;` )
+SQTAB[ , c("SeqID", "SampleID") := tstrsplit(x = SeqHeader, split = ";", keep = c(1,3)) ]
+SQTAB[ , SeqHeader := NULL ]
+SQTAB[ , SampleID := gsub(pattern = "sample=", replacement = "", x = SampleID) ]
+
+
+SQTAB[ , SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
+SQTAB[ , c("SeqID", "SampleID") := NULL ]
+
+cat("..Adding sequences to the main table\n")
+
+TAB <- merge(x = TAB, y = SQTAB,
+  by = c("SeqID___SampleID"), all.x = TRUE)
+
+
+cat("..Preparing FASTA file with filtered ASVs\n")
+
+SQF <- DNAStringSet(x = TAB$Sequence)
+names(SQF) <- paste0(TAB$SeqID, ";size=", TAB$Abundance, ";sample=", TAB$SampleID, ";")
+
+## Export FASTA
+cat("..Exporting FASTA file with filtered ASVs\n")
+
+writeXStringSet(x = SQF,
+  filepath = "ASVs.fa.gz",
+  compress = TRUE, format = "fasta", width = 9999)
+
+
+######################################
+###################################### Export results
+######################################
+
+cat("..Reshaping ASV table into wide format\n")
+
+TABW <- dcast(data = TAB,
+  formula = SeqID ~ SampleID, 
+  value.var = "Abundance",
+  fill = 0)
+
+
+cat("..Exporting result\n")
+
+cat("...Exporting RData\n")
+saveRDS(object = TAB, file = "ASVs.RData", compress = "xz")
+
+## Long table
+cat("...Exporting long table\n")
+
+TAB[ , SeqID___SampleID := NULL ]
+setcolorder(
+  x = TAB,
+  neworder = c("SampleID", "SeqID", "Abundance",
+               "PhredScore", "MaxEE", "MEEP",
+               "DeNovo_Chimera", "DeNovo_Chimera_Score",
+               "Sequence"))
+
+fwrite(x = TAB, file = "ASVs.txt.gz", sep = "\t", compress = "gzip")
+
+## Wide table
+cat("...Exporting wide table\n")
+fwrite(x = TABW, file = "ASV_tab.txt.gz", sep = "\t", compress = "gzip")
+
+
+cat("All done.")
