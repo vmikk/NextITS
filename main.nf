@@ -198,6 +198,10 @@ if (params.input == false && params.seqplatform == "PacBio") {
     println( "Please provide the input file with sequences in FASTQ.gz format with `--input` parameter.")
     exit(1)
 }
+if (params.input_R1 == false && params.input_R2 == false && params.seqplatform == "Illumina") {
+    println( "Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
+    exit(1)
+}
 if (params.barcodes == false) {
     println( "Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
     exit(1)
