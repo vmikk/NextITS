@@ -214,6 +214,11 @@ if (params.chimera_db == false) {
     exit(1)
 }
 
+if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
+    println( "Homopolymer compression is not implemented for Illumina non-merged reads.")
+    exit(1)
+}
+
 
 // Print the parameters to the console and to the log
 log.info """
