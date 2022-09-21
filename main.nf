@@ -124,6 +124,9 @@ params.ITSx_partial = 0     // off, otherwise specify min length cutoff for part
 params.ITSx_tax = "all"
 /// params.ITSx_singledomain = true ....  optional arguments
 
+// Primer trimming (for Illumina)
+params.trim_minlen = 10
+
 // Homopolymer compression
 params.hp = true
 params.hp_similarity = 0.999
