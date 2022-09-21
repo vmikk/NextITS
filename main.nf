@@ -220,6 +220,11 @@ if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_kee
 }
 
 
+if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true && params.its_region != "none") {
+    println( "WARNING: Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.")
+}
+
+
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
