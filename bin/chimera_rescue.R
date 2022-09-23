@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/bin/env Rscript
 
 ## Script to rescue sequences that were annotated as chimeric, 
 ## but have high occurrence within sequenceing run (occurrence > 2) 

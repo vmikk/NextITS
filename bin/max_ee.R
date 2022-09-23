@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/bin/env Rscript
 
 ## Script to combine Phred scores and MaxEE estimates
 

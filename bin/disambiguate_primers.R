@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/bin/env Rscript
 
 ## The script to disambiguate sequences
 ## (expand ambiguous nucleotides into all combinations)

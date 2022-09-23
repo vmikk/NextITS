@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/bin/env Rscript
 
 ## Script to replace homopolymer-comressed sequences with non-compressed seqs
 ## + update size annotation
