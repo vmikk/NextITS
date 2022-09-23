@@ -180,14 +180,85 @@ def helpMsg() {
     
     Options:
     REQUIRED:
-        --input               Path to the directory with parquet files (GBIF occurrcence dump)
-        --outdir              The output directory where the results will be saved
+        --input           File with single-end input sequences, PacBio (FASTQ)
+        --input_R1        Files with paired-end input sequences, Illumina (FASTQ)
+        --input_R2
+        --barcodes        Barcodes for demultiplexing (FASTA)
+        --outdir          The output directory where the results will be saved
 
     OPTIONAL:
-        --phylum              Phylum to analyze (multiple comma-separated values allowed); e.g., "Chordata"
-        --class               Class to analyze (multiple comma-separated values allowed); e.g., "Mammalia"
+        --seqplatform       Sequencing platform type - "PacBio" (default) or "Illumina"
+        --its_region        ITS part selector - "full" (defalut), "ITS1", "ITS2", "none" (trims primers only)
+        --primer_forward    Forward primer sequence (default, ITS9mun)
+        --primer_reverse    Reverse primer sequence (default, ITS4ngsUni)
+        --primer_mismatches
+        --primer_foverlap   Min primer overlap (default, F primer length - 2)
+        --primer_roverlap   Min primer overlap (default, R primer length - 2)
+        --qc_maxn           Discard sequences with more than the specified number of N’s 
+        --ITSx_tax          ITSx taxonomy profile (default, "all")
+        --ITSx_evalue       ITSx E-value cutoff threshold (default, 1e-1)
+        --ITSx_partial      Keep partial ITS sequences (defalt, off), otherwise specify min length cutoff
+        --hp                Homopolymer compression (default, true)
+        --hp_similarity     Allowed sequence similarity for homopolymer compression (default, 0.999)
+        --hp_iddef          Sequence similarity definition for homopolymer compression (default, 2)
+        
+      # Chimera identification
+        --chimera_db               Database for reference-based chimera removal
+        --chimera_rescueoccurrence Min occurrence of chimeric sequences required to rescue them (default, 2)
+        --chimeranov_abskew   De novo chimera identification `abskew` parameter (default, 2.0)
+        --chimeranov_dn       De novo chimera identification `dn` parameter (default, 1.4)
+        --chimeranov_mindiffs De novo chimera identification `mindiffs` parameter (default, 3)
+        --chimeranov_mindiv   De novo chimera identification `mindiv` parameter (default, 0.8)
+        --chimeranov_minh     De novo chimera identification `minh` parameter (default, 0.28)
+        --chimeranov_xn       De novo chimera identification `xn` parameter (default, 8.0)
+
+      # Tag-jump removal
+        --tj_f      Tag-jump filtering, UNCROSS parameter `f` (default, 0.01)
+        --tj_p      Tag-jump filtering parameter `p` (default, 1)
+        --otu_id    Sequence similarity for OTU clustering (default, 0.98)
+        --otu_iddef Sequence similarity definition for tag-jump removal step (default, 2)
+
+      # PacBio-specific parameters
+        --qc_maxee
+        --qc_maxeerate
+        --lima_minscore
+        --lima_dualbarcode
+        --lima_W
+        --lima_minlen
+
+      # Illumina-specific parameters
+        --qc_avgphred
+        --qc_twocolor
+        --qc_phredmin 
+        --qc_phredperc
+        --qc_polyglen 
+        --barcode_window
+        --barcode_errors
+        --barcode_overlap
+        --pe_minoverlap
+        --pe_difflimit
+        --pe_diffperclimit
+        --pe_nlimit
+        --pe_minlen
+        --illumina_keep_notmerged
+        --illumina_joinpadgap
+        --illumina_joinpadqual
+        --trim_minlen              Min sequence length after primer trimming (default, 10)
+
+      # Taxonomy annotaion
+        --blast_taxdb     Path to BLAST database (default, false)
+        --blast_task      Blast task type - "blastn" (default) or "megablast
+        --blast_chunksize Number of sequences per BLAST task (default, 100)
+        --blast_maxts     Max target seqs (default, 10)
+        --blast_hsps      Number of high-scoring segment pairs (default, 1)
+        --blast_wordsize  BLAST word size
+
     NEXTFLOW-SPECIFIC:
-        -qs                   Queue size (max number of processes that can be executed in parallel); e.g., 8
+        -profile       Configuration profile
+        -resume        Execute the pipeline using the cached results (e.g., in case of )
+        -work-dir      Path to the directory where intermediate result files are stored
+        -qs            Queue size (max number of processes that can be executed in parallel); e.g., 8
+        -r             Pipeline version to run (GitHub branch, tag, or SHA number)
     """.stripIndent()
 }
 // Show help msg
