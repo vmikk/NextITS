@@ -1,4 +1,4 @@
-# NextITS
+# NextITS <img src='images/NextITS_logo.svg' align="right" height="90" />
 
 [![Nextflow](https://img.shields.io/badge/Nextflow%20DSL2-%E2%89%A522.04.5-23aa62.svg)](https://www.nextflow.io/)
 [![Runs with singularity](https://img.shields.io/badge/Runs%20with-Singularity-blue?style=flat&logo=singularity)](https://sylabs.io/docs/)
