@@ -219,30 +219,29 @@ def helpMsg() {
         --otu_iddef Sequence similarity definition for tag-jump removal step (default, 2)
 
       # PacBio-specific parameters
-        --qc_maxee
-        --qc_maxeerate
-        --lima_minscore
-        --lima_dualbarcode
-        --lima_W
-        --lima_minlen
+        --qc_maxee         Maximum number of expected errors (default, false)
+        --qc_maxeerate     Maximum number of expected errors per base (default, 0.01)
+        --lima_minscore    Barcode score for demultiplexing (default, 93)
+        --lima_dualbarcode Dual-barcoding scheme with identical barcodes at both ends (default, true)
+        --lima_W           Window size for barcode lookup (default, 70 bp)
+        --lima_minlen      Minimum sequence length after clipping barcodes (default, 40)
 
       # Illumina-specific parameters
-        --qc_avgphred
-        --qc_twocolor
-        --qc_phredmin 
-        --qc_phredperc
-        --qc_polyglen 
-        --barcode_window
-        --barcode_errors
-        --barcode_overlap
-        --pe_minoverlap
-        --pe_difflimit
-        --pe_diffperclimit
-        --pe_nlimit
-        --pe_minlen
-        --illumina_keep_notmerged
-        --illumina_joinpadgap
-        --illumina_joinpadqual
+        --qc_avgphred      Average Phred score for QC (default, false)
+        --qc_twocolor      Enable two-color chemistry mode, e.g. for Illumina NovaSeq (default, false)
+        --qc_phredmin      Two-color mode: min Phred score of qualified bases (default, 24)
+        --qc_phredperc     Two-color mode: Percentage of bases allowed to be unqualified (default, 30)
+        --qc_polyglen      Two-color mode: minimum length of polyG tail (default, 8)
+        --barcode_window   Window size for barcode lookup (default, 30 bp)
+        --barcode_errors   Maximum allowed number of errors in barcodes (default, 1)
+        --barcode_overlap  Min overlap between read and barcode (default, 11)
+        --pe_minoverlap    Min length to detect overlapped region of PE reads (default, 20)
+        --pe_difflimit     Max number of mismatched bases in PE overlap (default, 5)
+        --pe_diffperclimit Max percentage of mismatched bases in PE overlap (default, 20)
+        --pe_minlen        Min length of merged sequences (default, 30)
+        --illumina_keep_notmerged  Keep not merged Illumina reads (default, true)
+        --illumina_joinpadgap      Join not merged reads into one sequence using padding sequence string (default, NNNNNNNNNN)
+        --illumina_joinpadqual     Join not merged reads into one sequence using padding quality string (default, IIIIIIIIII)
         --trim_minlen              Min sequence length after primer trimming (default, 10)
 
       # Taxonomy annotaion
