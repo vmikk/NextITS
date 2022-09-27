@@ -303,6 +303,7 @@ log.info """
     Input data path: ${params.input}
     Barcodes:        ${params.barcodes}
     Output path:     ${params.outdir}
+    ITS region:      ${params.its_region}
     """
     .stripIndent()
 
