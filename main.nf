@@ -827,6 +827,12 @@ process primer_check {
 
     ## Clean up
     if [ -f no_multiprimers.fq.gz ]; then rm no_multiprimers.fq.gz; fi
+
+    ## Remove empty file (no valid sequences)
+    echo -e "\nRemoving empty files"
+    find . -type f -name ${input.getSimpleName()}_PrimerChecked.fq.gz -size -29c -print -delete
+    echo -e "..Done"
+    
     """
 }
 
