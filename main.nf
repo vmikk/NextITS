@@ -11,6 +11,11 @@
 ----------------------------------------------------------------------------
 */
 
+// NB!!:
+// - provide absolute paths to the input data (e.g. --input and --barcodes)
+// - File names should not contain period (.) characters (except for extensions)
+// - When providing a path to the BLAST DB (`--blast_taxdb`), do not add file extensions
+//   e.g., "/mnt/DB/UNITE/UNITE_96" (there should be multiple UNITE_96 files - ndb,nhr,nsq,...)
 
 // Dependencies:
 //  - lima >= 2.6.0
