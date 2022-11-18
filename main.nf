@@ -1603,6 +1603,7 @@ process pool_seqs {
       "zcat {} \
         | sed -r '/^>/ s/;sample=[^;]*/;/g ; s/;;/;/g' \
         | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g' \
+        | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: *.fa.gz \
       | gzip -7 \
