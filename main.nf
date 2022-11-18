@@ -246,7 +246,7 @@ def helpMsg() {
 
       # Taxonomy annotaion
         --blast_taxdb     Path to BLAST database (default, false)
-        --blast_task      Blast task type - "blastn" (default) or "megablast
+        --blast_task      Blast task type - "blastn" (default) or "megablast"
         --blast_chunksize Number of sequences per BLAST task (default, 100)
         --blast_maxts     Max target seqs (default, 10)
         --blast_hsps      Number of high-scoring segment pairs (default, 1)
@@ -1000,9 +1000,9 @@ process trim_primers {
 
     script:
     sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
-    
+
     """
-    echo -e "Input sample: " ${sampID}
+    echo -e "Input sample: "   ${sampID}
     echo -e "Forward primer: " ${params.primer_forward}
     echo -e "Reverse primer: " ${params.primer_reverse}
 
