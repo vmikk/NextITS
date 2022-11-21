@@ -2289,7 +2289,7 @@ process join_pe {
 
     ## Check if there are some sequences in the file
     if [ -n "\$(find . -name ${sampID}_JoinedPE.fq.gz -prune -size +29c)" ]; then
-      
+
       echo -e "\nJoining without N-pads (for quality estimation)"
       vsearch \
         --fastq_join ${input}.R1.fastq.gz \
@@ -2484,6 +2484,25 @@ workflow {
       seq_qual(trim_primers.out.hashes.collect())
     }
 
+    // Trim the primers, run ITSx, and assemble near-full-length ITS
+    if(params.its_region == "ITS1_5.8S_ITS2"){
+      
+      // Trim primers with cutadapt
+      trim_primers(primer_check.out.fq_primer_checked)
+
+      // Run ITSx
+      itsx(trim_primers.out.primertrimmed_fq)
+
+      // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
+      assemble_its(
+        itsx.out.itsx_its1,
+        itsx.out.itsx_58s,
+        itsx.out.itsx_its2)
+
+      // Merge tables with sequence qualities
+      seq_qual(itsx.out.hashes.collect())
+    }
+
 
     // Homopolymer compression
     if(params.hp == true){
@@ -2504,7 +2523,10 @@ workflow {
         if(params.its_region == "none"){
           homopolymer(trim_primers.out.primertrimmed_fa)
         }
-    
+        // Near-full-length ITS
+        if(params.its_region == "ITS1_5.8S_ITS2"){
+          homopolymer(assemble_its.out.itsnf)
+        }
     
         // Reference-based chimera removal
         ch_chimerabd = Channel.value(params.chimera_db)
@@ -2553,7 +2575,18 @@ workflow {
         chimera_denovo(trim_primers.out.primertrimmed_fa)
       }
 
-    }
+      // Assembled ITS is also primer trimmed and dereplicated
+      if(params.its_region == "ITS1_5.8S_ITS2"){
+
+        // Reference-based chimera removal
+        ch_chimerabd = Channel.value(params.chimera_db)
+        chimera_ref(assemble_its.out.itsnf, ch_chimerabd)
+
+        // De novo chimera search
+        chimera_denovo(assemble_its.out.itsnf)
+      }
+
+    } // end of homopolymer correction condition
 
     // Chimera rescue
     ch_chimerafiles = chimera_ref.out.chimeric.collect()
