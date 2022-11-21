@@ -71,7 +71,11 @@ params.seqplatform = "PacBio"
 // params.seqplatform = "Illumina"
 
 // ITS part selector
-params.its_region = "full"    // full / ITS1 / ITS2 / none (just trim primers)
+params.its_region = "full"
+//   "full" = default (full-length ITS sequence, after trimming SSU and LSU regions by ITSx)
+//   "ITS1" or "ITS2" = 
+//   "none" = just trim primers
+//   "ITS1_5.8S_ITS2" = assemble near-full-length ITS from ITSx output (useful in the case if primers are too close to SSU or LSU, and ITSx is not able to detect full-length sequence)
 
 // Quality control
 params.qc_maxee     = false    // only for single-end reads
