@@ -1103,6 +1103,66 @@ process trim_primers {
 }
 
 
+
+// Assemble near-full-length ITS from ITSx output
+process assemble_its {
+
+    label "main_container"
+
+    publishDir "${out_3_itsx}", mode: 'symlink'
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${ITS1.getSimpleName()}"
+
+    input:
+      path ITS1
+      path S58
+      path ITS2
+
+    output:
+      path "${ITS1.getSimpleName()}_ITS1_58S_ITS2.fasta.gz", emit: itsnf, optional: true
+      // path "ITS1_58S.fasta.gz",   emit: its1p, optional: true
+      // path "58S_ITS2.fasta.gz",   emit: its2p, optional: true
+
+    script:
+    sampID="${ITS1.getSimpleName()}"
+
+    """
+    echo -e "Checking if ITS1, 5.8S, and ITS2 parts are available"
+
+    if [[ -f ${ITS1} && ${S58} && ${ITS2} ]]; then
+
+      echo -e "\n..All parts found"
+
+      ## Prepare tables for ID matching
+      echo -e "\n..Converting data to tabular format"
+      seqkit fx2tab ${ITS1} | sed 's/\t\$//g' | csvtk add-header -t -n id,ITS1 > tmp_1_ITS1.txt
+      seqkit fx2tab ${S58}  | sed 's/\t\$//g' | csvtk add-header -t -n id,58S  > tmp_1_s58.txt
+      seqkit fx2tab ${ITS2} | sed 's/\t\$//g' | csvtk add-header -t -n id,ITS2 > tmp_1_ITS2.txt
+
+      ## Join ITS fragments
+      echo -e "\n..Joining ITS fragments"
+      csvtk join -t -f   "id" tmp_1_ITS1.txt tmp_1_s58.txt tmp_1_ITS2.txt > tmp_2_ITS1_58S_ITS2.txt
+
+      ## Convert table back to fasta
+      ## Remove leading and trailing Ns
+      echo -e "\n..Preparing fasta"
+      awk 'NR>1 { print \$1 "\t" \$2 }' tmp_2_ITS1_58S_ITS2.txt \
+        | seqkit tab2fx -w 0  \
+        | seqkit replace -p "^n+|n+\$" -r "" -is -w 0 \
+        | gzip -6 > ${sampID}_ITS1_58S_ITS2.fasta.gz
+
+    else 
+      echo -e "\n..Some or all parts are missing"
+      echo -e "\n..Skipping ITS assembly for this sample"
+    fi
+
+    """
+}
+
+
+
 // Merge tables with sequence qualities
 process seq_qual {
 
