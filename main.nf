@@ -1200,17 +1200,17 @@ process homopolymer {
     // cpus 1
 
     // Add sample ID to the log file
-    tag "${input.getSimpleName()}"
+    tag "${input.getSimpleName().replaceAll(/_ITS1_58S_ITS2/, '')}"
 
     input:
       path input
 
     output:
-      path "${input.getSimpleName()}_Homopolymer_compressed.fa.gz", emit: hc, optional: true
-      path "${input.getSimpleName()}_uch.uc.gz", emit: uch, optional: true
+      path "${input.getSimpleName().replaceAll(/_ITS1_58S_ITS2/, '')}_Homopolymer_compressed.fa.gz", emit: hc, optional: true
+      path "${input.getSimpleName().replaceAll(/_ITS1_58S_ITS2/, '')}_uch.uc.gz", emit: uch, optional: true
 
     script:
-    sampID="${input.getSimpleName()}"
+    sampID="${input.getSimpleName().replaceAll(/_ITS1_58S_ITS2/, '')}"
 
     """
 
