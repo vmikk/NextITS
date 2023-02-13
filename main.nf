@@ -231,6 +231,7 @@ def helpMsg() {
       # PacBio-specific parameters
         --qc_maxee         Maximum number of expected errors (default, false)
         --qc_maxeerate     Maximum number of expected errors per base (default, 0.01)
+        --qc_maxhomopolymerlen  Threshold for a homopolymer region length in a sequence (default, 25)
         --lima_minscore    Barcode score for demultiplexing (default, 93)
         --lima_dualbarcode Dual-barcoding scheme with identical barcodes at both ends (default, true)
         --lima_W           Window size for barcode lookup (default, 70 bp)
