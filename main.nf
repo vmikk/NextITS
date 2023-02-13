@@ -293,7 +293,7 @@ if (params.input_R1 == false && params.input_R2 == false && params.seqplatform =
     println( "Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
     exit(1)
 }
-if (params.barcodes == false) {
+if (params.barcodes == false && params.demultiplexed == false) {
     println( "Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
     exit(1)
 }
@@ -304,6 +304,10 @@ if (params.chimera_db == false) {
 
 if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
     println( "Homopolymer compression is not implemented for Illumina non-merged reads.")
+    exit(1)
+}
+if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
+    println( "Handling demultiplexed data for Illumina is not implemented yet.")
     exit(1)
 }
 
