@@ -94,6 +94,13 @@ if(params.qc_twocolor == true){
   params.qc_polyglen  = false
 }
 
+
+// Is data dumultiplexed?
+// If false (default), input = 1 fastq file and 1 fasta file
+// If true,            input = multiple fastq files
+params.demultiplexed = false
+
+
 // Demultiplexing
 params.barcodes = false                        // FASTA file
 // PacBio & LIMA
@@ -2365,11 +2372,15 @@ process join_pe {
 //  The default workflow
 workflow {
 
+  // Primer disambiguation
+  disambiguate()
+
+
+  // Demultiplex data
+  if( params.demultiplexed == false ){
+    
     // Input file with barcodes (FASTA)
     ch_barcodes = Channel.value(params.barcodes)
-
-    // Primer disambiguation
-    disambiguate()
 
     // PacBio
     if ( params.seqplatform == "PacBio" ) {
@@ -2396,7 +2407,7 @@ workflow {
 
     } // end of PacBio-specific tasks
 
-    // Illumina 
+   // Illumina 
     if ( params.seqplatform == "Illumina" ) {
       
       // Input file with multiplexed pair-end reads (FASTQ.gz)
@@ -2467,6 +2478,31 @@ workflow {
         )
 
     } // end of Illumina-specific tasks
+
+  }   // end of demultiplexing
+
+
+
+  // If samples were already demuliplexed
+  if( params.demultiplexed == true ){
+
+    // Input files with demultiplexed reads (FASTQ.gz)
+    ch_input = Channel.fromPath( params.input + '/*.fastq.gz' )
+
+    // QC
+    qc_se(ch_input)
+
+    // Check primers
+    primer_check(
+      qc_se.out.filtered,
+      disambiguate.out.F,
+      disambiguate.out.R,
+      disambiguate.out.Fr,
+      disambiguate.out.Rr
+      )
+
+  }  // end of pre-demultiplexed branch
+
 
 
     // Extract ITS
