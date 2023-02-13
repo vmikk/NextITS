@@ -73,13 +73,14 @@ params.seqplatform = "PacBio"
 // ITS part selector
 params.its_region = "full"
 //   "full" = default (full-length ITS sequence, after trimming SSU and LSU regions by ITSx)
-//   "ITS1" or "ITS2" = 
+//   "ITS1" or "ITS2"
 //   "none" = just trim primers
 //   "ITS1_5.8S_ITS2" = assemble near-full-length ITS from ITSx output (useful in the case if primers are too close to SSU or LSU, and ITSx is not able to detect full-length sequence)
 
 // Quality control
-params.qc_maxee     = false    // only for single-end reads
-params.qc_maxeerate = 0.01     // only for single-end reads
+params.qc_maxee     = false       // only for single-end reads
+params.qc_maxeerate = 0.01        // only for single-end reads
+params.qc_maxhomopolymerlen = 25  // max len of homopolymer regions (if >=, sequence will be removed)
 params.qc_maxn      = 4
 params.qc_avgphred = false     // Only for PE reads
 params.qc_twocolor = false     // reduced resolution Phred-scores (two-color Illumina chemistry)
@@ -382,6 +383,9 @@ process qc_se {
       --fastq_maxns ${params.qc_maxn} \
       --threads ${task.cpus} \
       --fastqout - \
+    | seqkit grep \
+      --by-seq --ignore-case --invert-match --only-positive-strand --use-regexp -w 0 \
+      --pattern '"(A{${params.qc_maxhomopolymerlen},}|C{${params.qc_maxhomopolymerlen},}|T{${params.qc_maxhomopolymerlen},}|G{${params.qc_maxhomopolymerlen},})"' \
     | gzip -7 \
     > QC.fq.gz
 
