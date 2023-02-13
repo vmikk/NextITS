@@ -17,9 +17,17 @@ MINOCC <- as.numeric( args[2] )
 
 ## Load sequences
 cat("..Loading chimeric sequences\n")
-CH <- fread(file = args[1],
-  sep = "\t", header = F,
-  col.names = c("SeqID", "Seq"))
+CH <- try(
+  fread(file = args[1],
+    sep = "\t", header = F,
+    col.names = c("SeqID", "Seq"))
+  )
+
+if("try-error" %in% class(CH)){
+  cat("\nCould not read the file with chimeric sequences\n")
+  cat("Most likely, the file file is empty (no chimeras)\n")
+   q(save = "no", status = 0, runLast = FALSE)
+}
 
 cat("..Total number of chimeric records: ", nrow(CH), "\n")
 
