@@ -370,11 +370,14 @@ process qc_se {
 
     // cpus 10
 
+    // Add file ID to the log file
+    tag "${input.getSimpleName()}"
+
     input:
       path input
 
     output:
-      path "QC.fq.gz", emit: filtered
+      path "${input.getSimpleName()}.fq.gz", emit: filtered, optional: true
 
     script:
     filter_maxee      = params.qc_maxee      ? "--fastq_maxee ${params.qc_maxee}"          : ""
@@ -383,8 +386,12 @@ process qc_se {
     echo -e "QC"
     echo -e "Input file: " ${input}
 
+    ## We do not need to change the file name (output name should be the same as input)
+    ## Therefore, temporary rename input
+    mv ${input} inp.fq.gz
+
     vsearch \
-      --fastq_filter ${input} \
+      --fastq_filter inp.fq.gz \
       --fastq_qmax 93 \
       ${filter_maxee} \
       ${filter_maxeerate} \
@@ -395,7 +402,10 @@ process qc_se {
       --by-seq --ignore-case --invert-match --only-positive-strand --use-regexp -w 0 \
       --pattern '"(A{${params.qc_maxhomopolymerlen},}|C{${params.qc_maxhomopolymerlen},}|T{${params.qc_maxhomopolymerlen},}|G{${params.qc_maxhomopolymerlen},})"' \
     | gzip -7 \
-    > QC.fq.gz
+    > "${input.getSimpleName()}.fq.gz"
+
+    ## qc_maxhomopolymerlen
+    # e.g. "(A{26,}|C{26,}|T{26,}|G{26,})"
 
     echo -e "\nQC finished"
     """
