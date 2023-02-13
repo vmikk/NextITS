@@ -197,13 +197,14 @@ def helpMsg() {
     
     Options:
     REQUIRED:
-        --input           File with single-end input sequences, PacBio (FASTQ)
+        --input           File with single-end input sequences, PacBio (FASTQ) or a directory with pre-demultiplexed files
         --input_R1        Files with paired-end input sequences, Illumina (FASTQ)
         --input_R2
         --barcodes        Barcodes for demultiplexing (FASTA)
         --outdir          The output directory where the results will be saved
 
     OPTIONAL:
+        --demultiplexed     Boolean, input is muliplexed (true, single FASTQ file) or pre-demultiplexed (multiple FASTQ files)
         --seqplatform       Sequencing platform type - "PacBio" (default) or "Illumina"
         --its_region        ITS part selector - "full" (defalut), "ITS1", "ITS2", "none" (trims primers only)
         --primer_forward    Forward primer sequence (default, ITS9mun)
