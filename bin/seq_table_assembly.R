@@ -110,6 +110,7 @@ cat("..Removing tag-jumped sequences\n")
 
 if(nrow(JMP) > 0){
 
+  JMP[ , SeqID___SampleID := paste0(OTU, "___", SampleID) ]
   JMP[ , TagJump := TRUE ]
 
   ## Add OTU ID to sequences
@@ -189,6 +190,10 @@ TAB[ , MaxEE := NA ]
 TAB[ , MEEP := NA ]
 }
 
+## Convert variables to numberic scores
+TAB[ , PhredScore := as.numeric(PhredScore) ]
+TAB[ , MaxEE      := as.numeric(MaxEE) ]
+TAB[ , MEEP       := as.numeric(MEEP) ]
 
 # with(TAB, plot(Abundance, PhredScore))
 
@@ -202,6 +207,10 @@ cat("..Adding info about de novo chimeric sequences\n")
 TAB <- merge(x = TAB, y = CHI,
   by = c("SeqID", "SampleID"), all.x = TRUE)
 
+## Convert variables to numberic scores
+TAB[ , DeNovo_Chimera_Score := as.numeric(DeNovo_Chimera_Score) ]
+
+## Classify sequences into putative chimeras
 TAB[ !is.na(DeNovo_Chimera_Score), DeNovo_Chimera := TRUE  ]
 TAB[  is.na(DeNovo_Chimera_Score), DeNovo_Chimera := FALSE ]
 
@@ -245,6 +254,8 @@ cat("..Exporting FASTA file with filtered ASVs\n")
 writeXStringSet(x = SQF,
   filepath = "ASVs.fa.gz",
   compress = TRUE, format = "fasta", width = 9999)
+
+
 
 
 ######################################
