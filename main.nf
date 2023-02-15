@@ -362,8 +362,8 @@ out_3_trimPE = params.outdir + "/03_PrimerTrim_NotMerged"
 out_4_homop  = params.outdir + "/04_Homopolymer"
 out_5_chim   = params.outdir + "/05_Chimera"
 out_6_tj     = params.outdir + "/06_TagJumpFiltration"
-out_7_asv    = params.outdir + "/07_ASV_table"
 out_8_blast  = params.outdir + "/08_Taxonomy"
+out_7_seq    = params.outdir + "/07_Seq_table"
 
 
 
@@ -1797,7 +1797,7 @@ process prep_asvtab {
 
     label "main_container"
 
-    publishDir "${out_7_asv}", mode: 'symlink'
+    publishDir "${out_7_seq}", mode: 'symlink'
     // cpus 1
 
     input:
@@ -1818,9 +1818,9 @@ process prep_asvtab {
     script:
     """
 
-    echo -e "ASV table creation"
+    echo -e "Sequence table creation"
     
-    asv_table_assembly.R \
+    seq_table_assembly.R \
       ${asvtabnf} \
       ${asvsnf}   \
       ${mappings} \
