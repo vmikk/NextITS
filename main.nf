@@ -1175,7 +1175,7 @@ process assemble_its {
       ## Convert table back to fasta
       ## Remove leading and trailing Ns
       echo -e "\n..Preparing fasta"
-      awk 'NR>1 { print \$1 "\t" \$2 }' tmp_2_ITS1_58S_ITS2.txt \
+      awk 'NR>1 { print \$1 "\t" \$2\$3\$4 }' tmp_2_ITS1_58S_ITS2.txt \
         | seqkit tab2fx -w 0  \
         | seqkit replace -p "^n+|n+\$" -r "" -is -w 0 \
         | gzip -6 > ${sampID}_ITS1_58S_ITS2.fasta.gz
