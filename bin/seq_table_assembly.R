@@ -3,6 +3,7 @@
 ## Script to perform tag-jump removal
 
 ## To do:
+#  - add HMM profile ID if ITSx was used
 #  - check if putative chimeric sequences occurrs in the other samples
 #  - reorder sequences in FASTA output?
 #  - export data in Excel format? (if table is not too large)
@@ -10,26 +11,26 @@
 
 
 # Input is given as positional arguments:
-#   1. non-filtered ASV table   (`ASV_tab_not_filtered.txt.gz`)
-#   2. ASV sequences            (`ASV_not_filtered.fa.gz`)
+#   1. non-filtered Seq table   (`Seq_tab_not_filtered.txt.gz`)
+#   2. Sequences in fasta       (`Seq_not_filtered.fa.gz`)
 #   3. sequence mapping to OTUs (`Sample_mapping.uc.gz`)
 #   4. tag-jumped OTU list      (`TagJump_OTUs.RData`)
 #   5. de novo chimera scores   (`DeNovo_Chimera.txt`)
 #   6. sequence qualities       (`SeqQualities.txt.gz`)
 
 # Outputs:
-#  - FASTA with filtered ASVs       `ASVs.fa.gz`
-#  - ASV table in long format       `ASVs.txt.gz`  (with additional sequence info)
-#  - ASV table in wide format       `ASV_tab.txt.gz`
-#  - Data in R-serialization format `ASVs.RData`
+#  - FASTA with filtered Seqs       `Seqs.fa.gz`
+#  - Seq table in long format       `Seqs.txt.gz`  (with additional sequence info)
+#  - Seq table in wide format       `Seq_tab.txt.gz`
+#  - Data in R-serialization format `Seqs.RData`
 
 
 args <- commandArgs(trailingOnly = TRUE)
 
 ## Debug:
 # args <- c(
-#   "ASV_tab_not_filtered.txt.gz",
-#   "ASV_not_filtered.fa.gz",
+#   "Seq_tab_not_filtered.txt.gz",
+#   "Seq_not_filtered.fa.gz",
 #   "Sample_mapping.uc.gz",
 #   "TagJump_OTUs.RData",
 #   "DeNovo_Chimera.txt",
