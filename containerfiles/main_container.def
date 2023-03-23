@@ -1,5 +1,6 @@
 # NextITS - Singularity definition file, main container
 
+
 ## Build stage (Rust and Cargo), for runiq
 Bootstrap: docker
 From: rust:1.64
@@ -42,7 +43,7 @@ Stage: final
   apt-get update -qq \
   && apt-get -y --no-install-recommends install \
     tar zip unzip pigz gzip coreutils \
-    curl wget git less gawk nano rename \
+    curl wget git less gawk nano rename bc \
     ca-certificates locales  \
     libtre-dev libtre5 zlib1g zlib1g-dev \
     build-essential
@@ -56,6 +57,7 @@ Stage: final
 
   ## Install additional R packages
   install2.r --error --skipinstalled --ncpus -1 \
+    remotes \
     optparse \
     R.utils \
     data.table \
@@ -66,6 +68,7 @@ Stage: final
     openxlsx \
     && R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
+    && R -e 'remotes::install_github("vmikk/metagMisc")' \
     && rm -rf /tmp/downloaded_packages/
 
   ## Install conda
