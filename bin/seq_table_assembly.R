@@ -46,16 +46,16 @@ suppressMessages(library(openxlsx))
 ###################################### Load the data
 ######################################
 
-## Load ASV table
-cat("..Loading non-filtered ASV table\n")
+## Load sequnece table
+cat("..Loading non-filtered sequence table\n")
 TAB <- fread(
   file = args[1],
   sep = "\t", header = FALSE,
   col.names = c("SeqID", "Abundance", "SampleID"))
 
 
-## Load ASV sequences
-cat("..Loading ASV sequneces\n")
+## Load sequences in fasta format
+cat("..Loading sequneces in FASTA format\n")
 SQS <- readDNAStringSet(filepath = args[2])
 
 
@@ -110,7 +110,7 @@ cat("..Removing tag-jumped sequences\n")
 
 if(nrow(JMP) > 0){
 
-  JMP[ , SeqID___SampleID := paste0(OTU, "___", SampleID) ]
+  # JMP[ , SeqID___SampleID := paste0(OTU, "___", SampleID) ]
   JMP[ , TagJump := TRUE ]
 
   ## Add OTU ID to sequences
@@ -119,9 +119,10 @@ if(nrow(JMP) > 0){
   TAB <- merge(x = TAB, y = MAP,
     by = "SeqID___SampleID", all.x = TRUE)
 
-  ## Add tag-jump information to the ASV table
+  ## Add tag-jump information to the sequence table
   TAB <- merge(x = TAB, y = JMP,
-    by = c("OTU", "SampleID"), all.x = TRUE)
+    by = c("OTU", "SampleID"),
+    all.x = TRUE)
 
   cat("... ", sum(TAB$TagJump, na.rm = TRUE), " tag-jump occurrences detected\n")
 
@@ -243,16 +244,16 @@ TAB <- merge(x = TAB, y = SQTAB,
   by = c("SeqID___SampleID"), all.x = TRUE)
 
 
-cat("..Preparing FASTA file with filtered ASVs\n")
+cat("..Preparing FASTA file with filtered sequences\n")
 
 SQF <- DNAStringSet(x = TAB$Sequence)
 names(SQF) <- paste0(TAB$SeqID, ";size=", TAB$Abundance, ";sample=", TAB$SampleID, ";")
 
 ## Export FASTA
-cat("..Exporting FASTA file with filtered ASVs\n")
+cat("..Exporting FASTA file with filtered sequences\n")
 
 writeXStringSet(x = SQF,
-  filepath = "ASVs.fa.gz",
+  filepath = "Seqs.fa.gz",
   compress = TRUE, format = "fasta", width = 9999)
 
 
@@ -262,7 +263,7 @@ writeXStringSet(x = SQF,
 ###################################### Export results
 ######################################
 
-cat("..Reshaping ASV table into wide format\n")
+cat("..Reshaping sequence table into wide format\n")
 
 TABW <- dcast(data = TAB,
   formula = SeqID ~ SampleID, 
@@ -273,7 +274,7 @@ TABW <- dcast(data = TAB,
 cat("..Exporting result\n")
 
 cat("...Exporting RData\n")
-saveRDS(object = TAB, file = "ASVs.RData", compress = "xz")
+saveRDS(object = TAB, file = "Seqs.RData", compress = "xz")
 
 ## Long table
 cat("...Exporting long table\n")
@@ -286,11 +287,11 @@ setcolorder(
                "DeNovo_Chimera", "DeNovo_Chimera_Score",
                "Sequence"))
 
-fwrite(x = TAB, file = "ASVs.txt.gz", sep = "\t", compress = "gzip")
+fwrite(x = TAB, file = "Seqs.txt.gz", sep = "\t", compress = "gzip")
 
 ## Wide table
 cat("...Exporting wide table\n")
-fwrite(x = TABW, file = "ASV_tab.txt.gz", sep = "\t", compress = "gzip")
+fwrite(x = TABW, file = "Seq_tab.txt.gz", sep = "\t", compress = "gzip")
 
 
 cat("All done.")
