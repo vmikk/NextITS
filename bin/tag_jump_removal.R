@@ -14,7 +14,6 @@
 
 args <- commandArgs(trailingOnly = TRUE)
 
-suppressMessages(library(plyr))
 suppressMessages(library(data.table))
 suppressMessages(library(ggplot2))
 # library(openxlsx)
