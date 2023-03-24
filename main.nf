@@ -352,7 +352,6 @@ log.info "\n"
 
 
 // Define output paths for different steps
-out_0        = params.outdir
 out_1_demux  = params.outdir + "/01_Demux"
 out_1_joinPE = params.outdir + "/01_JoinedPE"
 out_2_primer = params.outdir + "/02_PrimerCheck"
@@ -362,8 +361,9 @@ out_3_trimPE = params.outdir + "/03_PrimerTrim_NotMerged"
 out_4_homop  = params.outdir + "/04_Homopolymer"
 out_5_chim   = params.outdir + "/05_Chimera"
 out_6_tj     = params.outdir + "/06_TagJumpFiltration"
-out_8_blast  = params.outdir + "/08_Taxonomy"
-out_7_seq    = params.outdir + "/07_Seq_table"
+out_7_seq    = params.outdir + "/07_SeqTable"
+out_8_smr    = params.outdir + "/08_RunSummary"
+out_9_blast  = params.outdir + "/09_Taxonomy"
 
 
 
