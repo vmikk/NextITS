@@ -1,5 +1,25 @@
 #!/usr/bin/env Rscript
 
+## Summarise number of reads per process
+
+# read_count_summary.R \
+#   --raw          Counts_1.RawData.txt \
+#   --qc           Counts_2.QC.txt \
+#   --demuxed      Counts_3.Demux.txt \
+#   --primer       Counts_4.PrimerCheck.txt \
+#   --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+#   --itsx         Counts_5.ITSx_or_PrimTrim.txt \
+#   --chimrefn     Counts_6.ChimRef_reads.txt \
+#   --chimrefu     Counts_6.ChimRef_uniqs.txt \
+#   --chimdenovo   Counts_7.ChimDenov.txt \
+#   --chimrecovn   Counts_8.ChimRecov_reads.txt \
+#   --chimrecovu   Counts_8.ChimRecov_uniqs.txt \
+#   --tj           TagJump_OTUs.RData \
+#   --seqtab       Seqs.RData \
+#   --threads      4
+
+
+
 ############################################## Parse input parameters
 
 ## Check time
