@@ -2832,7 +2832,7 @@ workflow {
     // Global dereplication
     glob_derep(ch_filteredseqs)
 
-    // Pool sequences (for ASV table)
+    // Pool sequences (for a final sequence table)
     pool_seqs(ch_filteredseqs)
 
     // OTU clustering
@@ -2841,15 +2841,15 @@ workflow {
     // Create OTU table
     otu_tab(
       otu_clust.out.otus,
-      pool_seqs.out.asvsnf)
+      pool_seqs.out.seqsnf)
 
     // Tag-jump removal
     tj(otu_tab.out.otutab)
 
-    // Create ASV table
-    prep_asvtab(
-      pool_seqs.out.asvtabnf,               // non-filtered ASV table
-      pool_seqs.out.asvsnf,                 // ASV sequences in FASTA
+    // Create sequence table
+    prep_seqtab(
+      pool_seqs.out.seqtabnf,               // non-filtered ASV table
+      pool_seqs.out.seqsnf,                 // ASV sequences in FASTA
       otu_tab.out.samples_uc,               // sequence mapping to OTUs
       tj.out.tjs,                           // tag-jumped OTU list
       chimera_denovo_agg.out.alldenovochim, // de novo chimera scores
