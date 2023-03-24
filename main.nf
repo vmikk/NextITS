@@ -467,14 +467,12 @@ process qc_pe {
 }
 
 
-
-
 // Demultiplexing with LIMA - for PacBio reads
 process demux {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: 'symlink'
+    publishDir "${out_1_demux}", mode: 'symlink'  // , saveAs: { filename -> "foo_$filename" }
     // cpus 10
 
     input:
@@ -1681,8 +1679,8 @@ process pool_seqs {
       path input
 
     output:
-      path "ASV_tab_not_filtered.txt.gz", emit: asvtabnf
-      path "ASV_not_filtered.fa.gz", emit: asvsnf
+      path "ASV_tab_not_filtered.txt.gz", emit: seqtabnf
+      path "ASV_not_filtered.fa.gz", emit: seqsnf
 
     script:
     """
