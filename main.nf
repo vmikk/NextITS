@@ -4,7 +4,7 @@
 ============================================================================
   NextITS: Pipeline to process fungal ITS amplicons
 ============================================================================
-  Version: v0.0.2
+  Version: v0.2.0
   License: Apache-2.0
   Github : https://github.com/vmikk/NextITS
   Website: TBA
@@ -53,7 +53,7 @@
 nextflow.enable.dsl = 2
 
 // Pipeline version
-version = '0.0.2'
+version = '0.2.0'
 
 // Initialize parameters, set default values
 params.data_path = "${projectDir}/pipeline_data"
