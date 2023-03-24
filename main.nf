@@ -1788,10 +1788,10 @@ process tj {
 }
 
 
-// Prepare ASV table only with non-tag-jumped sequences
+// Prepare a table with non-tag-jumped sequences
 // Add quality estimate to singletons
 // Add chimera-scores for putative de novo chimeras
-process prep_asvtab {
+process prep_seqtab {
 
     label "main_container"
 
@@ -1799,18 +1799,18 @@ process prep_asvtab {
     // cpus 1
 
     input:
-      path asvtabnf
-      path asvsnf
+      path seqtabnf
+      path seqsnf
       path mappings
       path tagjumps
       path denovos
       path quals
 
     output:
-      path "ASVs.txt.gz", emit: asv_tl
-      path "ASV_tab.txt.gz", emit: asv_tw
-      path "ASVs.fa.gz", emit: asv_fa
-      path "ASVs.RData", emit: asv_rd
+      path "Seqs.txt.gz",    emit: seq_tl
+      path "Seq_tab.txt.gz", emit: seq_tw
+      path "Seqs.fa.gz",     emit: seq_fa
+      path "Seqs.RData",     emit: seq_rd
 
 
     script:
@@ -1819,8 +1819,8 @@ process prep_asvtab {
     echo -e "Sequence table creation"
     
     seq_table_assembly.R \
-      ${asvtabnf} \
-      ${asvsnf}   \
+      ${seqtabnf} \
+      ${seqsnf}   \
       ${mappings} \
       ${tagjumps} \
       ${denovos}  \
