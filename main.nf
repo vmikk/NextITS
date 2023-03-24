@@ -2816,11 +2816,55 @@ workflow {
       seq_qual.out.quals                    // sequence qualities
       )
 
-    // // Read count summary
-    // read_counts(
-    //     ch_input,
-    //     demux.out.samples_demux
-    //     )
+    // Read count summary
+    if( params.demultiplexed == false ){
+
+      // Prepare input channels
+      ch_all_demux = demux.out.samples_demux.flatten().collect()
+      ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
+      ch_all_multiprimer = primer_check.out.mutiprimer.flatten().collect().ifEmpty(file("no_multiprimer"))
+      
+      // ITSx and primer trimming channel
+      if(params.its_region == "full"){
+        ch_all_trim = itsx.out.itsx_full.flatten().collect().ifEmpty(file("no_itsx"))
+      }
+      if(params.its_region == "ITS1"){
+        ch_all_trim = itsx.out.itsx_its1.flatten().collect().ifEmpty(file("no_itsx"))
+      }
+      if(params.its_region == "ITS2"){
+        ch_all_trim = itsx.out.itsx_its2.flatten().collect().ifEmpty(file("no_itsx"))
+      }
+      if(params.its_region == "ITS1_5.8S_ITS2"){
+        ch_all_trim = assemble_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
+      }
+      if(params.its_region == "none"){
+        ch_all_trim = trim_primers.out.primertrimmed_fq.flatten().collect().ifEmpty(file("no_primertrim"))
+      }
+
+      // Chimeric channels
+      ch_chimref = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
+      ch_chimdenovo = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
+      ch_chimrescued = chimera_rescue.out.rescuedchimeric.flatten().collect().ifEmpty(file("no_chimrescued"))
+
+      // Tag-jump filtering channel
+      ch_tj = tj.out.tjs
+
+      // Count reads and prepare summary stats for the run
+      read_counts(
+          ch_input,                // input data
+          qc_se.out.filtered,      // data that passed QC
+          ch_all_demux,            // demultiplexed sequences per sample
+          ch_all_primerchecked,    // primer-cheched sequences
+          ch_all_multiprimer,      // multiprimer artifacts
+          ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
+          ch_chimref,              // Reference-based chimeras
+          ch_chimdenovo,           // De novo chimeras
+          ch_chimrescued,          // Rescued chimeras
+          ch_tj,                   // Tag-jump filtering stats
+          prep_seqtab.out.seq_rd   // Final table with sequences
+          )
+
+    } // end of non-demux read counts
 
 
     // BLAST sub-workflow (optional)
