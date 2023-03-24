@@ -2382,6 +2382,181 @@ process join_pe {
 
 
 
+
+// Run summary - count number of reads in the output of different processes
+process read_counts {
+
+    label "main_container"
+
+    publishDir "${out_8_smr}",                 mode: 'symlink', pattern: "*.xlsx"
+    publishDir "${out_8_smr}/PerProcessStats", mode: 'symlink', pattern: "*.txt"
+    // cpus 5
+
+    input:
+      path(input_fastq, stageAs: "1_input/*")
+      path(qc, stageAs: "2_qc/*")
+      path(samples_demux, stageAs: "3_demux/*")
+      path(samples_primerch, stageAs: "4_primerch/*")
+      path(samples_primermult, stageAs: "4_multiprimer/*")
+      path(samples_itsx_or_primertrim, stageAs: "5_itsxtrim/*")
+      path(samples_chimref, stageAs: "6_chimref/*")
+      path(samples_chimdenovo, stageAs: "7_chimdenov/*")
+      path(chimera_recovered, stageAs: "8_chimrecov/*")
+      path(samples_tj)
+      path(seqtab)
+
+    output:
+      path "Run_summary.xlsx",                  emit: xlsx
+      path "Counts_1.RawData.txt",              emit: counts_1_raw
+      path "Counts_2.QC.txt",                   emit: counts_2_qc
+      path "Counts_3.Demux.txt",                emit: counts_3_demux,       optional: true
+      path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,      optional: true
+      path "Counts_4.PrimerMultiArtifacts.txt", emit: counts_4_primermult,  optional: true
+      path "Counts_5.ITSx_or_PrimTrim.txt",     emit: counts_5_itsx_ptrim,  optional: true
+      path "Counts_6.ChimRef_reads.txt",        emit: counts_6_chimref_r,   optional: true
+      path "Counts_6.ChimRef_uniqs.txt",        emit: counts_6_chimref_u,   optional: true
+      path "Counts_7.ChimDenov.txt",            emit: counts_7_chimdenov,   optional: true
+      path "Counts_8.ChimRecov_reads.txt",      emit: counts_8_chimrecov_r, optional: true
+      path "Counts_8.ChimRecov_uniqs.txt",      emit: counts_8_chimrecov_u, optional: true
+
+    script:
+
+    """
+    echo -e "Summarizing run statistics\n"
+    echo -e "Counting the number of reads in:\n"
+
+
+    ## Count raw reads
+    echo -e "\n..Raw data"
+    seqkit stat --basename --tabular --threads ${task.cpus} \
+      1_input/* > Counts_1.RawData.txt
+    
+    ## Count number of reads passed QC
+    echo -e "\n..Sequenced passed QC"
+    seqkit stat --basename --tabular --threads ${task.cpus} \
+      2_qc/* > Counts_2.QC.txt
+    
+    ## Count demultiplexed reads
+    echo -e "\n..Demultiplexed data"
+    seqkit stat --basename --tabular --threads ${task.cpus} \
+      3_demux/* > Counts_3.Demux.txt
+    
+
+    ## Count primer-checked reads
+    echo -e "\n..Primer-checked data"
+    if [ `find 4_primerch -name no_primerchecked 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.PrimerCheck.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} \
+        4_primerch/* > Counts_4.PrimerCheck.txt
+    fi
+
+
+    ## Count multiprimer-artifacts
+    echo -e "\n..Multiprimer-artifacts"
+    if [ `find 4_multiprimer -name no_multiprimer 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.PrimerMultiArtifacts.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} \
+        4_multiprimer/* > Counts_4.PrimerMultiArtifacts.txt
+    fi
+
+
+    ## Count ITSx reads or primer-trimmed reads (if ITSx was not used)
+    ## Take number of reads into account (--sizein)
+    echo -e "\n..ITSx- or primer-trimmed data"
+    if [ `find 5_itsxtrim \\( -name no_itsx -o -name no_primertrim \\) 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_5.ITSx_or_PrimTrim.txt
+    else
+      find 5_itsxtrim -name "*.fasta.gz" \
+        | parallel -j ${task.cpus} "count_number_of_reads.sh {} {/.}" \
+        | sed '1i SampleID\tNumReads' \
+        > Counts_5.ITSx_or_PrimTrim.txt
+    fi
+
+
+    
+    ## Count number of reads for reference-based chimeras
+    echo -e "\n..Reference-based chimeras"
+    if [ `find 6_chimref -name no_chimref 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_6.ChimRef_reads.txt
+      touch Counts_6.ChimRef_uniqs.txt
+    else
+      
+      ## Count number of reads
+      find 6_chimref -name "*.fa.gz" \
+        | parallel -j ${task.cpus} "count_number_of_reads.sh {} {/.}" \
+        | sed '1i SampleID\tNumReads' \
+        > Counts_6.ChimRef_reads.txt
+
+      ## Count number of unique sequences
+      seqkit stat --basename --tabular --threads ${task.cpus} \
+        6_chimref/* > Counts_6.ChimRef_uniqs.txt
+
+    fi
+
+
+    ## Number of de novo chimeras (read counts are not taken into account!)
+    echo -e "\n..De novo chimeras"
+    if [ `find 7_chimdenov -name no_chimdenovo 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_7.ChimDenov.txt
+    else
+      cat 7_chimdenov/* > Counts_7.ChimDenov.txt
+    fi
+
+
+    ## Rescued chimeras
+    echo -e "\n..Rescued chimeric sequences"
+    if [ `find 8_chimrecov -name no_chimrescued 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_8.ChimRecov_reads.txt
+      touch Counts_8.ChimRecov_uniqs.txt
+    else
+      
+      ## Count number of reads
+      find 8_chimrecov -name "*.fa.gz" \
+        | parallel -j ${task.cpus} "count_number_of_reads.sh {} {/.}" \
+        | sed '1i SampleID\tNumReads' \
+        > Counts_8.ChimRecov_reads.txt
+
+      ## Count number of unique sequences
+      seqkit stat --basename --tabular --threads ${task.cpus} \
+        8_chimrecov/* > Counts_8.ChimRecov_uniqs.txt
+
+    fi
+    
+    ## Summarize read counts
+    read_count_summary.R \
+      --raw          Counts_1.RawData.txt \
+      --qc           Counts_2.QC.txt \
+      --demuxed      Counts_3.Demux.txt \
+      --primer       Counts_4.PrimerCheck.txt \
+      --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+      --itsx         Counts_5.ITSx_or_PrimTrim.txt \
+      --chimrefn     Counts_6.ChimRef_reads.txt \
+      --chimrefu     Counts_6.ChimRef_uniqs.txt \
+      --chimdenovo   Counts_7.ChimDenov.txt \
+      --chimrecovn   Counts_8.ChimRecov_reads.txt \
+      --chimrecovu   Counts_8.ChimRecov_uniqs.txt \
+      --tj           ${samples_tj} \
+      --seqtab       ${seqtab} \
+      --threads      ${task.cpus}
+
+
+    """
+}
+
 //  The default workflow
 workflow {
 
