@@ -295,13 +295,23 @@ PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
 
 ### ... update
+# .. replace NAs with zero
+# .. reorder columns
+# .. estimate percentages
+# .. add tag-jump summary
+# .. add final counts from the Seq table
 
+## Prepare per-run stats
+PER_RUN_COUNTS_merged <- data.table(
+  Total_Number_Of_Reads = RAW$num_seqs,
+  Reads_Passed_QC = QC$num_seqs
+  )
 
 
 ## Export summary stats
 write.xlsx(list(
-  "per_sample" = SEQKITCOUNTS$DEMUXED
-  # , "per_run"
+  "per_sample" = PER_SAMPLE_COUNTS_merged,
+  "per_run"    = PER_RUN_COUNTS_merged
   ),
   file = "Run_summary.xlsx", colNames = TRUE)
 
