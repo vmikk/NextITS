@@ -143,42 +143,48 @@ setDTthreads(threads = CPUTHREADS)  # for data.table
 ###################################### Load the data
 ######################################
 
-cat("\nLoading input data")
+cat("\nLoading input data\n")
 
-SEQKITCOUNTS <- list()
+
+#### Per-dataset stats
 
 ## Load ASV table
-cat("..Loading raw counts")
-SEQKITCOUNTS$RAW <- fread(RAW)
+cat("..Loading raw counts\n")
+RAW <- fread(RAW)
 
-cat("..Loading QC counts")
-SEQKITCOUNTS$QC <- fread(QC)
+cat("..Loading QC counts\n")
+QC <- fread(QC)
 
-cat("..Loading demux counts")
+#### Per-sample stats
+
+SEQKITCOUNTS <- list()
+CUSTOMCOUNTS <- list()
+
+cat("..Loading demux counts\n")
 SEQKITCOUNTS$DEMUXED <- fread(DEMUXED)
 
-cat("..Loading primer-checked data counts")
-SEQKITCOUNTS$PRIMER <- fread(PRIMER)
+cat("..Loading primer-checked data counts\n")
+SEQKITCOUNTS$PRIMER      <- fread(PRIMER)
 SEQKITCOUNTS$PRIMERMULTI <- fread(PRIMERMULTI)
 
-cat("..Loading ITSx or primer trim counts")
-ITSX <- fread(ITSX)
+cat("..Loading ITSx or primer trim counts\n")
+CUSTOMCOUNTS$ITSX <- fread(ITSX)
 
-cat("..Loading ref-based chimera counts")
-CHIMREFN <- fread(CHIMREFN)
+cat("..Loading ref-based chimera counts\n")
+CUSTOMCOUNTS$CHIMREFN <- fread(CHIMREFN)
 SEQKITCOUNTS$CHIMREFU <- fread(CHIMREFU)
 
-cat("..Loading de novo chimera counts")
-CHIMDENOVO <- fread(CHIMDENOVO)
+cat("..Loading de novo chimera counts\n")
+CHIMDENOVO <- fread(CHIMDENOVO)                 # incorporate to the main table
 
-cat("..Loading rescued ref-based chimera counts")
-SEQKITCOUNTS$CHIMRECOVN <- fread(CHIMRECOVN)
+cat("..Loading rescued ref-based chimera counts\n")
+CUSTOMCOUNTS$CHIMRECOVN <- fread(CHIMRECOVN)
 SEQKITCOUNTS$CHIMRECOVU <- fread(CHIMRECOVU)
 
-# cat("..Loading tag-jump filtration data")
+# cat("..Loading tag-jump filtration data\n")
 # TJ
 
-# cat("..Loading sequence table")
+# cat("..Loading sequence table\n")
 # SEQTAB
 
 
