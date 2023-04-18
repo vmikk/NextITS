@@ -188,6 +188,27 @@ SEQKITCOUNTS$CHIMRECOVU <- fread(CHIMRECOVU)
 # SEQTAB
 
 
+## Remove NULL-files
+null_cust <- laply(.data = CUSTOMCOUNTS, .fun = nrow)
+null_seqk <- laply(.data = SEQKITCOUNTS, .fun = nrow)
+
+if(any(null_cust == 0)){
+  cat("Some files with counts are missing:\n")
+  to_rm <- which(null_cust == 0)
+  cat(".. ", paste(names(CUSTOMCOUNTS)[ to_rm ], collapse = ", "), "\n")
+  CUSTOMCOUNTS[ to_rm ] <- NULL
+  rm(to_rm)
+}
+
+if(any(null_seqk == 0)){
+  cat("Some files with counts are missing:\n")
+  to_rm <- which(null_seqk == 0)
+  cat(".. ", paste(names(SEQKITCOUNTS)[ to_rm ], collapse = ", "), "\n")
+  SEQKITCOUNTS[ to_rm ] <- NULL
+  rm(to_rm)
+}
+
+
 ## Process seqkit counts
 seqkit_process <- function(x){
   if(nrow(x) > 0){
@@ -196,19 +217,81 @@ seqkit_process <- function(x){
     x <- x[ , .(file, num_seqs) ]
 
     ## Remove file extensions
-    x[ , file := sub(pattern = ".fastq.gz",      replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".fq.gz",         replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".fa.gz",         replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".full.fasta",    replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".ITS1.fasta.gz", replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".ITS2.fasta.gz", replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".fastq.gz",        replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".fq.gz",           replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".fa.gz",           replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".full.fasta",      replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".ITS1.fasta.gz",   replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".ITS2.fasta.gz",   replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_PrimerChecked$",  replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Mutiprimer$",     replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Chimera$",        replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_RescuedChimera$", replacement = "", x = file) ]
+    x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
 
   }
   return(x)
 }
 
-cat("Processing data")
+## Process custom counts
+custom_process <- function(x){
+  if(nrow(x) > 0){
+
+    ## There should be just two columns - `SampleID` & `NumReads`
+
+    ## Rename "SampleID" into "file"
+    setnames(x = x, old = "SampleID", new = "file")
+
+    ## Remove file extensions
+    x[ , file := sub(pattern = ".full.fasta",         replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Chimera.fa",         replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_RescuedChimera.fa$", replacement = "", x = file) ]
+    x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
+
+  }
+  return(x)
+}
+
+
+cat("Processing data\n")
 SEQKITCOUNTS <- llply(.data = SEQKITCOUNTS, .fun = seqkit_process)
+CUSTOMCOUNTS <- llply(.data = CUSTOMCOUNTS, .fun = custom_process)
+
+
+## Rename columns
+if(!is.null(SEQKITCOUNTS$DEMUXED)){
+setnames(x = SEQKITCOUNTS$DEMUXED, old = "num_seqs", new = "Demultiplexed_Reads", skip_absent = TRUE)
+}
+if(!is.null(SEQKITCOUNTS$PRIMER)){
+setnames(x = SEQKITCOUNTS$PRIMER,  old = "num_seqs", new = "PrimerChecked_Reads", skip_absent = TRUE)
+}
+if(!is.null(SEQKITCOUNTS$PRIMERMULTI)){
+setnames(x = SEQKITCOUNTS$PRIMERMULTI, old = "num_seqs", new = "MultiprimerArtifacts_Reads", skip_absent = TRUE)
+}
+if(!is.null(SEQKITCOUNTS$CHIMREFU)){
+setnames(x = SEQKITCOUNTS$CHIMREFU, old = "num_seqs", new = "ReferenceBasedChimera_NumUniqSequences", skip_absent = TRUE)
+}
+if(!is.null(SEQKITCOUNTS$CHIMRECOVU)){
+setnames(x = SEQKITCOUNTS$CHIMRECOVU, old = "num_seqs", new = "Recovered_ReferenceBasedChimea_NumUniqSequences", skip_absent = TRUE)
+}
+
+if(!is.null(CUSTOMCOUNTS$ITSX)){
+setnames(x = CUSTOMCOUNTS$ITSX,       old = "NumReads", new = "ITSx_Extracted_Reads", skip_absent = TRUE)
+}
+if(!is.null(CUSTOMCOUNTS$CHIMREFN)){
+setnames(x = CUSTOMCOUNTS$CHIMREFN,   old = "NumReads", new = "ReferenceBasedChimera_Reads", skip_absent = TRUE)
+}
+if(!is.null(CUSTOMCOUNTS$CHIMRECOVN)){
+setnames(x = CUSTOMCOUNTS$CHIMRECOVN, old = "NumReads", new = "Recovered_ReferenceBasedChimea_Reads", skip_absent = TRUE)
+}
+
+## Merge seqkit and custom counts into a single list
+cat("Pooling per-sample counts\n")
+COUNTS <- c(SEQKITCOUNTS, CUSTOMCOUNTS)
+
+## Pool per-file estimates
+merge_dt <- function(x,y){ merge(x, y, by = "file", all = TRUE) }
+PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
 
 ### ... update
