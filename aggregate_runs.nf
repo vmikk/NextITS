@@ -12,6 +12,15 @@
 ----------------------------------------------------------------------------
 */
 
+// Step-2 workflow:
+// - Dereplicate sequences
+// - (optionally) Denoize with UNOISE
+// - Cluster:
+//   * SWARM
+//   * VSEARCH
+// - LULU (via MUMU implementation)
+// - Prepare OTU table (wide, aggregate sequence abundance by OTU/Swarm cluster)
+
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
