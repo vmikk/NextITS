@@ -206,7 +206,7 @@ def helpMsg() {
     OPTIONAL:
         --demultiplexed     Boolean, input is multiplexed (true, single FASTQ file) or pre-demultiplexed (multiple FASTQ files)
         --seqplatform       Sequencing platform type - "PacBio" (default) or "Illumina"
-        --its_region        ITS part selector - "full" (defalut), "ITS1", "ITS2", "none" (trims primers only)
+        --its_region        ITS part selector - "full" (defalut), "ITS1", "ITS2", "none" (trims primers only), or "ITS1_5.8S_ITS2"
         --primer_forward    Forward primer sequence (default, ITS9mun)
         --primer_reverse    Reverse primer sequence (default, ITS4ngsUni)
         --primer_mismatches
