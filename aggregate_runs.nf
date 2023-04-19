@@ -126,10 +126,10 @@ process unoise {
 workflow {
 
     // Input files = FASTA files from individual sequencing runs
-    // e.g. "*/07_ASV_table/ASVs.fa.gz"
+    // e.g. "*/07_SeqTable/Seqs.fa.gz"
     
     ch_seqs = Channel.fromPath(
-      params.data_path + "/**/07_ASV_table/ASVs.fa.gz",
+      params.data_path + "/**/07_SeqTable/Seqs.fa.gz",
       checkIfExists: true).collect()
 
     // Pool and dereplicate all sequences
