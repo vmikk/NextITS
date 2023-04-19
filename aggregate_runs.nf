@@ -67,6 +67,48 @@ process dereplication {
         --sizein --sizeout \
         --uc Dereplicated.uc \
       | gzip -7 > Dereplicated.fa.gz
+
+// Denoize sequences with UNOISE
+process unoise {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/02.UNOISE", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path input
+
+    output:
+      path "UNOISE.fa.gz", emit: unoise
+      path "UNOISE.uc.gz", emit: unoise_uc
+
+    script:
+    """
+    echo -e "Denoizing sequences with UNOISE\n"
+
+    vsearch \
+      --cluster_unoise ${input} \
+      --unoise_alpha   ${params.unoise_alpha} \
+      --minsize ${params.unoise_minsize} \
+      --iddef   ${params.otu_iddef} \
+      --qmask   ${params.otu_qmask} \
+      --threads ${task.cpus} \
+      --fasta_width 0 \
+      --sizein --sizeout \
+      --centroids UNOISE.fa \
+      --uc UNOISE.uc
+
+    echo -e "..UNOISE done\n"
+
+    ## Compress results
+    echo -e "\nCompressing UNOISE results"
+    parallel -j ${task.cpus} "gzip -7 {}" \
+      ::: "UNOISE.fa" "UNOISE.uc"
+
+    """
+}
+
     
     echo -e "..Done"
 
