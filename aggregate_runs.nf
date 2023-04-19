@@ -135,5 +135,12 @@ workflow {
     // Pool and dereplicate all sequences
     dereplication(ch_seqs)
 
+    // Denoizing
+    if ( params.unoise == true ) {
+      unoise(dereplication.out.derep)
+      unoize_ch = unoise.out.unoise
+    } else {
+      unoize_ch = dereplication.out.derep
+    }
 }
 
