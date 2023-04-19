@@ -95,7 +95,7 @@ if(params.qc_twocolor == true){
 }
 
 
-// Is data dumultiplexed?
+// Is data demultiplexed?
 // If false (default), input = 1 fastq file and 1 fasta file
 // If true,            input = multiple fastq files
 params.demultiplexed = false
