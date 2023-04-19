@@ -30,9 +30,13 @@ version = '0.2.0'
 params.outdir = "Step2"
 
 
-// Initialize parameters, set default values
+// Path to the Step-1 results
 params.data_path = "${projectDir}/Output"
 
+// Denoising
+params.unoise         = false
+params.unoise_alpha   = 2.0
+params.unoise_minsize = 8
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
 
