@@ -7,7 +7,7 @@
   Version: v0.2.0
   License: Apache-2.0
   Github : https://github.com/vmikk/NextITS
-  Website: TBA
+  Website: https://next-its.github.io/
 ----------------------------------------------------------------------------
 */
 
