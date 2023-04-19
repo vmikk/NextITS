@@ -204,7 +204,7 @@ def helpMsg() {
         --outdir          The output directory where the results will be saved
 
     OPTIONAL:
-        --demultiplexed     Boolean, input is muliplexed (true, single FASTQ file) or pre-demultiplexed (multiple FASTQ files)
+        --demultiplexed     Boolean, input is multiplexed (true, single FASTQ file) or pre-demultiplexed (multiple FASTQ files)
         --seqplatform       Sequencing platform type - "PacBio" (default) or "Illumina"
         --its_region        ITS part selector - "full" (defalut), "ITS1", "ITS2", "none" (trims primers only)
         --primer_forward    Forward primer sequence (default, ITS9mun)
