@@ -54,7 +54,7 @@ process dereplication {
 
     script:
     """
-    echo -e "\nDereplicating sequences"
+    echo -e "Dereplicating sequences\n"
 
     find . -name "*.fa.gz" | parallel -j1 \
       "zcat {}" \
@@ -67,7 +67,18 @@ process dereplication {
         --threads 1 \
         --sizein --sizeout \
         --uc Dereplicated.uc \
-      | gzip -7 > Dereplicated.fa.gz
+      > Dereplicated.fa
+    
+    echo -e "..Dereplication finished"
+
+    ## Compress results
+    echo -e "\nCompressing results"
+    parallel -j ${task.cpus} "gzip -7 {}" \
+      ::: "Dereplicated.uc" "Dereplicated.fa"
+
+    """
+}
+
 
 // Denoize sequences with UNOISE
 process unoise {
