@@ -121,12 +121,49 @@ process unoise {
     """
 }
 
+
+
+// Cluster sequences with VSEARCH (fixed similarity threshold)
+process cluster_vsearch {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03.Clustered_VSEARCH", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path input
+
+    output:
+      path "Clustered.fa.gz", emit: clust
+      path "Clustered.uc.gz", emit: clust_uc
+
+    script:
+    """
+    echo -e "Clustering sequences with VSEARCH\n"
+
+    vsearch \
+      --cluster_size ${input} \
+      --id      ${params.otu_id} \
+      --iddef   ${params.otu_iddef} \
+      --qmask   ${params.otu_qmask} \
+      --threads ${task.cpus} \
+      --sizein --sizeout \
+      --strand both \
+      --fasta_width 0 \
+      --uc Clustered.uc \
+      --centroids - \
+    | gzip -7 > Clustered.fa.gz
     
     echo -e "..Done"
 
     ## Compress UC file
     echo -e "\nCompressing UC file"
-    gzip -7 Dereplicated.uc
+    gzip -7 Clustered.uc
+
+    """
+}
+
 
     """
 }
