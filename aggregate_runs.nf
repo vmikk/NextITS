@@ -165,10 +165,6 @@ process cluster_vsearch {
 }
 
 
-    """
-}
-
-
 
 
 //  The default workflow
