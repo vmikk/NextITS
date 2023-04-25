@@ -37,6 +37,10 @@ params.data_path = "${projectDir}/Output"
 params.unoise         = false
 params.unoise_alpha   = 2.0
 params.unoise_minsize = 8
+// VSEARCH clustering
+params.otu_id    = 0.98
+params.otu_iddef = 2        // also for UNOISE
+params.otu_qmask = "dust"   // also for UNOISE
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
 
