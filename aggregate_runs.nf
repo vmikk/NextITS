@@ -195,6 +195,7 @@ workflow {
     } else {
       unoize_ch = dereplication.out.derep
     }
+      cluster_vsearch(unoize_ch)
 }
 
 
