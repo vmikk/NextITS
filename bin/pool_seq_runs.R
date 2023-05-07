@@ -19,6 +19,8 @@ option_list <- list(
   make_option("--ucclust", action="store", default=NA,  type='character', help="UC file from clustering"),
   make_option("--maxmeep", action="store", default=0.5, type='double', help="Max MEEP score"),
   make_option("--maxchim", action="store", default=0.6, type='double', help="Max de novo chimera score"),
+  
+  make_option("--recoverdenovo", action="store", default=TRUE, type='logical', help="Recover de-novo chimeras"),
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
   # make_option(c("-s", "--scriptdir"),  action="store", default=getwd(), type='character', help="Directory containing source scripts")
 )
@@ -46,6 +48,8 @@ UCDEREP    <- to_na( opt$ucderep )
 UCCLUST    <- to_na( opt$ucclust )
 MAXMEEP    <- as.numeric( to_na( opt$maxmeep ) )
 MAXCHIM    <- as.numeric( to_na( opt$maxchim ) )
+
+RECOV_DENOVO  <- as.logical(opt$recoverdenovo)
 CPUTHREADS <- as.numeric( opt$threads )
 # SCRIPTDIR  <- opt$scriptdir
 
@@ -54,6 +58,7 @@ cat(paste("UC file from global dereplication: ", UCDEREP, "\n", sep=""))
 cat(paste("UC file from clustering: ",           UCCLUST, "\n", sep=""))
 cat(paste("Max MEEP score: ",                    MAXMEEP, "\n", sep=""))
 cat(paste("Max de novo chimera score: ",         MAXCHIM, "\n", sep=""))
+cat(paste("De novo chimera recovery: ",          RECOV_DENOVO,  "\n", sep=""))
 cat(paste("Number of CPU threads to use: ",      CPUTHREADS,    "\n", sep=""))
 # cat(paste("Directory containing source scripts: ", SCRIPTDIR, "\n", sep=""))
 
@@ -135,8 +140,37 @@ if(!is.na(MAXCHIM)){
   cat("..Filtering data by max de novo chimera score\n")
   nrecs <- nrow(TAB)
   nabun <- sum(TAB$Abundance, na.rm = TRUE)
-  TAB <- TAB[ DeNovo_Chimera_Score < MAXCHIM | is.na(DeNovo_Chimera_Score) ]
+  
+  ## If no chimera recovery is required
+  if(RECOV_DENOVO == FALSE){
 
+    TAB <- TAB[ DeNovo_Chimera_Score < MAXCHIM | is.na(DeNovo_Chimera_Score) ]
+  
+  ## If we need to recover chimeras
+  } else {
+
+    ## Find putative chimeras
+    CHIMERAS <- TAB[ DeNovo_Chimera_Score >= MAXCHIM, .(SeqID___SampleID, DeNovo_Chimera_Score, Sequence, Abundance) ]
+    NONCHIMERAS <- TAB[ ! SeqID___SampleID %in% CHIMERAS$SeqID___SampleID ]
+
+    ## Recover false-positives
+    chim_seqs    <- unique(CHIMERAS$Sequence)
+    nonchim_seqs <- unique(NONCHIMERAS$Sequence)
+    fp_chims <- chim_seqs %in% nonchim_seqs
+    if(any(fp_chims)){
+      cat(".... Probably there are a few false-positive chimeras\n")
+      cat(".... Recovering ", sum(fp_chims), "sequences\n")
+      fp_seqs <- chim_seqs[ fp_chims ]
+      CHIMERAS <- CHIMERAS[ ! Sequence %in% fp_seqs ]
+      rm(fp_seqs)
+    }
+
+    TAB <- TAB[ ! Sequence %in% CHIMERAS$Sequence ]
+    rm(CHIMERAS, NONCHIMERAS)
+  
+  } # end of chimera recovery
+
+  ## Data summary after filtering
   nrecs_delta <- nrecs - nrow(TAB)
   nabun_delta <- nabun - sum(TAB$Abundance, na.rm = TRUE)
 
