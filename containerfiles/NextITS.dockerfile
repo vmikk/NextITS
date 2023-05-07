@@ -6,11 +6,11 @@
 # docker build --tag nextits --file NextITS.dockerfile .
 
 ## Build stage 1 (Rust and Cargo)
-FROM rust:1.64 AS RUST
+FROM rust:1.68 AS RUST
 RUN  cargo install runiq sd
 
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.2.2 AS MAIN
+FROM rocker/r-ver:4.2.3 AS MAIN
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
@@ -63,18 +63,18 @@ RUN ${CONDA_PREFIX}/bin/mamba install -y \
     "lima>=2.7.1" \
     "vsearch>=2.22.1" \
     "swarm>=3.1.3" \
-    "seqkit>=2.3.1" \
+    "seqkit>=2.4.0" \
     "seqfu>=1.17.1" \
     "fastp>=0.23.2" \
     "blast>=2.13.0" \
     "bioawk" \
-    "miller>=6.6.0" \
+    "miller>=6.7.0" \
     "bedtools>=2.30.0" \
-    "parallel>=20230122" \
+    "parallel>=20230322" \
     "csvtk>=0.25.0" \
     "itsx>=1.1.3" \
     "itsxpress>=1.8.0" \
-    "cutadapt>=4.2" \
+    "cutadapt>=4.3" \
     "bbmap>=39.01" \
     "ripgrep>=13.0.0" \
     "fd-find>=8.5.3" \
