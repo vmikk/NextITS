@@ -175,6 +175,43 @@ process cluster_vsearch {
 
 
 
+
+// Summarize sequence abundance by OTU
+process summarize {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/04.PooledResults", mode: 'symlink'
+    // cpus 4
+
+    input:
+      path(seqtabs, stageAs: "?/*")
+      path(uc_derep)
+      path(uc_clust)
+
+    output:
+      path "OTU_table_wide.txt.gz", emit: otutabwide
+      path "OTU_table_long.txt.gz", emit: otutablong
+      path "OTU_table_wide.RData",  emit: otutabwider
+      path "OTU_table_long.RData",  emit: otutablongr
+      path "OTUs.fa.gz",            emit: seqs
+
+    script:
+    """
+
+    pool_seq_runs.R \
+      --ucderep "Dereplicated.uc.gz" \
+      --ucclust "Clustered.uc.gz" \
+      --maxmeep ${params.max_MEEP} \
+      --maxchim ${params.max_ChimeraScore} \
+      --recoverdenovo  ${params.recover_lowqsingletons} \
+      --recoversinglet ${params.recover_denovochimeras} \
+      --threads ${task.cpus} \
+
+    """
+}
+
+
 //  The default workflow
 workflow {
 
