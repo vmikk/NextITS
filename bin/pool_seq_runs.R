@@ -296,6 +296,12 @@ SQS <- unique(RES[, .(OTU, Sequence) ])
 
 SQF <- DNAStringSet(x = SQS$Sequence)
 names(SQF) <- SQS$OTU
+
+writeXStringSet(x = SQF,
+  filepath = "OTUs.fa.gz",
+  compress = TRUE, format = "fasta", width = 9999)
+
+
 cat("\nAll done.\n")
 
 
