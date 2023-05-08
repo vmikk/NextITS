@@ -291,6 +291,11 @@ cat("..Exporting wide table [tab-delimited]\n")
 fwrite(x = REW, file = "OTU_table_wide.txt.gz", sep = "\t", compress = "gzip")
 
 
+cat("..Exporting OTU sequences to FASTA\n")
+SQS <- unique(RES[, .(OTU, Sequence) ])
+
+SQF <- DNAStringSet(x = SQS$Sequence)
+names(SQF) <- SQS$OTU
 cat("\nAll done.\n")
 
 
