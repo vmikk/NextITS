@@ -109,7 +109,9 @@ cat("... Tables found: ", length(TABS), "\n")
 cat("..Loading sequence tables\n")
 TAB <- alply(.data = TABS, .margins = 1, .fun = readRDS)
 TAB <- rbindlist(TAB, use.names = TRUE, fill = TRUE)
-cat("... Total number of records: ", nrow(TAB), "\n")
+cat("... Total number of records: ",             nrow(TAB), "\n")
+cat("... Total number unique sequences: ",       length(unique(TAB$Sequence)), "\n")
+cat("... Total number unique samples (files): ", length(unique(TAB$SampleID)), "\n")
 
 ## Load UC file for globally dereplicated sequences
 cat("..Loading dereplication UC file\n")
