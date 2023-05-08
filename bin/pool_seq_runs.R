@@ -101,9 +101,9 @@ setDTthreads(threads = CPUTHREADS)  # for data.table
 ###################################### Load the data
 ######################################
 
-## Load ASV table
+## Load sequence tables
 cat("..Loading sequence tables\n")
-TABS <- list.files(path = ".", pattern = "ASVs.RData", full.names = TRUE, recursive = TRUE)
+TABS <- list.files(path = ".", pattern = "Seqs.RData", full.names = TRUE, recursive = TRUE)
 cat("... Tables found: ", length(TABS), "\n")
 
 cat("..Loading sequence tables\n")
