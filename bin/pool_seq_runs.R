@@ -82,6 +82,7 @@ load_pckg <- function(pkg = "data.table"){
 load_pckg("data.table")
 load_pckg("plyr")
 load_pckg("metagMisc")
+load_pckg("Biostrings")
 
 cat("\n")
 
