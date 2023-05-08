@@ -233,6 +233,8 @@ workflow {
       unoize_ch = dereplication.out.derep
     }
       cluster_vsearch(unoize_ch)
+      cluster_ch = cluster_vsearch.out.clust
+      clustuc_ch = cluster_vsearch.out.clust_uc
 }
 
 
