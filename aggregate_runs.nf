@@ -235,6 +235,19 @@ workflow {
       cluster_vsearch(unoize_ch)
       cluster_ch = cluster_vsearch.out.clust
       clustuc_ch = cluster_vsearch.out.clust_uc
+
+   // Pool sequence tables and aggregate at OTU level
+   ch_seqtabs = Channel.fromPath(
+     params.data_path + "/**/07_SeqTable/Seqs.RData",
+     checkIfExists: true).collect()
+
+   // Summarize sequence abundances by OTU and sample
+   summarize(
+    ch_seqtabs,
+    dereplication.out.derep_uc,
+    clustuc_ch
+   )
+
 }
 
 
