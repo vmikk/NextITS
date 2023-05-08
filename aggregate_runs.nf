@@ -45,6 +45,13 @@ params.clustering_method = "vsearch"
 params.otu_id    = 0.98
 params.otu_iddef = 2        // also for UNOISE
 params.otu_qmask = "dust"   // also for UNOISE
+
+// Default thresholds for singleton and de novo chimera removal 
+params.max_MEEP         = 0.5
+params.max_ChimeraScore = 0.6
+params.recover_lowqsingletons = true
+params.recover_denovochimeras = true
+
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
 
