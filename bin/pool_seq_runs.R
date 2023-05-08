@@ -21,6 +21,8 @@ option_list <- list(
   make_option("--maxchim", action="store", default=0.6, type='double', help="Max de novo chimera score"),
   
   make_option("--recoverdenovo", action="store", default=TRUE, type='logical', help="Recover de-novo chimeras"),
+  make_option("--recoversinglet", action="store", default=TRUE, type='logical', help="Recover singletons"),
+  
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
   # make_option(c("-s", "--scriptdir"),  action="store", default=getwd(), type='character', help="Directory containing source scripts")
 )
@@ -50,6 +52,8 @@ MAXMEEP    <- as.numeric( to_na( opt$maxmeep ) )
 MAXCHIM    <- as.numeric( to_na( opt$maxchim ) )
 
 RECOV_DENOVO  <- as.logical(opt$recoverdenovo)
+RECOV_SINGLET <- as.logical(opt$recoversinglet)
+
 CPUTHREADS <- as.numeric( opt$threads )
 # SCRIPTDIR  <- opt$scriptdir
 
@@ -59,6 +63,7 @@ cat(paste("UC file from clustering: ",           UCCLUST, "\n", sep=""))
 cat(paste("Max MEEP score: ",                    MAXMEEP, "\n", sep=""))
 cat(paste("Max de novo chimera score: ",         MAXCHIM, "\n", sep=""))
 cat(paste("De novo chimera recovery: ",          RECOV_DENOVO,  "\n", sep=""))
+cat(paste("Low-quality singleton recovery: ",    RECOV_SINGLET, "\n", sep=""))
 cat(paste("Number of CPU threads to use: ",      CPUTHREADS,    "\n", sep=""))
 # cat(paste("Directory containing source scripts: ", SCRIPTDIR, "\n", sep=""))
 
@@ -120,11 +125,44 @@ colnames(UCO) <- c("DerepID", "OTU")
 ## Filter sequences by MEEP
 if(!is.na(MAXMEEP)){
   cat("..Filtering data by max MEEP score\n")
-  nrecs <- nrow(TAB)                           # number of records with low-quality seqs
+  nrecs <- nrow(TAB)                           # number of records with all low-quality seqs
   nabun <- sum(TAB$Abundance, na.rm = TRUE)    # total abundance with low-quality seqs
   
-  ## Remove low-quality sequences
-  TAB <- TAB[ MEEP < MAXMEEP | is.na(MEEP) ]
+  ## If no sequence recovery is reqired
+  if(RECOV_SINGLET == FALSE){
+
+    ## Remove low-quality sequences
+    TAB <- TAB[ MEEP < MAXMEEP | is.na(MEEP) ]
+
+  ## If we need to recover low-quality sequences with multiple occurrence
+  } else {
+
+    ## Get low-quality singleton
+    SINGLETONS_lowquality <- TAB[ MEEP >= MAXMEEP, .(SeqID___SampleID, Sequence) ]
+
+    ## Recover non-unique singletons
+    SINGLETONS_dups <- duplicated(SINGLETONS_lowquality$Sequence)
+
+    if(any(SINGLETONS_dups)){
+      cat(".... There are a few sequencing-run-level singletons with relatively low quality, that occurr in the other sequncing runs.\n")
+      cat(".... N = ", sum(SINGLETONS_dups), "\n")
+
+      SINGLETONS_torecover <- unique( SINGLETONS_lowquality$Sequence[ SINGLETONS_dups ] )
+      cat(".... Recovering ", length(SINGLETONS_torecover), " unique sequences\n")
+      SINGLETONS_lowquality <- SINGLETONS_lowquality[ ! Sequence %in% SINGLETONS_torecover ]
+
+      rm(SINGLETONS_torecover)
+    }
+
+    cat(".... In total, ", nrow(SINGLETONS_lowquality), " low-quality singletons will be removed\n")
+    
+    if(nrow(SINGLETONS_lowquality) > 0){
+      TAB <- TAB[ ! SeqID___SampleID %in% SINGLETONS_lowquality$SeqID___SampleID ]
+    }
+
+    rm(SINGLETONS_lowquality, SINGLETONS_dups)
+
+  } # end of recovery
 
   nrecs_delta <- nrecs - nrow(TAB)                          # num records after filtering
   nabun_delta <- nabun - sum(TAB$Abundance, na.rm = TRUE)   # total abundance after filtering
@@ -133,7 +171,10 @@ if(!is.na(MAXMEEP)){
   cat("... Reads removed: ", nabun_delta, " (", round(nabun_delta/nabun * 100, 1), "%)\n")
 
   rm(nrecs_delta, nabun_delta)
-}
+
+} # end of MAXMEEP filtering
+
+
 
 ## Filter sequences by MEEP
 if(!is.na(MAXCHIM)){
@@ -178,7 +219,8 @@ if(!is.na(MAXCHIM)){
   cat("... Reads removed: ", nabun_delta, " (", round(nabun_delta/nabun * 100, 1), "%)\n")
 
   rm(nrecs_delta, nabun_delta)
-}
+
+} # end of MAXCHIM filtering
 
 
 ## Extract sample names
