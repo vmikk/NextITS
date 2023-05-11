@@ -134,7 +134,7 @@ UCO <- metagMisc::parse_uc(x = UCCLUST, map_only = TRUE, package = "data.table")
 UCO <- unique(UCO)
 colnames(UCO) <- c("DerepID", "OTU")
 
-## Filter sequences by MEEP
+## Filter sequences by the max number of expected error per 100bp (MEEP)
 if(!is.na(MAXMEEP)){
   cat("..Filtering data by max MEEP score\n")
   nrecs <- nrow(TAB)                           # number of records with all low-quality seqs
@@ -188,7 +188,7 @@ if(!is.na(MAXMEEP)){
 
 
 
-## Filter sequences by MEEP
+## Filter sequences by chimeric score (MAXCHIM)
 if(!is.na(MAXCHIM)){
   cat("..Filtering data by max de novo chimera score\n")
   nrecs <- nrow(TAB)
