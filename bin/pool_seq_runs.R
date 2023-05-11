@@ -79,6 +79,18 @@ cat(paste("Number of CPU threads to use: ",      CPUTHREADS,    "\n", sep=""))
 cat("\n")
 
 
+
+############################################## Data for debugging
+
+# UCDEREP       <- "Dereplicated.uc.gz"
+# UCCLUST       <- "Clustered.uc.gz"
+# MAXMEEP       <- 0.5
+# MAXCHIM       <- 0.6
+# RECOV_DENOVO  <- TRUE
+# RECOV_SINGLET <- TRUE
+# CPUTHREADS    <- 4
+
+
 ############################################## Load packages and data
 
 cat("Loading R packages...\n")
