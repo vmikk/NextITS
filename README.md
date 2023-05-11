@@ -1,8 +1,8 @@
 # NextITS <img src='images/NextITS_logo.svg' align="right" height="70" />
 
+![GitHub (latest release)](https://img.shields.io/github/v/release/vmikk/NextITS?label=GitHub%20release)
 [![Nextflow](https://img.shields.io/badge/Nextflow%20DSL2-%E2%89%A522.04.5-23aa62.svg)](https://www.nextflow.io/)
 [![Runs with singularity](https://img.shields.io/badge/Runs%20with-Singularity-blue?style=flat&logo=singularity)](https://sylabs.io/docs/)
-[![Github_Status_Badge](https://img.shields.io/badge/GitHub-0.0.2-blue.svg)](https://github.com/vmikk/NextITS)
 [![GitHub license](https://img.shields.io/github/license/vmikk/NextITS)](https://github.com/vmikk/NextITS/blob/main/LICENSE)
 
 
