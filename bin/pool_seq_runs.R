@@ -2,6 +2,15 @@
 
 ## Script to pool quality-filtered and trimmed sequences from multiple sequencing runs
 ## And summarize sequence abundance at OTU level (per sample)
+## Usage:
+# ./pool_seq_runs.R \
+#    --ucderep "Dereplicated.uc.gz" \
+#    --ucclust "Clustered.uc.gz" \
+#    --maxmeep 0.5 \
+#    --maxchim 0.6 \
+#    --recoverdenovo TRUE \
+#    --recoversinglet TRUE \
+#    --threads 4
 
 ############################################## Parse input parameters
 
