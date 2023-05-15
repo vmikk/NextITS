@@ -12,6 +12,20 @@
 #    --recoversinglet TRUE \
 #    --threads 4
 
+## TO DO
+# - merge samples with identical IDs - make it optional
+
+
+## Do-novo chimera recovery:
+# if a sequence identified as putative chimera was observed in the other samples,
+# where there is no evidence that it is chimeric, it will be recovered
+
+## Singleton recovery
+# if a within-sequencing run singleton sequence with relatively low qualty (based on MEEP)
+# was observed in the other samples, it will be recovered
+
+
+
 ############################################## Parse input parameters
 
 ## Check time
