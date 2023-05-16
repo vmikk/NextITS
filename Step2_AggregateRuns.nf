@@ -342,6 +342,17 @@ workflow {
     clustuc_ch
    )
 
+
+   // Post-clustering curation with LULU
+   if ( params.lulu == true ) {
+     lulu(
+       summarize.out.otutabwide,
+       summarize.out.seqs
+       // cluster_ch        // In the Clustered.fa.gz, there are seqs excluded from OTU table
+     )
+   }
+
+
 }
 
 
