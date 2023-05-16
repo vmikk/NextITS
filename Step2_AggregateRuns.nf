@@ -219,6 +219,93 @@ process summarize {
 }
 
 
+// Post-clustering curation
+process lulu {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/05.LULU", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path otu_table
+      path sequences
+
+    output:
+      path "OTU_table_LULU.txt.gz",  emit: lulu
+      path "LULU_match_list.txt.gz", emit: matches
+
+    script:
+    """
+    echo -e "Post-clustering curation with MUMU (C++ implementation of LULU)\n"
+
+    ## If Clustered.fa.gz used as input
+    ## (but there are sequences excluded from the OTU table)
+    # echo -e "Removing size annotations from sequence headers"
+    # zcat ${sequences} \
+    #   | sed -r '/^>/ s/;size=[0-9]+//g' \
+    #   | gzip -4 > tmp_sequences.fa.gz
+
+
+    ## MUMU similarity threshold is specified as % (e.g., 84.0)
+    ## while VSEARCH requires a value in 0-1 range (e.g., 0.84)
+    
+    ## With bc
+    # VSID=\$(echo "scale=4; x = ${params.lulu_match} / 100; if(x<1) print 0; x" | bc)
+    
+    ## With awk
+    VSID=\$(awk -v a=${params.lulu_match} 'BEGIN { print(a/100) }')
+
+    echo -e "VSEARCH similarity threshold: " "\$VSID"
+
+    ## Prepare match list (+ remove size annotations)
+    echo -e "Preparing match list\n"
+    vsearch \
+      --usearch_global ${sequences}  \
+      --db ${sequences}  \
+      --self  \
+      --id "\$VSID" \
+      --iddef 1 \
+      --userfields query+target+id \
+      --maxaccepts 0 \
+      --query_cov  0.9 \
+      --maxhits 10 \
+      --threads ${task.cpus} \
+      --userout LULU_match_list.txt
+
+
+    # Input otu_table  = tab-separated, samples in columns
+    # Input match_list = tab-separated, OTU pairwise similarity scores
+
+
+    echo -e "\nUnpacking OTU table\n"
+    gunzip --stdout ${otu_table} > tmp_OTU_table.txt
+
+    echo -e "\nRunning MUMU\n"
+    mumu \
+      --otu_table     tmp_OTU_table.txt \
+      --match_list    LULU_match_list.txt \
+      --new_otu_table OTU_table_LULU.txt \
+      --log lulu.log \
+      --threads                      ${task.cpus} \
+      --minimum_match                ${params.lulu_match} \
+      --minimum_ratio                ${params.lulu_ratio} \
+      --minimum_ratio_type           ${params.lulu_ratiotype} \
+      --minimum_relative_cooccurence ${params.lulu_relcooc}
+
+    echo -e "..Compressing LULU-curated OTU table\n"
+    parallel -j ${task.cpus} "gzip -7 {}" \
+      ::: "OTU_table_LULU.txt" "lulu.log" "LULU_match_list.txt"
+
+    echo -e "..LULU done\n"
+
+    ## Remove temporary files
+    # rm tmp_sequences.fa.gz
+    rm tmp_OTU_table.txt
+
+    """
+}
+
 //  The default workflow
 workflow {
 
