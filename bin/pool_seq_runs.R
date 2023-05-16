@@ -46,6 +46,8 @@ option_list <- list(
   make_option("--recoverdenovo", action="store", default=TRUE, type='logical', help="Recover de-novo chimeras"),
   make_option("--recoversinglet", action="store", default=TRUE, type='logical', help="Recover singletons"),
   
+  make_option(c("-m", "--mergesamples"), action="store", default=FALSE, type='logical', help="Merge sample replicates (default, true)"),
+  
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
   # make_option(c("-s", "--scriptdir"),  action="store", default=getwd(), type='character', help="Directory containing source scripts")
 )
@@ -76,6 +78,7 @@ MAXCHIM    <- as.numeric( to_na( opt$maxchim ) )
 
 RECOV_DENOVO  <- as.logical(opt$recoverdenovo)
 RECOV_SINGLET <- as.logical(opt$recoversinglet)
+MERGE_SAMPLES <- as.logical(opt$mergesamples)
 
 CPUTHREADS <- as.numeric( opt$threads )
 # SCRIPTDIR  <- opt$scriptdir
@@ -87,6 +90,7 @@ cat(paste("Max MEEP score: ",                    MAXMEEP, "\n", sep=""))
 cat(paste("Max de novo chimera score: ",         MAXCHIM, "\n", sep=""))
 cat(paste("De novo chimera recovery: ",          RECOV_DENOVO,  "\n", sep=""))
 cat(paste("Low-quality singleton recovery: ",    RECOV_SINGLET, "\n", sep=""))
+cat(paste("Merge sample replicates: ",           MERGE_SAMPLES, "\n", sep=""))
 cat(paste("Number of CPU threads to use: ",      CPUTHREADS,    "\n", sep=""))
 # cat(paste("Directory containing source scripts: ", SCRIPTDIR, "\n", sep=""))
 
@@ -284,10 +288,33 @@ if(any(is.na(TAB$OTU))){
   TAB <- TAB[ ! is.na(OTU) ]
 }
 
+
 ## Summarize abundance by sample and OTU
-cat("..Summarizing abundance by sample and OTU\n")
-RES <- TAB[ , .( Abundance  = sum(Abundance,  na.rm = TRUE) ),
-  by = c("OTU", "SampleName", "Sequence") ]
+if(MERGE_SAMPLES == TRUE){
+
+  cat("Summarizing OTU abundance and merging sample replicates (e.g., re-sequenced samples)\n")
+
+  ## Extract sample names
+  cat("..Extracting sample names\n")
+  TAB[ , SampleName := tstrsplit(x = SampleID, split = "__", keep = 2) ]
+
+  cat("..Summarizing abundance by sample and OTU\n")
+  RES <- TAB[ , 
+    .( Abundance  = sum(Abundance,  na.rm = TRUE) ),
+    by = c("OTU", "SampleName") ]
+
+  setnames(x = RES, old = "SampleName", new = "SampleID")
+
+} else {
+
+  cat("Summarizing OTU abundance\n")
+
+  cat("..Summarizing abundance by sample and OTU\n")
+  RES <- TAB[ , 
+    .( Abundance  = sum(Abundance,  na.rm = TRUE) ),
+    by = c("OTU", "SampleID") ]
+
+}
 
 ## Reshape to wide table
 cat("..Reshaping table into wide format\n")
