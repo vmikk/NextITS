@@ -328,6 +328,10 @@ otu_tots <- rowSums(REW[, -1], na.rm = TRUE)
 REW <- REW[ order(otu_tots, decreasing = T), ]
 
 
+## Add attributes if samples were merged
+setattr(x = RES, name = "Samples_merged", value = MERGE_SAMPLES)
+setattr(x = REW, name = "Samples_merged", value = MERGE_SAMPLES)
+
 
 ## Export data
 saveRDS.gz <- function(object, file, threads = parallel::detectCores()) {
