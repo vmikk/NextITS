@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.4.0] - 2023-05-08
+
+- Add Step-2 workflow for pooling, dereplicating, and clustering sequences from Step-1
+    - Read clustering with VSEARCH ([Rognes et al., 2016 DOI:10.7717/peerj.2584](https://peerj.com/articles/2584/))  
+    - Error-correction with UNOISE2 ([Edgar, 2016 DOI:10.1101/081257](https://www.biorxiv.org/content/10.1101/081257v1))  
+    - Post-clustering curation with LULU ([Frøslev et al., 2017 DOI:doi.org/10.1038](https://www.nature.com/articles/s41467-017-01312-x))  
+- Add run summary for Step-1 (read counts at different pipeline stages)  
+- Separate config for HPC clusters  
+- Add Docker container  
+
+
 ## [0.3.0] - 2023-03-02
 
 - Add support for pre-demultiplexed data as input  
