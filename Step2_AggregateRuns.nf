@@ -366,7 +366,16 @@ workflow {
       checkIfExists: true).collect()
 
     // Pool and dereplicate all sequences
-    dereplication(ch_seqs)
+    if(params.alignment_penalties == "UNITE"){
+      dereplication_unite(ch_seqs)
+      derep_ch   = dereplication_unite.out.derep
+      derepuc_ch = dereplication_unite.out.derep_uc
+    }
+    if(params.alignment_penalties == "default"){
+      dereplication(ch_seqs)
+      derep_ch   = dereplication.out.derep
+      derepuc_ch = dereplication.out.derep_uc
+    }
 
     // Denoizing
     if ( params.unoise == true ) {
