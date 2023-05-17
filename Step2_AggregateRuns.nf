@@ -194,6 +194,8 @@ process unoise {
       --minsize ${params.unoise_minsize} \
       --iddef   ${params.otu_iddef} \
       --qmask   ${params.otu_qmask} \
+      --gapopen ${params.vsearch_gapopen} \
+      --gapext  ${params.vsearch_gapext } \
       --threads ${task.cpus} \
       --fasta_width 0 \
       --sizein --sizeout \
