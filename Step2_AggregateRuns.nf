@@ -95,6 +95,55 @@ process dereplication {
 }
 
 
+// Pool sequences from all sequencing runs,
+// Dereplicate allowing query sequences to vary in length at 100% similarity (by default, 4% length variation allowed)
+process dereplication_unite {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/01.Dereplicated", mode: 'symlink'
+    cpus 8
+
+    input:
+      path(inputs, stageAs: "?/*")
+
+    output:
+      path "Dereplicated.fa.gz", emit: derep
+      path "Dereplicated.uc.gz", emit: derep_uc
+
+    script:
+    """
+    echo -e "Dereplicating sequences\n"
+
+    ## NB. by default, UNITE uses `cluster_fast`, which sorts sequences by length
+    ## Here, we use `cluster_size`, which sorts by abundance
+
+    find . -name "*.fa.gz" | parallel -j1 \
+      "zcat {}" \
+      | sed '/^>/ s/;sample=.*;/;/' \
+      | vsearch \
+        --cluster_size - \
+        --id         1 \
+        --iddef      0 \
+        --query_cov  ${params.unite_querycov} \
+        --target_cov ${params.unite_targetcov} \
+        --strand both \
+        --sizein --sizeout \
+        --threads ${task.cpus} \
+        --uc Dereplicated.uc \
+        --centroids Dereplicated.fa
+    
+    echo -e "..Dereplication finished"
+
+    ## Compress results
+    echo -e "\nCompressing results"
+    parallel -j ${task.cpus} "gzip -7 {}" \
+      ::: "Dereplicated.uc" "Dereplicated.fa"
+
+    """
+}
+
+
 // Denoize sequences with UNOISE
 process unoise {
 
