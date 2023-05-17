@@ -379,10 +379,11 @@ workflow {
 
     // Denoizing
     if ( params.unoise == true ) {
-      unoise(dereplication.out.derep)
+      unoise(derep_ch)
       unoize_ch = unoise.out.unoise
     } else {
-      unoize_ch = dereplication.out.derep
+      unoize_ch = derep_ch
+    }
     }
       cluster_vsearch(unoize_ch)
       cluster_ch = cluster_vsearch.out.clust
