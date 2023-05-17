@@ -46,6 +46,31 @@ params.otu_id    = 0.98
 params.otu_iddef = 2        // also for UNOISE
 params.otu_qmask = "dust"   // also for UNOISE
 
+// Alignment parameters
+// NB. vsearch scores = 2 * usearch scores  !!
+// E.g., "20I/2E" = penalty 20 for opening internal gaps, and 2 for opening terminal gaps (left or right)
+
+params.alignment_penalties = "UNITE"   // alternatively, "default"
+
+if(params.alignment_penalties == "UNITE"){
+
+  // Alternative dereplication as in UNITE
+  // Allow query sequences vary 4% in length at 100% similarity
+  params.unite_querycov  = 0.96 
+  params.unite_targetcov = 0.96 
+
+  // VSEARCH
+  params.vsearch_gapopen = "0I/0E"   // penalties for gap opening     (usearch, "0.0/0.0E")
+  params.vsearch_gapext  = "2I/1E"   // penalties for gap extension   (usearch, "1.0/0.5E")
+
+}
+if(params.alignment_penalties == "default"){
+  
+  // VSEARCH
+  params.vsearch_gapopen = "20I/2E"
+  params.vsearch_gapext  = "2I/1E"
+}
+
 // Default thresholds for singleton and de novo chimera removal 
 params.max_MEEP         = 0.5
 params.max_ChimeraScore = 0.6
