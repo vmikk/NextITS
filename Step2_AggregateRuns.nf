@@ -396,11 +396,11 @@ workflow {
 
    // Summarize sequence abundances by OTU and sample
    summarize(
-    ch_seqtabs,
-    dereplication.out.derep_uc,
-    clustuc_ch
+    ch_seqtabs,     // Step-1 sequnece tables in long format
+    derepuc_ch,     // UC file with dereplication info
+    clustuc_ch,     // UC file with OTU clustering info
+    cluster_ch      // FASTA file with OTUs
    )
-
 
    // Post-clustering curation with LULU
    if ( params.lulu == true ) {
