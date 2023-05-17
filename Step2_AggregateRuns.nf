@@ -238,6 +238,8 @@ process cluster_vsearch {
       --id      ${params.otu_id} \
       --iddef   ${params.otu_iddef} \
       --qmask   ${params.otu_qmask} \
+      --gapopen ${params.vsearch_gapopen} \
+      --gapext  ${params.vsearch_gapext } \
       --threads ${task.cpus} \
       --sizein --sizeout \
       --strand both \
