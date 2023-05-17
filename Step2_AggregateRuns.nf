@@ -273,6 +273,7 @@ process summarize {
       path(seqtabs, stageAs: "?/*")
       path(uc_derep)
       path(uc_clust)
+      path(otus_fasta)
 
     output:
       path "OTU_table_wide.txt.gz", emit: otutabwide
@@ -287,6 +288,7 @@ process summarize {
     pool_seq_runs.R \
       --ucderep "Dereplicated.uc.gz" \
       --ucclust "Clustered.uc.gz" \
+      --otus    ${otus_fasta} \
       --maxmeep ${params.max_MEEP} \
       --maxchim ${params.max_ChimeraScore} \
       --recoverdenovo  ${params.recover_lowqsingletons} \
