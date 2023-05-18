@@ -40,6 +40,7 @@ suppressPackageStartupMessages(require(optparse))
 option_list <- list(
   make_option("--ucderep", action="store", default=NA,  type='character', help="UC file from global dereplication"),
   make_option("--ucclust", action="store", default=NA,  type='character', help="UC file from clustering"),
+  make_option("--otus",    action="store", default=NA,  type='character', help="FASTA file with OTU sequences"),
   make_option("--maxmeep", action="store", default=0.5, type='double', help="Max MEEP score"),
   make_option("--maxchim", action="store", default=0.6, type='double', help="Max de novo chimera score"),
   
@@ -79,6 +80,7 @@ MAXCHIM    <- as.numeric( to_na( opt$maxchim ) )
 RECOV_DENOVO  <- as.logical(opt$recoverdenovo)
 RECOV_SINGLET <- as.logical(opt$recoversinglet)
 MERGE_SAMPLES <- as.logical(opt$mergesamples)
+OTUS          <- opt$otus
 
 CPUTHREADS <- as.numeric( opt$threads )
 # SCRIPTDIR  <- opt$scriptdir
@@ -91,6 +93,7 @@ cat(paste("Max de novo chimera score: ",         MAXCHIM, "\n", sep=""))
 cat(paste("De novo chimera recovery: ",          RECOV_DENOVO,  "\n", sep=""))
 cat(paste("Low-quality singleton recovery: ",    RECOV_SINGLET, "\n", sep=""))
 cat(paste("Merge sample replicates: ",           MERGE_SAMPLES, "\n", sep=""))
+cat(paste("OTU sequences: ",                     OTUS,          "\n", sep=""))
 cat(paste("Number of CPU threads to use: ",      CPUTHREADS,    "\n", sep=""))
 # cat(paste("Directory containing source scripts: ", SCRIPTDIR, "\n", sep=""))
 
@@ -327,11 +330,12 @@ cat("..Reordering OTU rows by total abundance\n")
 otu_tots <- rowSums(REW[, -1], na.rm = TRUE)
 REW <- REW[ order(otu_tots, decreasing = T), ]
 
-
 ## Add attributes if samples were merged
 setattr(x = RES, name = "Samples_merged", value = MERGE_SAMPLES)
 setattr(x = REW, name = "Samples_merged", value = MERGE_SAMPLES)
 
+
+cat("Exporting results\n")
 
 ## Export data
 saveRDS.gz <- function(object, file, threads = parallel::detectCores()) {
@@ -358,11 +362,37 @@ fwrite(x = REW, file = "OTU_table_wide.txt.gz", sep = "\t", compress = "gzip")
 
 
 cat("..Exporting OTU sequences to FASTA\n")
-SQS <- unique(RES[, .(OTU, Sequence) ])
 
-SQF <- DNAStringSet(x = SQS$Sequence)
-names(SQF) <- SQS$OTU
+cat("...Preparing sequences\n")
 
+## Take sequences from the data (NB! there are a several different sequence per OTU)
+# SQS <- unique(RES[, .(OTU) ])
+# tmp_OTUs <- unique(TAB[ OTU %in% SQS$OTU & SeqID == OTU , .(OTU, Sequence) ])
+# SQS <- merge(x = SQS, y = tmp_OTUs, by = "OTU", all.x = TRUE)
+# rm(tmp_OTUs)
+# 
+# cat("...Preparing XStringSet object\n")
+# SQF <- DNAStringSet(x = SQS$Sequence)
+# names(SQF) <- SQS$OTU
+
+## Take sequnces from the OTU file
+cat("....Loading FASTA file\n")
+SQS <- readDNAStringSet(filepath = OTUS, format="fasta")
+cat("....Extracting sequence IDs\n")
+names(SQS) <- tstrsplit(x = names(SQS), split = ";", keep = 1)[[1]]
+
+if(any(duplicated(names(SQS)))){
+  cat("WARNING: duplicated OTU names detected!\n")
+}
+
+cat("....Subsetting OTUs\n")
+SQF <- SQS[ names(SQS) %in% unique(REW$OTU) ]
+
+cat("....Total number of OTUs in the input file: ", length(SQS), "\n")
+cat("....Number of OTUs to export: ",               length(SQF), "\n")
+cat("....Number of OTUs in the OTU talbe: ",        nrow(REW),   "\n")
+
+cat("...Writing FASTA file\n")
 writeXStringSet(x = SQF,
   filepath = "OTUs.fa.gz",
   compress = TRUE, format = "fasta", width = 9999)
