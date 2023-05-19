@@ -6,10 +6,12 @@
 # ./pool_seq_runs.R \
 #    --ucderep "Dereplicated.uc.gz" \
 #    --ucclust "Clustered.uc.gz" \
+#    --otus "Clustered.fa.gz" \
 #    --maxmeep 0.5 \
 #    --maxchim 0.6 \
 #    --recoverdenovo TRUE \
 #    --recoversinglet TRUE \
+#    --mergesamples TRUE \
 #    --threads 4
 
 ## Do-novo chimera recovery:
