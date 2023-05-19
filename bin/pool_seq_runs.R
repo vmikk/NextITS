@@ -12,10 +12,6 @@
 #    --recoversinglet TRUE \
 #    --threads 4
 
-## TO DO
-# - merge samples with identical IDs - make it optional
-
-
 ## Do-novo chimera recovery:
 # if a sequence identified as putative chimera was observed in the other samples,
 # where there is no evidence that it is chimeric, it will be recovered
@@ -62,6 +58,10 @@ if(is.na(opt$ucderep)){
 }
 if(is.na(opt$ucclust)){
   cat("Input file is not specified: UC file from clustering.\n", file=stderr())
+  stop()
+}
+if(is.na(opt$otus)){
+  cat("Input file is not specified: FASTA file with OTU sequences.\n", file=stderr())
   stop()
 }
 
