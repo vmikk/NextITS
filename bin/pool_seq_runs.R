@@ -268,10 +268,6 @@ if(!is.na(MAXCHIM)){
 } # end of MAXCHIM filtering
 
 
-## Extract sample names
-cat("..Extracting sample names\n")
-TAB[ , SampleName := tstrsplit(x = SampleID, split = "__", keep = 2) ]
-
 ## Prepare OTU IDs
 cat("..Preparing OTU IDs\n")
 UCA <- merge(x = UCA, y = UCO, by = "DerepID", all.x = TRUE)
@@ -319,11 +315,85 @@ if(MERGE_SAMPLES == TRUE){
 
 }
 
-## Reshape to wide table
-cat("..Reshaping table into wide format\n")
-REW <- dcast(data = RES, 
-  formula = OTU ~ SampleName, 
-  fun.aggregate = sum, fill = 0, value.var = "Abundance")
+#### Reshape to wide table
+cat("Reshaping table into wide format\n")
+
+## Check if we can reshape the table in a single pass
+n_otu <- length(unique(RES$OTU))
+n_smp <- length(unique(RES$SampleID))
+n_cll <- as.numeric(n_otu) * as.numeric(n_smp)
+cat("...In total, there are ", n_otu, " OTUs and ",  n_smp, " samples\n")
+cat("...The total number of cells in the wide table will be ", n_cll, "\n")
+
+## Reshape data in one pass
+if(n_cll < 50000000){
+  REW <- dcast(data = RES, 
+    formula = OTU ~ SampleID, 
+    fun.aggregate = sum, fill = 0, value.var = "Abundance")
+} else {
+## Split data into chunks, reshape, and merge back
+
+  cat("..The input table is too large to reshape in a single pass, reshaping by chunks\n")
+
+  ## Function to split vector into N chunks
+  chunk <- function(x, n){
+    if(n > 1) { res <- split(x, cut(seq_along(x), n, labels = FALSE)) }
+    if(n == 1){ res <- list();  res[[1]] <- x }
+    return(res)
+  }
+
+  ## Choose the number of chunks
+  n_chunks <- data.table::fcase(
+      n_cll <  9e7,                2L,
+      n_cll >= 9e7 & n_cll < 5e8,  5L,
+      n_cll >= 5e8 & n_cll < 5e9,  6L,
+      n_cll >= 5e9 & n_cll < 5e10, 7L,
+      n_cll >= 5e10,               8L)
+
+  cat("...The number of chunks to process: , ", n_chunks, "\n")
+
+  ch <- chunk(x = sort(unique(RES$SampleID)), n = n_chunks)
+
+  ## Chunk-and-reshape loop
+  REWL <- plyr::llply(
+    .data = ch,
+    .fun = function(x){
+      
+      ## Reshape to wide
+      res <- dcast(
+        data = RES[ SampleID %in% x , ],
+        formula = OTU ~ SampleID,
+        fill = 0, fun.aggregate = sum, value.var = "Abundance")
+      
+      ## Create key on a data.table (should improve merging speed)
+      setkey(res, OTU)
+      
+      return(res)
+      },
+    .progress = "text")
+
+  cat("...Chunk reshaping finished\n")
+  cat("..Merging data into a single wide table\n")
+
+  ## Merge chunks into a single wide table
+  merge_dt <- function(x,y){ data.table::merge.data.table(x, y, by = "OTU", all = TRUE) }
+  REW <- Reduce(f = merge_dt, x = REWL)
+  cat("...Merging finished\n")
+
+  ## Clean up
+  cat("...Cleaning up\n")
+  rm(REWL); gc()
+
+  ## Replace NAs with zeros
+  cat("...Filling missing values with zeros\n")
+  for (j in seq_len(ncol(REW))){
+    set(REW, which(is.na(REW[[j]])), j, 0)
+  }
+
+} ## end of reshaping
+
+cat("..Reshaping to the wide format done!\n")
+
 
 ## Reorder OTU rows
 cat("..Reordering OTU rows by total abundance\n")
