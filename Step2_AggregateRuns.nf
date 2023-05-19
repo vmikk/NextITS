@@ -286,8 +286,8 @@ process summarize {
     """
 
     pool_seq_runs.R \
-      --ucderep "Dereplicated.uc.gz" \
-      --ucclust "Clustered.uc.gz" \
+      --ucderep ${uc_derep} \
+      --ucclust ${uc_clust} \
       --otus    ${otus_fasta} \
       --maxmeep ${params.max_MEEP} \
       --maxchim ${params.max_ChimeraScore} \
