@@ -2,6 +2,20 @@
 
 ## Script to pool quality-filtered and trimmed sequences from multiple sequencing runs
 ## And summarize sequence abundance at OTU level (per sample)
+## 
+
+# Input:
+#   1. UC file from global dereplication  (`Dereplicated.uc.gz`)
+#   2. UC file from clustering            (`Clustered.uc.gz`)
+#   3. FASTA file with OTU sequences      (`Clustered.fa.gz`)
+#   4. Max MEEP score
+#   5. Max de novo chimera score
+
+# Outputs:
+#  - OTU table in long format    (`OTU_table_long.txt.gz` & `OTU_table_long.RData`)
+#  - OTU table in wide format    (`OTU_table_wide.txt.gz` & `OTU_table_wide.RData`)
+#  - FASTA file with sequences   (`OTUs.fa.gz`)
+
 ## Usage:
 # ./pool_seq_runs.R \
 #    --ucderep "Dereplicated.uc.gz" \
