@@ -109,6 +109,8 @@ cat("\n")
 # MAXCHIM       <- 0.6
 # RECOV_DENOVO  <- TRUE
 # RECOV_SINGLET <- TRUE
+# MERGE_SAMPLES <- TRUE
+# OTUS          <- "Clustered.fa.gz"
 # CPUTHREADS    <- 4
 
 
