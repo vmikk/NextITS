@@ -341,18 +341,19 @@ process lulu {
     ## Prepare match list (+ remove size annotations)
     echo -e "Preparing match list\n"
     vsearch \
-      --usearch_global ${sequences}  \
-      --db ${sequences}  \
-      --self  \
-      --id "\$VSID" \
-      --iddef 1 \
+      --usearch_global ${sequences} \
+      --db ${sequences} \
+      --self \
+      --id         "\$VSID" \
+      --iddef      1 \
+      --gapopen    ${params.vsearch_gapopen} \
+      --gapext     ${params.vsearch_gapext } \
+      --query_cov  0.9 \
       --userfields query+target+id \
       --maxaccepts 0 \
-      --query_cov  0.9 \
-      --maxhits 10 \
-      --threads ${task.cpus} \
-      --userout LULU_match_list.txt
-
+      --maxhits    10 \
+      --threads    ${task.cpus} \
+      --userout    LULU_match_list.txt
 
     # Input otu_table  = tab-separated, samples in columns
     # Input match_list = tab-separated, OTU pairwise similarity scores
