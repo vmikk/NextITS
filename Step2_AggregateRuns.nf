@@ -403,6 +403,26 @@ workflow {
     derepuc_ch = dereplication.out.derep_uc
 
 
+    // // Pool and dereplicate all sequences
+    // if(params.alignment_penalties == "UNITE"){
+    //   // Clustering-based dereplication, allowing for a slight length variation of sequences 
+    //   dereplication_unite(ch_seqs)
+    //   derep_ch   = dereplication_unite.out.derep
+    //   derepuc_ch = dereplication_unite.out.derep_uc
+    // }
+    // if(params.alignment_penalties == "default"){
+    //   // Fast, hash-based dereiplication
+    //   dereplication(ch_seqs)
+    //   derep_ch   = dereplication.out.derep
+    //   derepuc_ch = dereplication.out.derep_uc
+    // }
+    // 
+    // NB. In case with large number of sequences, UNITE-style dereplication is extremly slow.
+    // Probably, it is possible to improve the speed, by using two steps:
+    //   hash-based dereplication first, then additional round of clustering-based derep.
+    // But it would add extra complexity to manage and combine two UC files.
+
+
     // Denoizing
     if ( params.unoise == true ) {
       unoise(derep_ch)
