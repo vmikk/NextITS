@@ -498,10 +498,19 @@ workflow {
     } else {
       unoize_ch = derep_ch
     }
+
+    // Clustering
+    if ( params.clustering_method == "swarm" ) {
+      cluster_swarm(unoize_ch)
+      cluster_ch = cluster_swarm.out.clust
+      clustuc_ch = cluster_swarm.out.clust_uc
     }
+    if ( params.clustering_method == "vsearch" ) {
       cluster_vsearch(unoize_ch)
       cluster_ch = cluster_vsearch.out.clust
       clustuc_ch = cluster_vsearch.out.clust_uc
+    }
+
 
    // Pool sequence tables and aggregate at OTU level
    ch_seqtabs = Channel.fromPath(
