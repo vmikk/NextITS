@@ -71,6 +71,14 @@ if(params.alignment_penalties == "default"){
   params.vsearch_gapext  = "2I/1E"
 }
 
+// LULU
+params.lulu = true
+params.lulu_match     = 90.0    // minimum similarity threshold (default, 84.0)
+params.lulu_ratio     = 1.0
+params.lulu_ratiotype = "min"   // "min" or "avg"
+params.lulu_relcooc   = 0.95    // relative co-occurrence (default, 0.95)
+
+
 // Default thresholds for singleton and de novo chimera removal 
 params.max_MEEP         = 0.5
 params.max_ChimeraScore = 0.6
