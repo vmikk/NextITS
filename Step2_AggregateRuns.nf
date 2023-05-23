@@ -267,6 +267,66 @@ process cluster_vsearch {
 
 
 
+// Cluster sequences with SWARM (dynamic similarity threshold)
+process cluster_swarm {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03.Clustered_SWARM", mode: 'symlink'
+    // cpus 10
+
+    input:
+      path input
+
+    output:
+      path "SWARM_representatives.fa.gz", emit: clust
+      path "SWARM.uc.gz",                 emit: clust_uc
+      path "SWARM.swarms.gz",             emit: swarms
+      path "SWARM.struct.gz",             emit: struct
+      path "SWARM.stats.gz",              emit: stats
+
+    script:
+    fastidious = params.swarm_fastidious ? "--fastidious" : ""
+    """
+    echo -e "Clustering sequences with SWARM\n"
+    echo -e "Note: sequences with ambiguous nucleotides will be excluded!\n"
+
+    ## Swarm works with ACGTU alphabet only
+    ## 1. So check if there are any sequences with ambiguities
+    ## 2. If any, remove them
+    ## 3. Cluster
+
+    ## Count number of sequences with ambiguities (will go through the entire file)
+    # AMBIGS=\$(seqkit grep --count --by-seq --use-regexp --ignore-case --pattern "[RYSWKMBDHVN]" ${input})
+
+    ## Remove sequences with ambiguities
+    zcat ${input} \
+    | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\n%s\n", a, \$0}}}' \
+    | swarm \
+      --differences ${params.swarm_d} \
+      --boundary ${params.swarm_d1boundary} \
+      ${fastidious} \
+      --threads ${task.cpus} \
+      --usearch-abundance \
+      --statistics-file    SWARM.stats \
+      --internal-structure SWARM.struct \
+      --uclust-file        SWARM.uc \
+      --output-file        SWARM.swarms \
+      --seeds              SWARM_representatives.fa
+
+     # -r, --mothur                        output using mothur-like format
+
+    echo -e "\n..Swarm clustering finished\n"
+
+    ## Compress results
+    echo -e "..Compressing results\n"
+    parallel -j ${task.cpus} "gzip -6 {}" \
+      ::: "SWARM_representatives.fa" "SWARM.uc" "SWARM.swarms" "SWARM.struct" "SWARM.stats"
+
+    echo -e "..Done\n"
+    """
+}
+
 
 
 // Summarize sequence abundance by OTU
