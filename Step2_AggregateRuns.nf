@@ -33,6 +33,9 @@ params.outdir = "Step2"
 // Path to the Step-1 results
 params.data_path = "${projectDir}/Output"
 
+// Pool sample replicates (e.g., re-sequenced samples) in the final OTU table
+params.merge_replicates = false
+
 // Denoising
 params.unoise         = false
 params.unoise_alpha   = 2.0
