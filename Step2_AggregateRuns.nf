@@ -46,6 +46,11 @@ params.otu_id    = 0.98
 params.otu_iddef = 2        // also for UNOISE
 params.otu_qmask = "dust"   // also for UNOISE
 
+// SWARM clustering
+params.swarm_d          = 2
+params.swarm_fastidious = false
+params.swarm_d1boundary = 3       // min mass of large OTUs, only for Fastidious + d=1
+
 // Alignment parameters
 // NB. vsearch scores = 2 * usearch scores  !!
 // E.g., "20I/2E" = penalty 20 for opening internal gaps, and 2 for opening terminal gaps (left or right)
