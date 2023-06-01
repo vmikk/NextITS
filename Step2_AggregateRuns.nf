@@ -58,7 +58,7 @@ params.swarm_d1boundary = 3       // min mass of large OTUs, only for Fastidious
 // NB. vsearch scores = 2 * usearch scores  !!
 // E.g., "20I/2E" = penalty 20 for opening internal gaps, and 2 for opening terminal gaps (left or right)
 
-params.alignment_penalties = "UNITE"   // alternatively, "default"
+params.alignment_penalties = "default"   // alternatively, "UNITE"
 
 if(params.alignment_penalties == "UNITE"){
 
