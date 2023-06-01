@@ -41,7 +41,7 @@ params.unoise         = false
 params.unoise_alpha   = 2.0
 params.unoise_minsize = 8
 
-// Sequence clustering method (VSEARCH / SWARM)
+// Sequence clustering method ("vsearch" / "swarm" / "unoise")
 params.clustering_method = "vsearch"
 
 // VSEARCH clustering
@@ -510,17 +510,20 @@ workflow {
     }
 
     // Clustering
-    if ( params.clustering_method == "swarm" ) {
-      cluster_swarm(unoize_ch)
-      cluster_ch = cluster_swarm.out.clust
-      clustuc_ch = cluster_swarm.out.clust_uc
-    }
     if ( params.clustering_method == "vsearch" ) {
       cluster_vsearch(unoize_ch)
       cluster_ch = cluster_vsearch.out.clust
       clustuc_ch = cluster_vsearch.out.clust_uc
     }
-
+    if ( params.clustering_method == "swarm" ) {
+      cluster_swarm(unoize_ch)
+      cluster_ch = cluster_swarm.out.clust
+      clustuc_ch = cluster_swarm.out.clust_uc
+    }
+    if ( params.clustering_method == "unoise" ) {
+      cluster_ch = unoise.out.unoise
+      clustuc_ch = unoise.out.unoise_uc
+    }
 
    // Pool sequence tables and aggregate at OTU level
    ch_seqtabs = Channel.fromPath(
