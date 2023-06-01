@@ -99,7 +99,7 @@ process dereplication {
     label "main_container"
 
     publishDir "${params.outdir}/01.Dereplicated", mode: 'symlink'
-    cpus 1
+    // cpus 1
 
     input:
       path(inputs, stageAs: "?/*")
@@ -143,7 +143,7 @@ process dereplication_unite {
     label "main_container"
 
     publishDir "${params.outdir}/01.Dereplicated", mode: 'symlink'
-    cpus 8
+    // cpus 8
 
     input:
       path(inputs, stageAs: "?/*")
@@ -191,7 +191,7 @@ process unoise {
     label "main_container"
 
     publishDir "${params.outdir}/02.UNOISE", mode: 'symlink'
-    // cpus 10
+    // cpus 8
 
     input:
       path input
@@ -236,7 +236,7 @@ process cluster_vsearch {
     label "main_container"
 
     publishDir "${params.outdir}/03.Clustered_VSEARCH", mode: 'symlink'
-    // cpus 10
+    // cpus 8
 
     input:
       path input
@@ -281,7 +281,7 @@ process cluster_swarm {
     label "main_container"
 
     publishDir "${params.outdir}/03.Clustered_SWARM", mode: 'symlink'
-    // cpus 10
+    // cpus 8
 
     input:
       path input
@@ -383,7 +383,7 @@ process lulu {
     label "main_container"
 
     publishDir "${params.outdir}/05.LULU", mode: 'symlink'
-    // cpus 10
+    // cpus 8
 
     input:
       path otu_table
