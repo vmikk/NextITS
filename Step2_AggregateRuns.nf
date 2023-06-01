@@ -312,17 +312,18 @@ process cluster_swarm {
     | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
     | swarm \
       --differences ${params.swarm_d} \
-      --boundary ${params.swarm_d1boundary} \
+      --boundary    ${params.swarm_d1boundary} \
       ${fastidious} \
-      --threads ${task.cpus} \
+      --threads     ${task.cpus} \
       --usearch-abundance \
       --statistics-file    SWARM.stats \
       --internal-structure SWARM.struct \
       --uclust-file        SWARM.uc \
-      --output-file        SWARM.swarms \
-      --seeds              SWARM_representatives.fa
+      --seeds              SWARM_representatives.fa \
+      > SWARM.swarms
 
-     # -r, --mothur                        output using mothur-like format
+    # --output-file SWARM.swarms  # to avoid buffering, it's better to stream data into a file (with >)
+    # -r, --mothur                # output using mothur-like format
 
     echo -e "\n..Swarm clustering finished\n"
 
