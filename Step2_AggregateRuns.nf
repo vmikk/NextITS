@@ -370,7 +370,8 @@ process summarize {
       --maxchim ${params.max_ChimeraScore} \
       --recoverdenovo  ${params.recover_lowqsingletons} \
       --recoversinglet ${params.recover_denovochimeras} \
-      --threads ${task.cpus} \
+      --mergesamples   ${params.merge_replicates} \
+      --threads ${task.cpus}
 
     """
 }
