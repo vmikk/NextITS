@@ -154,15 +154,15 @@ params.chimera_db = "/mnt/Dat2/DB/UNITE/Leho_Subset/UN95_chimera.udb"
 params.chimera_rescueoccurrence = 2
 
 // De novo chimera identification (UCHIME1)
-params.chimeranov_abskew = 2.0
-params.chimeranov_dn = 1.4
+params.chimeranov_abskew   = 2.0
+params.chimeranov_dn       = 1.4
 params.chimeranov_mindiffs = 3
-params.chimeranov_mindiv = 0.8
-params.chimeranov_minh = 0.28
-params.chimeranov_xn = 8.0
+params.chimeranov_mindiv   = 0.8
+params.chimeranov_minh     = 0.28
+params.chimeranov_xn       = 8.0
 
 // OTU clustering (for tag-jump removal)
-params.otu_id = 0.98
+params.otu_id    = 0.98
 params.otu_iddef = 2
 
 // Tag-jump removal
@@ -170,11 +170,11 @@ params.tj_f = 0.01    // UNCROSS parameter f
 params.tj_p = 1
 
 // Taxonomy annotation
-params.blast_taxdb = false
-params.blast_task = "blastn"   // or "megablast" 
+params.blast_taxdb     = false
+params.blast_task      = "blastn"   // or "megablast" 
 params.blast_chunksize = 100
-params.blast_maxts = 10
-params.blast_hsps = 1
+params.blast_maxts     = 10
+params.blast_hsps      = 1
 // params.blast_wordsize
 
 
