@@ -309,7 +309,7 @@ process cluster_swarm {
 
     ## Remove sequences with ambiguities
     zcat ${input} \
-    | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\n%s\n", a, \$0}}}' \
+    | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
     | swarm \
       --differences ${params.swarm_d} \
       --boundary ${params.swarm_d1boundary} \
