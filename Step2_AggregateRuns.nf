@@ -79,12 +79,6 @@ if(params.alignment_penalties == "default"){
   params.vsearch_gapext  = "2I/1E"
 }
 
-// LULU
-params.lulu = true
-params.lulu_match     = 90.0    // minimum similarity threshold (default, 84.0)
-params.lulu_ratio     = 1.0
-params.lulu_ratiotype = "min"   // "min" or "avg"
-params.lulu_relcooc   = 0.95    // relative co-occurrence (default, 0.95)
 
 
 // Default thresholds for singleton and de novo chimera removal 
@@ -92,6 +86,13 @@ params.max_MEEP         = 0.5
 params.max_ChimeraScore = 0.6
 params.recover_lowqsingletons = true
 params.recover_denovochimeras = true
+
+// LULU
+params.lulu = true
+params.lulu_match     = 95.0    // minimum similarity threshold (default, 84.0)
+params.lulu_ratio     = 1.0     // minimum abundance ratio (default, 1.0)
+params.lulu_ratiotype = "min"   // abundance ratio type - "min" or "avg" (default, "min")
+params.lulu_relcooc   = 0.95    // relative co-occurrence (default, 0.95)
 
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
@@ -390,8 +391,8 @@ process lulu {
       path sequences
 
     output:
-      path "OTU_table_LULU.txt.gz",  emit: lulu
-      path "LULU_match_list.txt.gz", emit: matches
+      path "OTU_table_LULU.txt.gz",          emit: lulu
+      path "LULU_match_list.txt.gz",         emit: matches
 
     script:
     """
