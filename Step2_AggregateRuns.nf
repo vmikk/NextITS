@@ -395,6 +395,8 @@ process lulu {
     output:
       path "OTU_table_LULU.txt.gz",          emit: lulu
       path "LULU_match_list.txt.gz",         emit: matches
+      path "OTUs_LULU.fa.gz",                emit: fasta
+      
 
     script:
     """
@@ -460,6 +462,23 @@ process lulu {
       ::: "OTU_table_LULU.txt" "lulu.log" "LULU_match_list.txt"
 
     echo -e "..LULU done\n"
+
+    echo -e "\nPreparing sequence subset\n"
+
+    echo -e "..Extracting OTU IDs\n"
+    zcat OTU_table_LULU.txt.gz \
+      | awk 'NR > 1 {print \$1}' \
+      > curated_OTU_ids.txt
+
+    echo -e "..Extracting sequences\n"
+    rg -z -A 1 \
+      -f curated_OTU_ids.txt \
+      --context-separator "" \
+      --threads ${task.cpus} \
+      ${sequences} \
+    | sed '/^\$/d' \
+    | gzip -7 \
+    > OTUs_LULU.fa.gz
 
     ## Remove temporary files
     # rm tmp_sequences.fa.gz
