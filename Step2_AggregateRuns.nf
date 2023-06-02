@@ -93,6 +93,8 @@ params.lulu_match     = 95.0    // minimum similarity threshold (default, 84.0)
 params.lulu_ratio     = 1.0     // minimum abundance ratio (default, 1.0)
 params.lulu_ratiotype = "min"   // abundance ratio type - "min" or "avg" (default, "min")
 params.lulu_relcooc   = 0.95    // relative co-occurrence (default, 0.95)
+params.lulu_maxhits   = 0       // maximum number of hits (0 = unlimited; default, 10?)
+
 
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
@@ -421,7 +423,7 @@ process lulu {
     echo -e "Preparing match list\n"
     vsearch \
       --usearch_global ${sequences} \
-      --db ${sequences} \
+      --db             ${sequences} \
       --self \
       --id         "\$VSID" \
       --iddef      1 \
@@ -430,7 +432,7 @@ process lulu {
       --query_cov  0.9 \
       --userfields query+target+id \
       --maxaccepts 0 \
-      --maxhits    10 \
+      --maxhits    ${params.lulu_maxhits} \
       --threads    ${task.cpus} \
       --userout    LULU_match_list.txt
 
