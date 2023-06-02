@@ -395,6 +395,7 @@ process lulu {
     output:
       path "OTU_table_LULU.txt.gz",          emit: lulu
       path "LULU_match_list.txt.gz",         emit: matches
+      path "LULU_merging_statistics.txt.gz", emit: stats
       path "OTUs_LULU.fa.gz",                emit: fasta
       
 
@@ -450,7 +451,7 @@ process lulu {
       --otu_table     tmp_OTU_table.txt \
       --match_list    LULU_match_list.txt \
       --new_otu_table OTU_table_LULU.txt \
-      --log lulu.log \
+      --log LULU_merging_statistics.txt \
       --threads                      ${task.cpus} \
       --minimum_match                ${params.lulu_match} \
       --minimum_ratio                ${params.lulu_ratio} \
@@ -459,7 +460,7 @@ process lulu {
 
     echo -e "..Compressing LULU-curated OTU table\n"
     parallel -j ${task.cpus} "gzip -7 {}" \
-      ::: "OTU_table_LULU.txt" "lulu.log" "LULU_match_list.txt"
+      ::: "OTU_table_LULU.txt" "LULU_merging_statistics.txt" "LULU_match_list.txt"
 
     echo -e "..LULU done\n"
 
@@ -481,8 +482,10 @@ process lulu {
     > OTUs_LULU.fa.gz
 
     ## Remove temporary files
+    echo -e "\nAll done!\n"
+    echo -e "Removing temporary files\n"
     # rm tmp_sequences.fa.gz
-    rm tmp_OTU_table.txt
+    rm tmp_OTU_table.txt curated_OTU_ids.txt
 
     """
 }
