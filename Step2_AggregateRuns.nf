@@ -490,6 +490,27 @@ process lulu {
     """
 }
 
+// LULU merging statistics format:
+// 1.  name of query OTU
+// 2.  name of potential parent OTU
+// 3.  percentage of similarity (0 to 100)
+// 4.  total abundance of the query OTU (sum through all samples)
+// 5.  total abundance of the potential parent OTU (sum through all samples)
+// 6.  overlap abundance of the query OTU (sum through all samples where the potential parent OTU is also present)
+// 7.  overlap abundance of the potential parent OTU (sum through all samples where the query OTU is also present)
+// 8.  incidence of the query OTU (number of samples where the query OTU is present)
+// 9.  incidence of the potential parent OTU (number of samples where the potential parent OTU is present)
+// 10. incidence of the potential parent OTU (number of samples where both the potential parent OTU and the query OTU are present)
+// 11. smallest abundance ratio (for each sample, compute the abundance of the potential parent OTU divided by the abundance of the query OTU)
+// 12. sum of the abundance ratios
+// 13. average value of abundance ratios
+// 14. smallest non-null abundance ratio (exclude ratios for samples where the query OTU is present but not the potential parent OTU)
+// 15. average value of non-null abundance ratios (exclude ratios for samples where the query OTU is present but not the potential parent OTU)
+// 16. largest ratio value
+// 17. relative co-occurence value (number of samples where both the potential parent OTU and the query OTU are present divided by the number of samples where the query OTU is present)
+// 18. status: 'accepted' or 'rejected'
+//     The potential parent OTU is either accepted as a parent, or rejected
+
 //  The default workflow
 workflow {
 
