@@ -2513,6 +2513,86 @@ process read_counts {
       --seqtab       ${seqtab} \
       --threads      ${task.cpus}
 
+    """
+}
+
+// Quick stats of demultiplexing and primer checking steps
+// (for the `seqstats` sub-workflow)
+process quick_stats {
+
+    label "main_container"
+
+    publishDir "${out_3_quickstats}",                 mode: 'symlink', pattern: "*.xlsx"
+    publishDir "${out_3_quickstats}/PerProcessStats", mode: 'symlink', pattern: "*.txt"
+    // cpus 5
+
+    input:
+      path(input_fastq, stageAs: "1_input/*")
+      path(qc, stageAs: "2_qc/*")
+      path(samples_demux, stageAs: "3_demux/*")
+      path(samples_primerch, stageAs: "4_primerch/*")
+      path(samples_primermult, stageAs: "4_multiprimer/*")
+
+    output:
+      path "Run_summary.xlsx",                  emit: xlsx
+      path "Counts_1.RawData.txt",              emit: counts_1_raw
+      path "Counts_2.QC.txt",                   emit: counts_2_qc
+      path "Counts_3.Demux.txt",                emit: counts_3_demux,       optional: true
+      path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,      optional: true
+      path "Counts_4.PrimerMultiArtifacts.txt", emit: counts_4_primermult,  optional: true
+
+    script:
+
+    """
+    echo -e "Summarizing run statistics\n"
+    echo -e "Counting the number of reads in:\n"
+
+
+    ## Count raw reads
+    echo -e "\n..Raw data"
+    seqkit stat --basename --tabular --threads ${task.cpus} \
+      1_input/* > Counts_1.RawData.txt
+    
+    ## Count number of reads passed QC
+    echo -e "\n..Sequenced passed QC"
+    seqkit stat --basename --tabular --threads ${task.cpus} \
+      2_qc/* > Counts_2.QC.txt
+    
+    ## Count demultiplexed reads
+    echo -e "\n..Demultiplexed data"
+    seqkit stat --basename --tabular --threads ${task.cpus} \
+      3_demux/* > Counts_3.Demux.txt
+
+    ## Count primer-checked reads
+    echo -e "\n..Primer-checked data"
+    if [ `find 4_primerch -name no_primerchecked 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.PrimerCheck.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} \
+        4_primerch/* > Counts_4.PrimerCheck.txt
+    fi
+
+    ## Count multiprimer-artifacts
+    echo -e "\n..Multiprimer-artifacts"
+    if [ `find 4_multiprimer -name no_multiprimer 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.PrimerMultiArtifacts.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} \
+        4_multiprimer/* > Counts_4.PrimerMultiArtifacts.txt
+    fi
+    
+    ## Summarize read counts
+    quick_stats.R \
+      --raw          Counts_1.RawData.txt \
+      --qc           Counts_2.QC.txt \
+      --demuxed      Counts_3.Demux.txt \
+      --primer       Counts_4.PrimerCheck.txt \
+      --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+      --threads      ${task.cpus}
 
     """
 }
