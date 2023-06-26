@@ -2970,6 +2970,56 @@ workflow {
 }
 
 
+// Quick workflow for demultiplexing and estimation of the number of reads per sample
+// Only PacBio non-demux reads are supported
+workflow seqstats {
+
+  // Primer disambiguation
+  disambiguate()
+
+  // Input file with barcodes (FASTA)
+  ch_barcodes = Channel.value(params.barcodes)
+
+  // Input file with multiplexed reads (FASTQ.gz)
+  ch_input = Channel.value(params.input)
+
+
+  // Initial QC
+  qc_se(ch_input)
+
+  // Demultiplexing
+  demux(
+    qc_se.out.filtered,
+    ch_barcodes)
+
+  // Check primers
+  primer_check(
+    demux.out.samples_demux.flatten(),
+    disambiguate.out.F,
+    disambiguate.out.R,
+    disambiguate.out.Fr,
+    disambiguate.out.Rr
+    )
+
+  // Prepare input channels
+  ch_all_demux = demux.out.samples_demux.flatten().collect()
+  ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
+  ch_all_multiprimer = primer_check.out.mutiprimer.flatten().collect().ifEmpty(file("no_multiprimer"))
+
+  // Count reads and prepare summary stats for the run
+  quick_stats(
+      ch_input,                // input data
+      qc_se.out.filtered,      // data that passed QC
+      ch_all_demux,            // demultiplexed sequences per sample
+      ch_all_primerchecked,    // primer-cheched sequences
+      ch_all_multiprimer       // multiprimer artifacts
+      )
+
+} // end of `seqstats` subworkflow
+
+
+
+
 // On completion
 workflow.onComplete {
     println "Pipeline completed at : $workflow.complete"
