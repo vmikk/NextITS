@@ -365,7 +365,8 @@ out_7_seq    = params.outdir + "/07_SeqTable"
 out_8_smr    = params.outdir + "/08_RunSummary"
 out_9_blast  = params.outdir + "/09_Taxonomy"
 
-
+// Sub-workflow-specific outputs
+out_3_quickstats = params.outdir + "/03_Stats"
 
 
 // Quality filtering for single-end reads
