@@ -300,6 +300,7 @@ PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 # .. estimate percentages
 # .. add tag-jump summary
 # .. add final counts from the Seq table
+# .. add positive / negative counts (based on default sample names)
 
 ## Prepare per-run stats
 PER_RUN_COUNTS_merged <- data.table(
