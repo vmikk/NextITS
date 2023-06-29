@@ -182,7 +182,9 @@ PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
 ## Estimate percentage of multiprimer artifacts
 PER_SAMPLE_COUNTS_merged[ , 
- MultiprimerArtifacts_Percent := round(MultiprimerArtifacts_Reads / PrimerChecked_Reads * 100, 1)
+ MultiprimerArtifacts_Percent := round(
+  MultiprimerArtifacts_Reads / (PrimerChecked_Reads + MultiprimerArtifacts_Reads) * 100,
+  2)
  ]
 
 
