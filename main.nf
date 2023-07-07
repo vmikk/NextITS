@@ -2819,7 +2819,7 @@ workflow {
       // No homopolymer comression is required,
       // Just dereplicate the data
 
-      if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2"){
+      if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
         // --Full-length ITS sequences
         if(params.its_region == "full"){
           just_derep(itsx.out.itsx_full)
@@ -2831,6 +2831,14 @@ workflow {
         // --ITS2 sequences
         if(params.its_region == "ITS2"){
           just_derep(itsx.out.itsx_its2)
+        }
+        // --SSU sequences
+        if(params.its_region == "SSU"){
+          just_derep(itsx.out.itsx_ssu)
+        }
+        // --LSU sequences
+        if(params.its_region == "LSU"){
+          just_derep(itsx.out.itsx_lsu)
         }
 
         // Reference-based chimera removal
