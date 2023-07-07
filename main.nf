@@ -2933,6 +2933,12 @@ workflow {
       if(params.its_region == "ITS2"){
         ch_all_trim = itsx.out.itsx_its2.flatten().collect().ifEmpty(file("no_itsx"))
       }
+      if(params.its_region == "SSU"){
+        ch_all_trim = itsx.out.itsx_ssu.flatten().collect().ifEmpty(file("no_itsx"))
+      }
+      if(params.its_region == "LSU"){
+        ch_all_trim = itsx.out.itsx_lsu.flatten().collect().ifEmpty(file("no_itsx"))
+      }
       if(params.its_region == "ITS1_5.8S_ITS2"){
         ch_all_trim = assemble_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
       }
