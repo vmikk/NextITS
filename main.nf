@@ -76,6 +76,7 @@ params.its_region = "full"
 //   "ITS1" or "ITS2"
 //   "none" = just trim primers
 //   "ITS1_5.8S_ITS2" = assemble near-full-length ITS from ITSx output (useful in the case if primers are too close to SSU or LSU, and ITSx is not able to detect full-length sequence)
+//   "SSU" or "LSU"
 
 // Quality control
 params.qc_maxee     = false       // only for single-end reads
@@ -2735,7 +2736,7 @@ workflow {
 
 
     // Extract ITS
-    if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2"){
+    if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
 
       // Run ITSx
       itsx(primer_check.out.fq_primer_checked)
@@ -2789,6 +2790,15 @@ workflow {
         if(params.its_region == "ITS2"){
           homopolymer(itsx.out.itsx_its2)
         }
+        // --SSU sequences
+        if(params.its_region == "SSU"){
+          homopolymer(itsx.out.itsx_ssu)
+        }
+        // --LSU sequences
+        if(params.its_region == "LSU"){
+          homopolymer(itsx.out.itsx_lsu)
+        }
+
         // --Primer-trimmed sequences
         if(params.its_region == "none"){
           homopolymer(trim_primers.out.primertrimmed_fa)
