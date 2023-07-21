@@ -9,6 +9,7 @@
 #   --primer       Counts_4.PrimerCheck.txt \
 #   --primermulti  Counts_4.PrimerMultiArtifacts.txt \
 #   --itsx         Counts_5.ITSx_or_PrimTrim.txt \
+#   --homopolymer  Counts_5.Homopolymers.txt \
 #   --chimrefn     Counts_6.ChimRef_reads.txt \
 #   --chimrefu     Counts_6.ChimRef_uniqs.txt \
 #   --chimdenovo   Counts_7.ChimDenov.txt \
@@ -26,7 +27,7 @@
 start_time <- Sys.time()
 
 
-cat("Parsing input options and arguments...\n")
+cat("\nParsing input options and arguments...\n")
 
 suppressPackageStartupMessages(require(optparse))
 
@@ -39,6 +40,7 @@ option_list <- list(
   make_option("--primer",     action="store", default=NA, type='character', help="Counts of reads with both primers detected"),
   make_option("--primermulti",action="store", default=NA, type='character', help="Counts of multi-primer artifacts"),
   make_option("--itsx",       action="store", default=NA, type='character', help="Read counts after ITSx or primer removal"),
+  make_option("--homopolymer",action="store", default=NA, type='character', help="Homopolymer correction results"),
   make_option("--chimrefn",   action="store", default=NA, type='character', help="Number of reads for reference-based chimeras"),
   make_option("--chimrefu",   action="store", default=NA, type='character', help="Number of unique sequences detected as reference-based chimeras"),
   make_option("--chimdenovo", action="store", default=NA, type='character', help="Number of de novo chimeras"),
@@ -72,6 +74,7 @@ DEMUXED     <- opt$demuxed
 PRIMER      <- opt$primer
 PRIMERMULTI <- opt$primermulti
 ITSX        <- opt$itsx
+HOMOPOLY    <- opt$homopolymer
 CHIMREFN    <- opt$chimrefn
 CHIMREFU    <- opt$chimrefu
 CHIMDENOVO  <- opt$chimdenovo
@@ -88,6 +91,7 @@ cat(paste("Counts - Demux: " ,       DEMUXED, "\n", sep=""))
 cat(paste("Counts - PrimerCheck: " , PRIMER, "\n", sep=""))
 cat(paste("Counts - Primer Multi Artifacts: " ,                        PRIMERMULTI, "\n", sep=""))
 cat(paste("Counts - ITSx or Primer Trim: " ,                           ITSX, "\n", sep=""))
+cat(paste("Counts - Homopolymer correction results: " ,                HOMOPOLY, "\n", sep=""))
 cat(paste("Counts - Chimera Ref-based, reads: " ,                      CHIMREFN, "\n", sep=""))
 cat(paste("Counts - Chimera Ref-based, unique sequences: " ,           CHIMREFU, "\n", sep=""))
 cat(paste("Counts - Chimera de novo: " ,                               CHIMDENOVO, "\n", sep=""))
@@ -108,6 +112,7 @@ cat("\n")
 # PRIMER      <- "Counts_4.PrimerCheck.txt"
 # PRIMERMULTI <- "Counts_4.PrimerMultiArtifacts.txt"
 # ITSX        <- "Counts_5.ITSx_or_PrimTrim.txt"
+# HOMOPOLY    <- "Counts_5.Homopolymers.txt"
 # CHIMREFN    <- "Counts_6.ChimRef_reads.txt"
 # CHIMREFU    <- "Counts_6.ChimRef_uniqs.txt"
 # CHIMDENOVO  <- "Counts_7.ChimDenov.txt"
@@ -169,6 +174,9 @@ SEQKITCOUNTS$PRIMERMULTI <- fread(PRIMERMULTI)
 
 cat("..Loading ITSx or primer trim counts\n")
 CUSTOMCOUNTS$ITSX <- fread(ITSX)
+
+cat("..Loading homopolymer correction results\n")
+HOMOPOLY_data <- fread(HOMOPOLY)
 
 cat("..Loading ref-based chimera counts\n")
 CUSTOMCOUNTS$CHIMREFN <- fread(CHIMREFN)
@@ -256,6 +264,17 @@ custom_process <- function(x){
 cat("Processing data\n")
 SEQKITCOUNTS <- llply(.data = SEQKITCOUNTS, .fun = seqkit_process)
 CUSTOMCOUNTS <- llply(.data = CUSTOMCOUNTS, .fun = custom_process)
+
+cat("Estimating homopolymer stats\n")
+HOMOPOLY_counts <- HOMOPOLY_data[ , .(
+  N_UniqSequences_AfterITSx_or_PrimerTrimming = .N,
+  N_UniqSequences__AfterHomopolymerCorrection = length(unique(Target))
+  ),
+  by = "SampleID"
+  ]
+
+HOMOPOLY_counts[, HomopolymerCorrected_NumUniqSequences := 
+  N_UniqSequences_AfterITSx_or_PrimerTrimming - N_UniqSequences__AfterHomopolymerCorrection ]
 
 
 ## Rename columns
