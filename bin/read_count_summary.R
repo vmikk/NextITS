@@ -336,16 +336,29 @@ PER_SAMPLE_COUNTS_merged <- merge(
 # .. estimate percentages
 # .. add tag-jump summary
 # .. add final counts from the Seq table
-# .. add positive / negative counts (based on default sample names)
+# .. add per-run positive / negative counts (based on default sample names)
 
 ## Prepare per-run stats
+cat("Preparing per-run stats\n")
 PER_RUN_COUNTS_merged <- data.table(
   Total_Number_Of_Reads = RAW$num_seqs,
-  Reads_Passed_QC = QC$num_seqs
+  Reads_Passed_QC       = QC$num_seqs,
+  Reads_Demultiplexed   = sum(PER_SAMPLE_COUNTS_merged$Demultiplexed_Reads, na.rm = TRUE),
+  Reads_PrimerChecked   = sum(PER_SAMPLE_COUNTS_merged$PrimerChecked_Reads, na.rm = TRUE),
+  UniqSequences_HomopolymerCorrected = sum(PER_SAMPLE_COUNTS_merged$HomopolymerCorrected_NumUniqSequences, na.rm = TRUE)
   )
+
+## Estimate percentage of reads passed primer checking
+cat("..Estimating per-run percentages\n")
+PER_RUN_COUNTS_merged[ , Percentage_Demultiplexed := 
+  round(Reads_Demultiplexed / Total_Number_Of_Reads * 100, 1) ]
+
+PER_RUN_COUNTS_merged[ , Percentage_Passed := 
+  round(Reads_PrimerChecked / Total_Number_Of_Reads * 100, 1) ]
 
 
 ## Export summary stats
+cat("Exporting results\n")
 write.xlsx(list(
   "per_sample" = PER_SAMPLE_COUNTS_merged,
   "per_run"    = PER_RUN_COUNTS_merged
