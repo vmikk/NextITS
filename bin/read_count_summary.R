@@ -320,6 +320,16 @@ PER_SAMPLE_COUNTS_merged[ ,
   MultiprimerArtifacts_Reads / (PrimerChecked_Reads + MultiprimerArtifacts_Reads) * 100,
   2)
  ]
+
+## Add homopolymer stats
+cat("Adding homopolymer stats\n")
+PER_SAMPLE_COUNTS_merged <- merge(
+  x = PER_SAMPLE_COUNTS_merged, 
+  y = HOMOPOLY_counts,
+  by.x = "file", by.y = "SampleID", all.x = TRUE)
+
+
+
 ### ... update
 # .. replace NAs with zero
 # .. reorder columns
