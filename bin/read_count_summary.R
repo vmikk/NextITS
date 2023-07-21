@@ -313,6 +313,13 @@ merge_dt <- function(x,y){ merge(x, y, by = "file", all = TRUE) }
 PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
 
+## Estimate percentage of multiprimer artifacts
+cat("Estimating percentage of multiprimer artifacts\n")
+PER_SAMPLE_COUNTS_merged[ , 
+ MultiprimerArtifacts_Percent := round(
+  MultiprimerArtifacts_Reads / (PrimerChecked_Reads + MultiprimerArtifacts_Reads) * 100,
+  2)
+ ]
 ### ... update
 # .. replace NAs with zero
 # .. reorder columns
