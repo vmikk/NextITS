@@ -2961,6 +2961,9 @@ workflow {
         ch_all_trim = trim_primers.out.primertrimmed_fq.flatten().collect().ifEmpty(file("no_primertrim"))
       }
 
+      // Homopolymer-correction channel
+      ch_homopolymers = homopolymer.out.uch.flatten().collect().ifEmpty(file("no_homopolymer"))
+
       // Chimeric channels
       ch_chimref = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
       ch_chimdenovo = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
@@ -2977,6 +2980,7 @@ workflow {
           ch_all_primerchecked,    // primer-cheched sequences
           ch_all_multiprimer,      // multiprimer artifacts
           ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
+          ch_homopolymers,         // Homopolymer stats
           ch_chimref,              // Reference-based chimeras
           ch_chimdenovo,           // De novo chimeras
           ch_chimrescued,          // Rescued chimeras
