@@ -7,6 +7,14 @@ For version numbering, we use the following convention: `MAJOR.MINOR.PATCH`.
 Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).  
 
 
+## [0.5.0] - 2023-xx-xx
+
+- New `seqstats` sub-workflow (only dereplication, primer validation, and basic run stats)  
+- Add barcode validation step  
+- Add SSU and LSU region-based output sequences  
+- Add `merge_replicates` parameter (Step-2) for merging or keeping separate sample replicates  
+- Update Step-1 run summary (add homopolymer stats)  
+
 
 ## [0.4.0] - 2023-05-08
 
