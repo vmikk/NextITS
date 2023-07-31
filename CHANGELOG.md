@@ -10,7 +10,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 
 ## [0.4.0] - 2023-05-08
 
-- Add Step-2 workflow for pooling, dereplicating, and clustering sequences from Step-1
+- Add Step-2 workflow for pooling, dereplicating, and clustering sequences from Step-1  
     - Read clustering with VSEARCH ([Rognes et al., 2016 DOI:10.7717/peerj.2584](https://peerj.com/articles/2584/))  
     - Error-correction with UNOISE2 ([Edgar, 2016 DOI:10.1101/081257](https://www.biorxiv.org/content/10.1101/081257v1))  
     - Post-clustering curation with LULU ([Frøslev et al., 2017 DOI:doi.org/10.1038](https://www.nature.com/articles/s41467-017-01312-x))  
