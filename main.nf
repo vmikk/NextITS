@@ -469,6 +469,33 @@ process qc_pe {
 }
 
 
+
+// Validate tags for demultiplexing
+process tag_validation {
+
+    label "main_container"
+    // cpus 1
+
+    input:
+      path barcodes
+
+    output:
+      path "barcodes_validated.fasta", emit: fasta
+
+    script:
+    """
+    echo -e "Valdidating demultiplexing tags\n"
+    echo -e "Input file: " ${barcodes}
+
+    validate_tags.R \
+      --tags   ${barcodes} \
+      --output barcodes_validated.fasta
+
+    echo -e "Tag validation finished"
+    """
+}
+
+
 // Demultiplexing with LIMA - for PacBio reads
 process demux {
 
