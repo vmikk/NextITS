@@ -168,7 +168,7 @@ process dereplication_unite {
       | vsearch \
         --cluster_size - \
         --id         1 \
-        --iddef      0 \
+        --iddef      2 \
         --query_cov  ${params.unite_querycov} \
         --target_cov ${params.unite_targetcov} \
         --strand both \
