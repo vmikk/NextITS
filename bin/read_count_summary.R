@@ -225,16 +225,16 @@ seqkit_process <- function(x){
     x <- x[ , .(file, num_seqs) ]
 
     ## Remove file extensions
-    x[ , file := sub(pattern = ".fastq.gz",        replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".fq.gz",           replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".fa.gz",           replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".full.fasta",      replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".ITS1.fasta.gz",   replacement = "", x = file) ]
-    x[ , file := sub(pattern = ".ITS2.fasta.gz",   replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_PrimerChecked$",  replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_Mutiprimer$",     replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_Chimera$",        replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_RescuedChimera$", replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".fastq.gz$",            replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".fq.gz$",               replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".fa.gz$",               replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".full.fasta$",          replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".ITS1.fasta.gz$",       replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".ITS2.fasta.gz$",       replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_PrimerChecked$",       replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Mutiprimer$",          replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Chimera$",             replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_RescuedChimera$",      replacement = "", x = file) ]
     x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
 
   }
@@ -251,9 +251,10 @@ custom_process <- function(x){
     setnames(x = x, old = "SampleID", new = "file")
 
     ## Remove file extensions
-    x[ , file := sub(pattern = ".full.fasta",         replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_Chimera.fa",         replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_RescuedChimera.fa$", replacement = "", x = file) ]
+    x[ , file := sub(pattern = ".full.fasta$",          replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_ITS1_58S_ITS2.fasta$", replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Chimera.fa$",          replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_RescuedChimera.fa$",   replacement = "", x = file) ]
     x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
 
   }
