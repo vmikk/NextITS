@@ -487,6 +487,10 @@ process tag_validation {
     echo -e "Valdidating demultiplexing tags\n"
     echo -e "Input file: " ${barcodes}
 
+    ## Convert Windows-style line endings (CRLF) to Unix-style (LF)
+    LC_ALL=C sed -i 's/\r\$//g' ${barcodes}
+
+    ## Perform tag validation
     validate_tags.R \
       --tags   ${barcodes} \
       --output barcodes_validated.fasta
