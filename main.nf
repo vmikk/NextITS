@@ -2867,11 +2867,17 @@ workflow {
       seq_qual.out.quals                    // sequence qualities
       )
 
-    // Read count summary
-    if( params.demultiplexed == false ){
-
-      // Prepare input channels
-      ch_all_demux = demux.out.samples_demux.flatten().collect()
+    
+    //// Read count summary
+    
+      // Initial data - Per-sample input channels
+      if( params.demultiplexed == false ){
+        ch_all_demux = demux.out.samples_demux.flatten().collect()
+      } else {
+        ch_all_demux = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
+      }
+        
+      // Primer-checked and multiprimer sequences
       ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
       ch_all_multiprimer = primer_check.out.mutiprimer.flatten().collect().ifEmpty(file("no_multiprimer"))
       
@@ -2926,15 +2932,11 @@ workflow {
           )
 
 
-
-
-
-
 }
 
 
 // Quick workflow for demultiplexing and estimation of the number of reads per sample
-// Only PacBio non-demux reads are supported
+// Only PacBio non-demultiplexed reads are supported
 workflow seqstats {
 
   // Primer disambiguation
