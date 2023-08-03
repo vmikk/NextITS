@@ -252,14 +252,6 @@ def helpMsg() {
         --illumina_joinpadqual     Join not merged reads into one sequence using padding quality string (default, IIIIIIIIII)
         --trim_minlen              Min sequence length after primer trimming (default, 10)
 
-      # Taxonomy annotaion
-        --blast_taxdb     Path to BLAST database (default, false)
-        --blast_task      Blast task type - "blastn" (default) or "megablast"
-        --blast_chunksize Number of sequences per BLAST task (default, 100)
-        --blast_maxts     Max target seqs (default, 10)
-        --blast_hsps      Number of high-scoring segment pairs (default, 1)
-        --blast_wordsize  BLAST word size
-
     NEXTFLOW-SPECIFIC:
         -profile       Configuration profile
         -resume        Execute the pipeline using the cached results (e.g., in case of )
