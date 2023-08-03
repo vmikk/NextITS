@@ -2669,7 +2669,7 @@ workflow {
   if( params.demultiplexed == true ){
 
     // Input files with demultiplexed reads (FASTQ.gz)
-    ch_input = Channel.fromPath( params.input + '/*.fastq.gz' )
+    ch_input = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' )
 
     // QC
     qc_se(ch_input)
