@@ -170,19 +170,7 @@ params.otu_iddef = 2
 params.tj_f = 0.01    // UNCROSS parameter f
 params.tj_p = 1
 
-// Taxonomy annotation
-params.blast_taxdb     = false
-params.blast_task      = "blastn"   // or "megablast" 
-params.blast_chunksize = 100
-params.blast_maxts     = 10
-params.blast_hsps      = 1
-// params.blast_wordsize
 
-
-if(params.blast_taxdb){
-  bastdb_name = file(params.blast_taxdb).name
-  bastdb_dir = file(params.blast_taxdb).parent
-}
 
 
 // Pipeline help message
@@ -364,7 +352,6 @@ out_5_chim   = params.outdir + "/05_Chimera"
 out_6_tj     = params.outdir + "/06_TagJumpFiltration"
 out_7_seq    = params.outdir + "/07_SeqTable"
 out_8_smr    = params.outdir + "/08_RunSummary"
-out_9_blast  = params.outdir + "/09_Taxonomy"
 
 // Sub-workflow-specific outputs
 out_3_quickstats = params.outdir + "/03_Stats"
@@ -1866,79 +1853,6 @@ process prep_seqtab {
 
 
 
-// Taxonomy annotation
-// use globally-dereplicated sequences
-process blastn {
-
-    label "main_container"
-
-    // publishDir "${out_9_blast}", mode: 'symlink'
-    // cpus 1
-
-    input:
-      path input
-      path taxdb_dir
-
-    output:
-      path "${input.getBaseName()}.m8.gz", emit: blast
-
-    script:
-    """
-
-    echo -e "Taxonomy annotation with BLASTn"
-    echo -e "Input file: " ${input}
-
-    blastn \
-      -task ${params.blast_task} \
-      -outfmt=6 -strand both \
-      -query ${input} \
-      -db ${taxdb_dir}/${bastdb_name} \
-      -max_target_seqs ${params.blast_maxts} \
-      -max_hsps ${params.blast_hsps} \
-      -out ${input.getBaseName()}.m8 \
-      -num_threads ${task.cpus}
-
-      # -word_size
-      # -evalue
-      # -perc_identity
-
-    ## Compress results
-    gzip -7 ${input.getBaseName()}.m8
-
-    echo "..Done"
-
-    """
-}
-
-
-// Aggregate BLAST results
-process blast_merge {
-
-    label "main_container"
-
-    publishDir "${out_9_blast}", mode: 'symlink'
-    // cpus 1
-
-    input:
-      path input
-
-    output:
-      path "Blast_hits.m8.gz", emit: blast
-
-    script:
-    """
-
-    echo -e "Aggregating BLASTn hits"
-    
-    cat *.m8.gz > Blast_hits.m8.gz
-
-    echo "..Done"
-
-    """
-}
-
-
-
 // Demultiplexing with cutadapt - for Illumina PE reads (only not merged)
 // NB. it's possible to use anchored adapters (e.g., -g ^file:barcodes.fa),
 //     but there could be a preceding nucleotides before the barcode,
@@ -3019,27 +2933,9 @@ workflow {
           prep_seqtab.out.seq_rd   // Final table with sequences
           )
 
-    } // end of non-demux read counts
 
 
-    // BLAST sub-workflow (optional)
-    if ( params.blast_taxdb ) {
 
-      // Split FASTA sequences (globally dereplicated) into 
-      ch_fasta = glob_derep.out.globderep
-          .splitFasta(by: params.blast_chunksize, file:true)
-
-      // Taxonomy annotation
-      blastn(ch_fasta, bastdb_dir)
-
-      // Aggregate BLAST results
-      ch_blasthits = blastn.out.blast.collect()
-      blast_merge(ch_blasthits)
-
-      // Parse BLAST results
-      // parse_blast()
-    
-    } // end of BLAST
 
 
 }
