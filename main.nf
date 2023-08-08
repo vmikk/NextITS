@@ -2947,6 +2947,8 @@ workflow seqstats {
   // Input file with multiplexed reads (FASTQ.gz)
   ch_input = Channel.value(params.input)
 
+  // Validate tags
+  tag_validation(ch_barcodes)
 
   // Initial QC
   qc_se(ch_input)
@@ -2954,7 +2956,7 @@ workflow seqstats {
   // Demultiplexing
   demux(
     qc_se.out.filtered,
-    ch_barcodes)
+    tag_validation.out.fasta)
 
   // Check primers
   primer_check(
