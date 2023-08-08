@@ -2560,6 +2560,9 @@ workflow {
     // Input file with barcodes (FASTA)
     ch_barcodes = Channel.value(params.barcodes)
 
+    // Validate tags
+    tag_validation(ch_barcodes)
+
     // PacBio
     if ( params.seqplatform == "PacBio" ) {
       
@@ -2572,7 +2575,7 @@ workflow {
       // Demultiplexing
       demux(
         qc_se.out.filtered,
-        ch_barcodes)
+        tag_validation.out.fasta)
 
       // Check primers
       primer_check(
@@ -2601,7 +2604,7 @@ workflow {
         qc_pe.out.filtered_R2)
 
       // Modify barcodes (restict search window)
-      prep_barcodes(ch_barcodes)
+      prep_barcodes(tag_validation.out.fasta)
 
       // Demultiplexing
       demux_illumina(
