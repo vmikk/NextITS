@@ -4,7 +4,7 @@
 ============================================================================
   NextITS: Pipeline to process fungal ITS amplicons
 ============================================================================
-  Version: v0.4.0
+  Version: v0.5.0
   License: Apache-2.0
   Github : https://github.com/vmikk/NextITS
   Website: https://next-its.github.io/
@@ -14,8 +14,6 @@
 // NB!!:
 // - provide absolute paths to the input data (e.g. --input and --barcodes)
 // - File names should not contain period (.) characters (except for extensions)
-// - When providing a path to the BLAST DB (`--blast_taxdb`), do not add file extensions
-//   e.g., "/mnt/DB/UNITE/UNITE_96" (there should be multiple UNITE_96 files - ndb,nhr,nsq,...)
 
 // Dependencies:
 //  - lima >= 2.6.0
@@ -25,7 +23,6 @@
 //  - cutadapt >= 4.1
 //  - fastp >= 0.23.2
 //  - ITSx >= 1.1.3
-//  - BLAST 2.12.0+
 //  - R >= 4.1.0
 //    -- data.table >= 1.14.0
 //    -- Biostrings >= 2.60.0
@@ -46,14 +43,13 @@
 //
 // Databases:
 //  - UDB for chimera identification
-//  - BlastDB for taxonomy annotation
 
 
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
 // Pipeline version
-version = '0.4.0'
+version = '0.5.0'
 
 // Initialize parameters, set default values
 params.data_path = "${projectDir}/pipeline_data"
