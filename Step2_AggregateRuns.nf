@@ -50,8 +50,8 @@ params.otu_iddef = 2        // also for UNOISE
 params.otu_qmask = "dust"   // also for UNOISE
 
 // SWARM clustering
-params.swarm_d          = 2
-params.swarm_fastidious = false
+params.swarm_d          = 1
+params.swarm_fastidious = true
 params.swarm_d1boundary = 3       // min mass of large OTUs, only for Fastidious + d=1
 
 // Alignment parameters
