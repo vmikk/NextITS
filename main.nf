@@ -124,7 +124,7 @@ params.illumina_joinpadqual = "IIIIIIIIII"  // quality score of 40
 
 
 // Primer checks
-params.primer_forward = "GTACACACCGCCCGTCG"    // ITS9mun
+params.primer_forward = "TACACACCGCCCGTCG"     // ITS9mun
 params.primer_reverse = "CCTSCSCTTANTDATATGC"  // ITS4ngsUni
 params.primer_mismatches = 2
 // params.primer_mismatches_insertions = 1
