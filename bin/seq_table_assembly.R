@@ -81,10 +81,21 @@ JMP <- readRDS( args[4] )
 
 ## Load de novo chimera scores
 cat("..Loading de novo chimera scores\n")
-CHI <- fread(
-  file = args[5],
-  header = FALSE, sep = "\t",
-  col.names = c("SeqID", "DeNovo_Chimera_Score", "SampleID"))
+
+CHI <- try(
+  fread(
+    file = args[5],
+    header = FALSE, sep = "\t",
+    col.names = c("SeqID", "DeNovo_Chimera_Score", "SampleID"))
+  )
+
+if("try-error" %in% class(CHI)){
+  cat("\nCould not read the file with de novo chimeric scores\n")
+  cat("Most likely, the file file is empty (no de novo chimeras)\n")
+  
+  ## Initialize empty data table
+  CHI <- data.table(SeqID = character(), DeNovo_Chimera_Score = numeric(), SampleID = character())
+}
 
 
 ## Load sequence quality scores
@@ -206,18 +217,32 @@ TAB[ , MEEP       := as.numeric(MEEP) ]
 
 cat("..Adding info about de novo chimeric sequences\n")
 
-TAB <- merge(x = TAB, y = CHI,
-  by = c("SeqID", "SampleID"), all.x = TRUE)
+if(nrow(CHI) > 0){
 
-## Convert variables to numberic scores
-TAB[ , DeNovo_Chimera_Score := as.numeric(DeNovo_Chimera_Score) ]
+  TAB <- merge(x = TAB, y = CHI,
+    by = c("SeqID", "SampleID"), all.x = TRUE)
 
-## Classify sequences into putative chimeras
-TAB[ !is.na(DeNovo_Chimera_Score), DeNovo_Chimera := TRUE  ]
-TAB[  is.na(DeNovo_Chimera_Score), DeNovo_Chimera := FALSE ]
+  ## Convert variables to numeric scores
+  TAB[ , DeNovo_Chimera_Score := as.numeric(DeNovo_Chimera_Score) ]
 
-cat("... ", sum( TAB$DeNovo_Chimera), " putative de novo chimeras found\n")
-cat("... ", sum(!TAB$DeNovo_Chimera), " non-chimeric sequences\n")
+  ## Classify sequences into putative chimeras
+  TAB[ !is.na(DeNovo_Chimera_Score), DeNovo_Chimera := TRUE  ]
+  TAB[  is.na(DeNovo_Chimera_Score), DeNovo_Chimera := FALSE ]
+
+  cat("... ", sum( TAB$DeNovo_Chimera), " putative de novo chimeras found\n")
+  cat("... ", sum(!TAB$DeNovo_Chimera), " non-chimeric sequences\n")
+
+} else {
+
+  ## No de novo chimeras
+
+  TAB[ , DeNovo_Chimera_Score := as.numeric(NA) ]
+  TAB[ , DeNovo_Chimera       := FALSE  ]
+
+  cat("... ", 0,         " putative de novo chimeras found\n")
+  cat("... ", nrow(TAB), " non-chimeric sequences\n")
+
+}
 
 
 ######################################
