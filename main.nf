@@ -248,6 +248,9 @@ def helpMsg() {
         --illumina_joinpadqual     Join not merged reads into one sequence using padding quality string (default, IIIIIIIIII)
         --trim_minlen              Min sequence length after primer trimming (default, 10)
 
+      # Miscellaneous parameters
+        --gzip_compression Compression level for GZIP (default, "-7"; "-1" = fastest (worst compression), "-9" = slowest (best))
+
     NEXTFLOW-SPECIFIC:
         -profile       Configuration profile
         -resume        Execute the pipeline using the cached results (e.g., in case of )
