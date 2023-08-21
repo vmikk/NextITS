@@ -2859,15 +2859,20 @@ workflow {
     // Tag-jump removal
     tj(otu_tab.out.otutab)
 
+
+    // Check optional channel with de novo chimera scores
+    ch_denovoscores = chimera_denovo_agg.out.alldenovochim.ifEmpty(file('DeNovo_Chimera.txt'))
+
     // Create sequence table
     prep_seqtab(
       pool_seqs.out.seqtabnf,               // non-filtered ASV table
       pool_seqs.out.seqsnf,                 // ASV sequences in FASTA
       otu_tab.out.samples_uc,               // sequence mapping to OTUs
       tj.out.tjs,                           // tag-jumped OTU list
-      chimera_denovo_agg.out.alldenovochim, // de novo chimera scores
+      ch_denovoscores,                      // de novo chimera scores
       seq_qual.out.quals                    // sequence qualities
       )
+
 
     
     //// Read count summary
