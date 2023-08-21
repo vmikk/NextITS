@@ -1,0 +1,272 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "https://raw.githubusercontent.com/NextITS/master/nextflow_schema.json",
+  "title": "NextITS pipeline parameters",
+  "description": "Pipeline to process fungal ITS amplicons sequenced with PacBio",
+  "type": "object",
+  "definitions": {
+    "input_output_options": {
+      "title": "Input/output options",
+      "type": "object",
+      "fa_icon": "fas fa-terminal",
+      "description": "Define where the pipeline should find input data and save output data.",
+      "required": ["input", "outdir"],
+      "properties": {
+        "input": {
+          "type": "string",
+          "format": "path",
+          "exists": true,
+          "mimetype": "text/csv",
+          "description": "Path to the input file containing single-end sequences (in FASTQ format) or the directory with pre-demultiplexed files",
+          "fa_icon": "fas fa-file-csv"
+        },
+        "outdir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Path to the directory where the analysis results will be saved.",
+          "fa_icon": "fas fa-folder-open"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address for completion summary.",
+          "fa_icon": "fas fa-envelope",
+          "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
+          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
+        }
+      }
+    },
+    "generic_options": {
+      "title": "Generic options",
+      "type": "object",
+      "fa_icon": "fas fa-file-import",
+      "description": "Less common options for the pipeline, typically set in a config file.",
+      "help_text": "These options are common to all nf-core pipelines and allow you to customise some of the core preferences for how the pipeline runs.\n\nTypically these options would be set in a Nextflow config file loaded for all pipeline runs, such as `~/.nextflow/config`.",
+      "properties": {
+        "help": {
+          "type": "boolean",
+          "description": "Display help text.",
+          "fa_icon": "fas fa-question-circle",
+          "hidden": true
+        },
+        "email_on_fail": {
+          "type": "string",
+          "description": "Email address for completion summary, only when pipeline fails.",
+          "fa_icon": "fas fa-exclamation-triangle",
+          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$",
+          "help_text": "An email address to send a summary email to when the pipeline is completed - ONLY sent if the pipeline does not exit successfully.",
+          "hidden": true
+        },
+        "plaintext_email": {
+          "type": "boolean",
+          "description": "Send plain-text email instead of HTML.",
+          "fa_icon": "fas fa-remove-format",
+          "hidden": true
+        },
+        "monochrome_logs": {
+          "type": "boolean",
+          "description": "Do not use coloured log outputs.",
+          "fa_icon": "fas fa-palette",
+          "hidden": true
+        },
+        "validate_params": {
+          "type": "boolean",
+          "description": "Boolean whether to validate parameters against the schema at runtime",
+          "default": true,
+          "fa_icon": "fas fa-check-square",
+          "hidden": true
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/definitions/input_output_options"
+    },
+    {
+      "$ref": "#/definitions/generic_options"
+    }
+  ],
+  "properties": {
+    "tracedir": {
+      "type": "string",
+      "default": "/mnt/Data/Dropbox/Tedersoo/NextITS/results/pipeline_info"
+    },
+    "show_hidden_params": {
+      "type": "string"
+    },
+    "enable_conda": {
+      "type": "string"
+    },
+    "data_path": {
+      "type": "string"
+    },
+    "input_R1": {
+      "type": "string"
+    },
+    "input_R2": {
+      "type": "string"
+    },
+    "helpMsg": {
+      "type": "string"
+    },
+    "seqplatform": {
+      "type": "string"
+    },
+    "its_region": {
+      "type": "string"
+    },
+    "qc_maxee": {
+      "type": "string"
+    },
+    "qc_maxeerate": {
+      "type": "string"
+    },
+    "qc_maxhomopolymerlen": {
+      "type": "string"
+    },
+    "qc_maxn": {
+      "type": "string"
+    },
+    "qc_avgphred": {
+      "type": "string"
+    },
+    "qc_twocolor": {
+      "type": "string"
+    },
+    "qc_phredmin": {
+      "type": "string"
+    },
+    "qc_phredperc": {
+      "type": "string"
+    },
+    "qc_polyglen": {
+      "type": "string"
+    },
+    "demultiplexed": {
+      "type": "string"
+    },
+    "barcodes": {
+      "type": "string"
+    },
+    "lima_minscore": {
+      "type": "string"
+    },
+    "lima_dualbarcode": {
+      "type": "string"
+    },
+    "lima_W": {
+      "type": "string"
+    },
+    "lima_minlen": {
+      "type": "string"
+    },
+    "barcode_window": {
+      "type": "string"
+    },
+    "barcode_errors": {
+      "type": "string"
+    },
+    "barcode_overlap": {
+      "type": "string"
+    },
+    "pe_minoverlap": {
+      "type": "string"
+    },
+    "pe_difflimit": {
+      "type": "string"
+    },
+    "pe_diffperclimit": {
+      "type": "string"
+    },
+    "pe_nlimit": {
+      "type": "string"
+    },
+    "pe_minlen": {
+      "type": "string"
+    },
+    "illumina_keep_notmerged": {
+      "type": "string"
+    },
+    "illumina_joinpadgap": {
+      "type": "string"
+    },
+    "illumina_joinpadqual": {
+      "type": "string"
+    },
+    "primer_forward": {
+      "type": "string"
+    },
+    "primer_reverse": {
+      "type": "string"
+    },
+    "primer_mismatches": {
+      "type": "string"
+    },
+    "primer_foverlap": {
+      "type": "string"
+    },
+    "primer_roverlap": {
+      "type": "string"
+    },
+    "ITSx_evalue": {
+      "type": "string"
+    },
+    "ITSx_partial": {
+      "type": "string"
+    },
+    "ITSx_tax": {
+      "type": "string"
+    },
+    "trim_minlen": {
+      "type": "string"
+    },
+    "hp": {
+      "type": "string"
+    },
+    "hp_similarity": {
+      "type": "string"
+    },
+    "hp_iddef": {
+      "type": "string"
+    },
+    "chimera_db": {
+      "type": "string"
+    },
+    "chimera_rescueoccurrence": {
+      "type": "string"
+    },
+    "chimeranov_abskew": {
+      "type": "string"
+    },
+    "chimeranov_dn": {
+      "type": "string"
+    },
+    "chimeranov_mindiffs": {
+      "type": "string"
+    },
+    "chimeranov_mindiv": {
+      "type": "string"
+    },
+    "chimeranov_minh": {
+      "type": "string"
+    },
+    "chimeranov_xn": {
+      "type": "string"
+    },
+    "otu_id": {
+      "type": "string"
+    },
+    "otu_iddef": {
+      "type": "string"
+    },
+    "tj_f": {
+      "type": "string"
+    },
+    "tj_p": {
+      "type": "string"
+    },
+    "gzip_compression": {
+      "type": "string"
+    }
+  }
+}
