@@ -1561,7 +1561,7 @@ process chimera_denovo_agg {
       path input
 
     output:
-      path "DeNovo_Chimera.txt", emit: alldenovochim
+      path "DeNovo_Chimera.txt", emit: alldenovochim, optional: true
 
     script:
     """
