@@ -25,7 +25,7 @@
 nextflow.enable.dsl = 2
 
 // Pipeline version
-version = '0.4.0'
+version = '0.5.0'
 
 params.outdir = "Step2"
 
