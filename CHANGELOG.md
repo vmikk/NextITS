@@ -10,6 +10,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 ## [0.5.0] - 2023-xx-xx
 
 - New `seqstats` sub-workflow (only dereplication, primer validation, and basic run stats)  
+- Add SWARM clustering ([Mahé et al., 2022 DOI:10.1093/bioinformatics/btab493](https://academic.oup.com/bioinformatics/article/38/1/267/6318385))  
 - Add post-clustering curation with LULU ([Frøslev et al., 2017 DOI:doi.org/10.1038](https://www.nature.com/articles/s41467-017-01312-x))  
 - Add barcode validation step  
 - Add SSU and LSU region-based output sequences  
