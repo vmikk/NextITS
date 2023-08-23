@@ -386,7 +386,7 @@ process qc_se {
     | seqkit grep \
       --by-seq --ignore-case --invert-match --only-positive-strand --use-regexp -w 0 \
       --pattern '"(A{${params.qc_maxhomopolymerlen},}|C{${params.qc_maxhomopolymerlen},}|T{${params.qc_maxhomopolymerlen},}|G{${params.qc_maxhomopolymerlen},})"' \
-    | gzip ${params.gzip_compression} \
+    | gzip -${params.gzip_compression} \
     > "${input.getSimpleName()}.fq.gz"
 
     ## qc_maxhomopolymerlen
@@ -532,7 +532,7 @@ process demux {
 
     ## Compress logs
     echo -e "..Compressing log file"
-    gzip ${params.gzip_compression} LIMA/lima.lima.report
+    gzip -${params.gzip_compression} LIMA/lima.lima.report
 
     echo -e "Demultiplexing finished"
     """
@@ -582,7 +582,7 @@ process merge_pe {
       --html log.html \
       --stdout \
     | seqkit seq --only-id \
-    | gzip ${params.gzip_compression} \
+    | gzip -${params.gzip_compression} \
     > Merged.fq.gz
 
     ##  --merged_out Merged.fq.gz \
@@ -1012,9 +1012,9 @@ process itsx {
 
     ## Compress results
     echo -e "\nCompressing files"
-    gzip ${params.gzip_compression} ${sampID}_hash_table.txt
-    gzip ${params.gzip_compression} ${sampID}_uc.uc
-    gzip ${params.gzip_compression} *.fasta
+    gzip -${params.gzip_compression} ${sampID}_hash_table.txt
+    gzip -${params.gzip_compression} ${sampID}_uc.uc
+    gzip -${params.gzip_compression} *.fasta
     echo -e "..Done"
 
     """
@@ -1102,8 +1102,8 @@ process trim_primers {
 
       ## Compress results
       echo -e "Compressing result"
-      gzip ${params.gzip_compression} ${sampID}.fq
-      gzip ${params.gzip_compression} ${sampID}_hash_table.txt
+      gzip -${params.gzip_compression} ${sampID}.fq
+      gzip -${params.gzip_compression} ${sampID}_hash_table.txt
 
       ## Dereplicate at sample level
       echo -e "\nDereplicating at sample level"
@@ -1118,13 +1118,13 @@ process trim_primers {
         --sizein --sizeout \
         --uc ${sampID}_uc.uc \
         --quiet \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > ${sampID}.fa.gz
 
       echo -e "..Done"
 
       ## Compress UC file
-      gzip ${params.gzip_compression} ${sampID}_uc.uc
+      gzip -${params.gzip_compression} ${sampID}_uc.uc
 
     else
 
@@ -1187,7 +1187,7 @@ process assemble_its {
       awk 'NR>1 { print \$1 "\t" \$2\$3\$4 }' tmp_2_ITS1_58S_ITS2.txt \
         | seqkit tab2fx -w 0  \
         | seqkit replace -p "^n+|n+\$" -r "" -is -w 0 \
-        | gzip ${params.gzip_compression} > ${sampID}_ITS1_58S_ITS2.fasta.gz
+        | gzip -${params.gzip_compression} > ${sampID}_ITS1_58S_ITS2.fasta.gz
 
     else 
       echo -e "\n..Some or all parts are missing"
@@ -1218,7 +1218,7 @@ process seq_qual {
 
     find . -maxdepth 1 -name "*_hash_table.txt.gz" \
       | parallel -j1 "merge_sequnce_qualities.sh {} {/.}" \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > SeqQualities.txt.gz
 
     echo -e "..Done"
@@ -1275,7 +1275,7 @@ process homopolymer {
     echo -e "..Done"
 
     ## Compress UC file
-    gzip ${params.gzip_compression} ${sampID}_uch.uc
+    gzip -${params.gzip_compression} ${sampID}_uch.uc
 
     ## Substitute homopolymer-comressed sequences with uncompressed ones
     ## (update size annotaions)
@@ -1341,7 +1341,7 @@ process just_derep {
           --sizein --sizeout \
           --uc ${sampID}_uc.uc \
           --quiet \
-        | gzip ${params.gzip_compression} \
+        | gzip -${params.gzip_compression} \
         > ${sampID}.fa.gz
 
     """
@@ -1407,7 +1407,7 @@ process chimera_ref {
     then
       ## Add sample ID to the header and compress the file
       sed 's/>.*/&;sample='"${sampID}"';/' chimeras.fasta \
-        | gzip ${params.gzip_compression} \
+        | gzip -${params.gzip_compression} \
         > "${sampID}_Chimera.fa.gz"
       rm chimeras.fasta
     else
@@ -1450,7 +1450,7 @@ process chimera_rescue {
       | parallel -j1 "zcat {}" \
       | seqkit fx2tab \
       | sed -r 's:\t+:\t:g' | sed 's/\t\$//g' \
-      | gzip ${params.gzip_compression} > All_chimeras.txt.gz
+      | gzip -${params.gzip_compression} > All_chimeras.txt.gz
     echo -e "..Done"
 
     ### Inspect chimerae occurrence
@@ -1626,12 +1626,12 @@ process glob_derep {
         --threads 1 \
         --sizein --sizeout \
         --uc Derep_for_clust.uc \
-      | gzip ${params.gzip_compression} > Derep_for_clust.fa.gz
+      | gzip -${params.gzip_compression} > Derep_for_clust.fa.gz
     echo -e "..Done"
 
     ## Compress UC file
     echo -e "\nCompressing UC file"
-    gzip ${params.gzip_compression} Derep_for_clust.uc
+    gzip -${params.gzip_compression} Derep_for_clust.uc
 
     """
 }
@@ -1666,13 +1666,13 @@ process otu_clust {
       --uc OTUs.uc \
       --threads ${task.cpus} \
       --centroids - \
-    | gzip ${params.gzip_compression} > OTUs.fa.gz
+    | gzip -${params.gzip_compression} > OTUs.fa.gz
     
     echo -e "..Done"
 
     ## Compress UC file
     echo -e "\nCompressing UC file"
-    gzip ${params.gzip_compression} OTUs.uc
+    gzip -${params.gzip_compression} OTUs.uc
 
     """
 }
@@ -1706,7 +1706,7 @@ process pool_seqs {
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: *.fa.gz \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > ASV_not_filtered.fa.gz
 
     echo "..Done"
@@ -1714,7 +1714,7 @@ process pool_seqs {
     echo -e "\nExtracting sequence count table"
     seqkit seq --name ASV_not_filtered.fa.gz \
       | sed 's/;/\t/g; s/size=//; s/sample=// ; s/\t*\$//' \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > ASV_tab_not_filtered.txt.gz
 
     echo "..Done"
@@ -1760,8 +1760,8 @@ process otu_tab {
 
     ## Compress UC file
     echo -e "\nCompressing results"
-    gzip ${params.gzip_compression} OTU_tab_not_filtered.txt
-    gzip ${params.gzip_compression} Sample_mapping.uc
+    gzip -${params.gzip_compression} OTU_tab_not_filtered.txt
+    gzip -${params.gzip_compression} Sample_mapping.uc
 
     """
 }
@@ -2021,14 +2021,14 @@ process trim_primers_pe {
     echo -e "\nReorienting"
 
     if [ -s for_R1.fastq.gz ]; then
-      zcat for_R1.fastq.gz | seqkit replace -p "\\s.+" | gzip ${params.gzip_compression} > OK_R1.fastq.gz
-      zcat for_R2.fastq.gz | seqkit replace -p "\\s.+" | gzip ${params.gzip_compression} > OK_R2.fastq.gz
+      zcat for_R1.fastq.gz | seqkit replace -p "\\s.+" | gzip -${params.gzip_compression} > OK_R1.fastq.gz
+      zcat for_R2.fastq.gz | seqkit replace -p "\\s.+" | gzip -${params.gzip_compression} > OK_R2.fastq.gz
     fi
 
     if [ -s rev_R1.fastq.gz ]; then
       echo -e "..Adding sequences to the main pool"
-      zcat rev_R1.fastq.gz | seqkit replace -p "\\s.+" | gzip ${params.gzip_compression} >> OK_R1.fastq.gz
-      zcat rev_R2.fastq.gz | seqkit replace -p "\\s.+" | gzip ${params.gzip_compression} >> OK_R2.fastq.gz
+      zcat rev_R1.fastq.gz | seqkit replace -p "\\s.+" | gzip -${params.gzip_compression} >> OK_R1.fastq.gz
+      zcat rev_R2.fastq.gz | seqkit replace -p "\\s.+" | gzip -${params.gzip_compression} >> OK_R2.fastq.gz
 
     else
       echo -e "..Probably all sequences are in forward orientation"
@@ -2125,7 +2125,7 @@ process trim_primers_pe {
         --sizein --sizeout \
         --uc ${sampID}_uc_R1.uc \
         --quiet \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > ${sampID}_R1.fa.gz
 
       seqkit fq2fa -w 0 ${sampID}_R2.fq.gz \
@@ -2139,7 +2139,7 @@ process trim_primers_pe {
         --sizein --sizeout \
         --uc ${sampID}_uc_R2.uc \
         --quiet \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > ${sampID}_R2.fa.gz
 
 
@@ -2147,10 +2147,10 @@ process trim_primers_pe {
 
       ## Compress results
       echo -e "Compressing result"
-      gzip ${params.gzip_compression} ${sampID}_hash_table_R1.txt
-      gzip ${params.gzip_compression} ${sampID}_hash_table_R2.txt
-      gzip ${params.gzip_compression} ${sampID}_uc_R1.uc
-      gzip ${params.gzip_compression} ${sampID}_uc_R2.uc
+      gzip -${params.gzip_compression} ${sampID}_hash_table_R1.txt
+      gzip -${params.gzip_compression} ${sampID}_hash_table_R2.txt
+      gzip -${params.gzip_compression} ${sampID}_uc_R1.uc
+      gzip -${params.gzip_compression} ${sampID}_uc_R2.uc
 
 
     else
@@ -2207,7 +2207,7 @@ process join_pe {
       --join_padgapq ${params.illumina_joinpadqual} \
       --fastqout - \
     | seqkit replace -p "\\s.+" \
-    | gzip ${params.gzip_compression} \
+    | gzip -${params.gzip_compression} \
     > ${sampID}_JoinedPE.fq.gz
 
     ## Check if there are some sequences in the file
@@ -2221,7 +2221,7 @@ process join_pe {
         --join_padgapq "" \
         --fastqout - \
       | seqkit replace -p "\\s.+" \
-      | gzip ${params.gzip_compression} \
+      | gzip -${params.gzip_compression} \
       > tmp_for_qual.fq.gz
 
 
@@ -2260,7 +2260,7 @@ process join_pe {
       echo -e "..Done"
 
       ## Compress results
-      gzip ${params.gzip_compression} ${sampID}_JoinedPE_hash_table.txt
+      gzip -${params.gzip_compression} ${sampID}_JoinedPE_hash_table.txt
 
       ## Clean up
       rm tmp_for_qual.fq.gz
