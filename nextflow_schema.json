@@ -35,6 +35,282 @@
         }
       }
     },
+    "demultiplexing": {
+      "title": "Demultiplexing",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "barcodes": {
+          "type": "string"
+        },
+        "demultiplexed": {
+          "type": "boolean"
+        },
+        "lima_minscore": {
+          "type": "integer",
+          "default": 93
+        },
+        "lima_dualbarcode": {
+          "type": "boolean",
+          "default": true
+        },
+        "lima_minlen": {
+          "type": "integer",
+          "default": 40
+        },
+        "lima_W": {
+          "type": "integer",
+          "default": 70
+        }
+      }
+    },
+    "quality_control": {
+      "title": "Quality Control",
+      "type": "object",
+      "description": "Sequence quality filtering",
+      "default": "",
+      "properties": {
+        "qc_maxhomopolymerlen": {
+          "type": "integer",
+          "default": 25
+        },
+        "qc_maxee": {
+          "type": "number"
+        },
+        "qc_maxn": {
+          "type": "integer",
+          "default": 4
+        },
+        "qc_maxeerate": {
+          "type": "number"
+        }
+      }
+    },
+    "primer_trimming": {
+      "title": "Primer trimming",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "primer_forward": {
+          "type": "string"
+        },
+        "primer_reverse": {
+          "type": "string"
+        },
+        "primer_mismatches": {
+          "type": "integer",
+          "default": 2
+        },
+        "primer_roverlap": {
+          "type": "integer"
+        },
+        "primer_foverlap": {
+          "type": "integer"
+        }
+      }
+    },
+    "illumina_specific_parameters": {
+      "title": "Illumina-specific parameters",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "seqplatform": {
+          "type": "string",
+          "default": "PacBio"
+        },
+        "input_R1": {
+          "type": "string"
+        },
+        "input_R2": {
+          "type": "string"
+        },
+        "qc_avgphred": {
+          "type": "boolean"
+        },
+        "qc_twocolor": {
+          "type": "boolean"
+        },
+        "pe_minoverlap": {
+          "type": "integer",
+          "default": 20
+        },
+        "pe_diffperclimit": {
+          "type": "integer",
+          "default": 20
+        },
+        "pe_difflimit": {
+          "type": "integer",
+          "default": 5
+        },
+        "pe_nlimit": {
+          "type": "integer",
+          "default": 10
+        },
+        "pe_minlen": {
+          "type": "integer",
+          "default": 30
+        },
+        "illumina_keep_notmerged": {
+          "type": "boolean",
+          "default": true
+        },
+        "illumina_joinpadgap": {
+          "type": "string",
+          "default": "NNNNNNNNNN"
+        },
+        "illumina_joinpadqual": {
+          "type": "string",
+          "default": "IIIIIIIIII"
+        },
+        "barcode_errors": {
+          "type": "integer",
+          "default": 1
+        },
+        "barcode_window": {
+          "type": "integer",
+          "default": 30
+        },
+        "barcode_overlap": {
+          "type": "integer",
+          "default": 11
+        },
+        "trim_minlen": {
+          "type": "integer",
+          "default": 10
+        },
+        "qc_phredmin": {
+          "type": "integer"
+        },
+        "qc_phredperc": {
+          "type": "integer"
+        },
+        "qc_polyglen": {
+          "type": "integer",
+          "default": 8
+        }
+      }
+    },
+    "chimera_removal": {
+      "title": "Chimera removal",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "chimera_db": {
+          "type": "string"
+        },
+        "chimera_rescueoccurrence": {
+          "type": "integer",
+          "default": 2
+        },
+        "chimeranov_abskew": {
+          "type": "number",
+          "default": 2
+        },
+        "chimeranov_dn": {
+          "type": "number",
+          "default": 1.4
+        },
+        "chimeranov_mindiffs": {
+          "type": "number",
+          "default": 3
+        },
+        "chimeranov_mindiv": {
+          "type": "number",
+          "default": 0.8
+        },
+        "chimeranov_minh": {
+          "type": "number",
+          "default": 0.28
+        },
+        "chimeranov_xn": {
+          "type": "number",
+          "default": 8
+        }
+      }
+    },
+    "tag_jump_removal": {
+      "title": "Tag-jump removal",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "tj_f": {
+          "type": "number",
+          "default": 0.01
+        },
+        "tj_p": {
+          "type": "number",
+          "default": 1
+        },
+        "otu_id": {
+          "type": "number",
+          "default": 0.98
+        },
+        "otu_iddef": {
+          "type": "integer",
+          "default": 2
+        }
+      }
+    },
+    "its_extraction": {
+      "title": "ITS extraction",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "its_region": {
+          "type": "string",
+          "default": "full"
+        },
+        "ITSx_tax": {
+          "type": "string",
+          "default": "all"
+        },
+        "ITSx_evalue": {
+          "type": "string",
+          "default": "1e-1"
+        },
+        "ITSx_partial": {
+          "type": "number",
+          "default": 0
+        }
+      }
+    },
+    "homopolymer_correction": {
+      "title": "Homopolymer correction",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "hp": {
+          "type": "boolean",
+          "default": true
+        },
+        "hp_iddef": {
+          "type": "number",
+          "default": 2
+        },
+        "hp_similarity": {
+          "type": "number",
+          "default": 0.999
+        }
+      }
+    },
+    "step_2_options": {
+      "title": "Step 2 options",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "data_path": {
+          "type": "string"
+        }
+      }
+    },
     "generic_options": {
       "title": "Generic options",
       "type": "object",
@@ -42,6 +318,13 @@
       "description": "Less common options for the pipeline, typically set in a config file.",
       "help_text": "These options are common to all nf-core pipelines and allow you to customise some of the core preferences for how the pipeline runs.\n\nTypically these options would be set in a Nextflow config file loaded for all pipeline runs, such as `~/.nextflow/config`.",
       "properties": {
+        "gzip_compression": {
+          "type": "number",
+          "default": 7
+        },
+        "helpMsg": {
+          "type": "string"
+        },
         "help": {
           "type": "boolean",
           "description": "Display help text.",
@@ -74,166 +357,28 @@
           "default": true,
           "fa_icon": "fas fa-check-square",
           "hidden": true
-        }
-      }
-    },
-    "demultiplexing": {
-      "title": "Demultiplexing",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "demultiplexed": {
-          "type": "string"
         },
-        "lima_minscore": {
-          "type": "string"
-        },
-        "lima_dualbarcode": {
-          "type": "string"
-        },
-        "barcodes": {
-          "type": "string"
-        },
-        "lima_minlen": {
-          "type": "string"
-        },
-        "lima_W": {
-          "type": "string"
-        }
-      }
-    },
-    "illumina_specific_parameters": {
-      "title": "Illumina specific parameters",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "seqplatform": {
+        "tracedir": {
           "type": "string",
-          "default": "PacBio"
+          "default": "/mnt/Data/Dropbox/Tedersoo/NextITS/results/pipeline_info"
         },
-        "input_R1": {
-          "type": "string"
-        },
-        "input_R2": {
-          "type": "string"
-        },
-        "qc_avgphred": {
+        "show_hidden_params": {
           "type": "boolean"
         },
-        "qc_twocolor": {
-          "type": "boolean"
-        },
-        "pe_diffperclimit": {
+        "enable_conda": {
           "type": "string"
         },
-        "pe_difflimit": {
-          "type": "string"
+        "max_time": {
+          "type": "integer",
+          "default": 240
         },
-        "pe_nlimit": {
-          "type": "string"
+        "max_memory": {
+          "type": "integer",
+          "default": 32
         },
-        "pe_minoverlap": {
-          "type": "string"
-        },
-        "pe_minlen": {
-          "type": "string"
-        },
-        "illumina_keep_notmerged": {
-          "type": "string"
-        },
-        "illumina_joinpadgap": {
-          "type": "string"
-        },
-        "illumina_joinpadqual": {
-          "type": "string"
-        },
-        "barcode_errors": {
-          "type": "string"
-        },
-        "barcode_window": {
-          "type": "string"
-        },
-        "barcode_overlap": {
-          "type": "string"
-        },
-        "trim_minlen": {
-          "type": "number",
-          "default": 10
-        },
-        "qc_phredmin": {
-          "type": "number"
-        },
-        "qc_phredperc": {
-          "type": "number"
-        },
-        "qc_polyglen": {
-          "type": "number",
+        "max_cpus": {
+          "type": "integer",
           "default": 8
-        }
-      }
-    },
-    "chimera_removal": {
-      "title": "Chimera removal",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "chimera_db": {
-          "type": "string"
-        },
-        "chimera_rescueoccurrence": {
-          "type": "string"
-        },
-        "chimeranov_abskew": {
-          "type": "string"
-        },
-        "chimeranov_dn": {
-          "type": "string"
-        },
-        "chimeranov_mindiffs": {
-          "type": "string"
-        },
-        "chimeranov_mindiv": {
-          "type": "string"
-        },
-        "chimeranov_minh": {
-          "type": "string"
-        },
-        "chimeranov_xn": {
-          "type": "string"
-        }
-      }
-    },
-    "new_group_1": {
-      "title": "New Group 1",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "tj_f": {
-          "type": "number"
-        },
-        "tj_p": {
-          "type": "number"
-        },
-        "otu_iddef": {
-          "type": "number"
-        },
-        "otu_id": {
-          "type": "number"
-        }
-      }
-    },
-    "step_2_options": {
-      "title": "Step 2 options",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "data_path": {
-          "type": "string"
         }
       }
     }
@@ -243,10 +388,13 @@
       "$ref": "#/definitions/input_output_options"
     },
     {
-      "$ref": "#/definitions/generic_options"
+      "$ref": "#/definitions/demultiplexing"
     },
     {
-      "$ref": "#/definitions/demultiplexing"
+      "$ref": "#/definitions/quality_control"
+    },
+    {
+      "$ref": "#/definitions/primer_trimming"
     },
     {
       "$ref": "#/definitions/illumina_specific_parameters"
@@ -255,98 +403,19 @@
       "$ref": "#/definitions/chimera_removal"
     },
     {
-      "$ref": "#/definitions/new_group_1"
+      "$ref": "#/definitions/tag_jump_removal"
+    },
+    {
+      "$ref": "#/definitions/its_extraction"
+    },
+    {
+      "$ref": "#/definitions/homopolymer_correction"
     },
     {
       "$ref": "#/definitions/step_2_options"
+    },
+    {
+      "$ref": "#/definitions/generic_options"
     }
-  ],
-  "properties": {
-    "tracedir": {
-      "type": "string",
-      "default": "/mnt/Data/Dropbox/Tedersoo/NextITS/results/pipeline_info"
-    },
-    "show_hidden_params": {
-      "type": "string"
-    },
-    "enable_conda": {
-      "type": "string"
-    },
-    "helpMsg": {
-      "type": "string"
-    },
-    "its_region": {
-      "type": "string",
-      "default": "full"
-    },
-    "qc_maxee": {
-      "type": "number"
-    },
-    "qc_maxeerate": {
-      "type": "number"
-    },
-    "qc_maxhomopolymerlen": {
-      "type": "number",
-      "default": 25
-    },
-    "qc_maxn": {
-      "type": "number"
-    },
-    "primer_forward": {
-      "type": "string"
-    },
-    "primer_reverse": {
-      "type": "string"
-    },
-    "primer_mismatches": {
-      "type": "number",
-      "default": 2
-    },
-    "primer_foverlap": {
-      "type": "number"
-    },
-    "primer_roverlap": {
-      "type": "number"
-    },
-    "ITSx_evalue": {
-      "type": "string",
-      "default": "1e-1"
-    },
-    "ITSx_partial": {
-      "type": "number",
-      "default": 0
-    },
-    "ITSx_tax": {
-      "type": "string",
-      "default": "all"
-    },
-    "hp": {
-      "type": "boolean",
-      "default": true
-    },
-    "hp_similarity": {
-      "type": "number",
-      "default": 0.999
-    },
-    "hp_iddef": {
-      "type": "number",
-      "default": 2
-    },
-    "gzip_compression": {
-      "type": "number",
-      "default": 7
-    },
-    "max_time": {
-      "type": "integer",
-      "default": 240
-    },
-    "max_memory": {
-      "type": "integer",
-      "default": 32
-    },
-    "max_cpus": {
-      "type": "integer",
-      "default": 8
-    }
-  }
+  ]
 }
