@@ -14,6 +14,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 - Add post-clustering curation with LULU ([Frøslev et al., 2017 DOI:doi.org/10.1038](https://www.nature.com/articles/s41467-017-01312-x))  
 - Add barcode validation step  
 - Add SSU and LSU region-based output sequences  
+- Add support for UNOISE-only output (without clustering)  
 - Add `merge_replicates` parameter (Step-2) for merging or keeping separate sample replicates  
 - Update Step-1 run summary (add homopolymer stats)  
 
