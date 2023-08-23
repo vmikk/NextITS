@@ -76,6 +76,26 @@
           "hidden": true
         }
       }
+    },
+    "new_group_1": {
+      "title": "New Group 1",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "input_R1": {
+          "type": "string"
+        },
+        "input_R2": {
+          "type": "string"
+        },
+        "qc_avgphred": {
+          "type": "boolean"
+        },
+        "qc_twocolor": {
+          "type": "boolean"
+        }
+      }
     }
   },
   "allOf": [
@@ -84,9 +104,15 @@
     },
     {
       "$ref": "#/definitions/generic_options"
+    },
+    {
+      "$ref": "#/definitions/new_group_1"
     }
   ],
   "properties": {
+    "new_param_1": {
+      "type": "string"
+    },
     "tracedir": {
       "type": "string",
       "default": "/mnt/Data/Dropbox/Tedersoo/NextITS/results/pipeline_info"
@@ -98,12 +124,6 @@
       "type": "string"
     },
     "data_path": {
-      "type": "string"
-    },
-    "input_R1": {
-      "type": "string"
-    },
-    "input_R2": {
       "type": "string"
     },
     "helpMsg": {
@@ -125,12 +145,6 @@
       "type": "string"
     },
     "qc_maxn": {
-      "type": "string"
-    },
-    "qc_avgphred": {
-      "type": "string"
-    },
-    "qc_twocolor": {
       "type": "string"
     },
     "qc_phredmin": {
@@ -267,6 +281,18 @@
     },
     "gzip_compression": {
       "type": "string"
+    },
+    "max_time": {
+      "type": "integer",
+      "default": 240
+    },
+    "max_memory": {
+      "type": "integer",
+      "default": 32
+    },
+    "max_cpus": {
+      "type": "integer",
+      "default": 8
     }
   }
 }
