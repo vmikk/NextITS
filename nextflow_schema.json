@@ -77,8 +77,8 @@
         }
       }
     },
-    "new_group_2": {
-      "title": "New Group 2",
+    "demultiplexing": {
+      "title": "Demultiplexing",
       "type": "object",
       "description": "",
       "default": "",
@@ -157,22 +157,25 @@
         },
         "barcode_overlap": {
           "type": "string"
+        },
+        "trim_minlen": {
+          "type": "number",
+          "default": 10
+        },
+        "qc_phredmin": {
+          "type": "number"
+        },
+        "qc_phredperc": {
+          "type": "number"
+        },
+        "qc_polyglen": {
+          "type": "number",
+          "default": 8
         }
       }
     },
-    "step_2_options": {
-      "title": "Step 2 options",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "data_path": {
-          "type": "string"
-        }
-      }
-    },
-    "new_group_3": {
-      "title": "New Group 3",
+    "chimera_removal": {
+      "title": "Chimera removal",
       "type": "object",
       "description": "",
       "default": "",
@@ -202,6 +205,37 @@
           "type": "string"
         }
       }
+    },
+    "new_group_1": {
+      "title": "New Group 1",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "tj_f": {
+          "type": "number"
+        },
+        "tj_p": {
+          "type": "number"
+        },
+        "otu_iddef": {
+          "type": "number"
+        },
+        "otu_id": {
+          "type": "number"
+        }
+      }
+    },
+    "step_2_options": {
+      "title": "Step 2 options",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "data_path": {
+          "type": "string"
+        }
+      }
     }
   },
   "allOf": [
@@ -212,16 +246,19 @@
       "$ref": "#/definitions/generic_options"
     },
     {
-      "$ref": "#/definitions/new_group_2"
+      "$ref": "#/definitions/demultiplexing"
     },
     {
       "$ref": "#/definitions/illumina_specific_parameters"
     },
     {
-      "$ref": "#/definitions/step_2_options"
+      "$ref": "#/definitions/chimera_removal"
     },
     {
-      "$ref": "#/definitions/new_group_3"
+      "$ref": "#/definitions/new_group_1"
+    },
+    {
+      "$ref": "#/definitions/step_2_options"
     }
   ],
   "properties": {
@@ -239,28 +276,21 @@
       "type": "string"
     },
     "its_region": {
-      "type": "string"
+      "type": "string",
+      "default": "full"
     },
     "qc_maxee": {
-      "type": "string"
+      "type": "number"
     },
     "qc_maxeerate": {
-      "type": "string"
+      "type": "number"
     },
     "qc_maxhomopolymerlen": {
-      "type": "string"
+      "type": "number",
+      "default": 25
     },
     "qc_maxn": {
-      "type": "string"
-    },
-    "qc_phredmin": {
-      "type": "string"
-    },
-    "qc_phredperc": {
-      "type": "string"
-    },
-    "qc_polyglen": {
-      "type": "string"
+      "type": "number"
     },
     "primer_forward": {
       "type": "string"
@@ -269,49 +299,42 @@
       "type": "string"
     },
     "primer_mismatches": {
-      "type": "string"
+      "type": "number",
+      "default": 2
     },
     "primer_foverlap": {
-      "type": "string"
+      "type": "number"
     },
     "primer_roverlap": {
-      "type": "string"
+      "type": "number"
     },
     "ITSx_evalue": {
-      "type": "string"
+      "type": "string",
+      "default": "1e-1"
     },
     "ITSx_partial": {
-      "type": "string"
+      "type": "number",
+      "default": 0
     },
     "ITSx_tax": {
-      "type": "string"
-    },
-    "trim_minlen": {
-      "type": "string"
+      "type": "string",
+      "default": "all"
     },
     "hp": {
-      "type": "string"
+      "type": "boolean",
+      "default": true
     },
     "hp_similarity": {
-      "type": "string"
+      "type": "number",
+      "default": 0.999
     },
     "hp_iddef": {
-      "type": "string"
-    },
-    "otu_id": {
-      "type": "string"
-    },
-    "otu_iddef": {
-      "type": "string"
-    },
-    "tj_f": {
-      "type": "string"
-    },
-    "tj_p": {
-      "type": "string"
+      "type": "number",
+      "default": 2
     },
     "gzip_compression": {
-      "type": "string"
+      "type": "number",
+      "default": 7
     },
     "max_time": {
       "type": "integer",
