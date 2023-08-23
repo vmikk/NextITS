@@ -77,12 +77,42 @@
         }
       }
     },
-    "new_group_1": {
-      "title": "New Group 1",
+    "new_group_2": {
+      "title": "New Group 2",
       "type": "object",
       "description": "",
       "default": "",
       "properties": {
+        "demultiplexed": {
+          "type": "string"
+        },
+        "lima_minscore": {
+          "type": "string"
+        },
+        "lima_dualbarcode": {
+          "type": "string"
+        },
+        "barcodes": {
+          "type": "string"
+        },
+        "lima_minlen": {
+          "type": "string"
+        },
+        "lima_W": {
+          "type": "string"
+        }
+      }
+    },
+    "illumina_specific_parameters": {
+      "title": "Illumina specific parameters",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "seqplatform": {
+          "type": "string",
+          "default": "PacBio"
+        },
         "input_R1": {
           "type": "string"
         },
@@ -94,6 +124,82 @@
         },
         "qc_twocolor": {
           "type": "boolean"
+        },
+        "pe_diffperclimit": {
+          "type": "string"
+        },
+        "pe_difflimit": {
+          "type": "string"
+        },
+        "pe_nlimit": {
+          "type": "string"
+        },
+        "pe_minoverlap": {
+          "type": "string"
+        },
+        "pe_minlen": {
+          "type": "string"
+        },
+        "illumina_keep_notmerged": {
+          "type": "string"
+        },
+        "illumina_joinpadgap": {
+          "type": "string"
+        },
+        "illumina_joinpadqual": {
+          "type": "string"
+        },
+        "barcode_errors": {
+          "type": "string"
+        },
+        "barcode_window": {
+          "type": "string"
+        },
+        "barcode_overlap": {
+          "type": "string"
+        }
+      }
+    },
+    "step_2_options": {
+      "title": "Step 2 options",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "data_path": {
+          "type": "string"
+        }
+      }
+    },
+    "new_group_3": {
+      "title": "New Group 3",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "properties": {
+        "chimera_db": {
+          "type": "string"
+        },
+        "chimera_rescueoccurrence": {
+          "type": "string"
+        },
+        "chimeranov_abskew": {
+          "type": "string"
+        },
+        "chimeranov_dn": {
+          "type": "string"
+        },
+        "chimeranov_mindiffs": {
+          "type": "string"
+        },
+        "chimeranov_mindiv": {
+          "type": "string"
+        },
+        "chimeranov_minh": {
+          "type": "string"
+        },
+        "chimeranov_xn": {
+          "type": "string"
         }
       }
     }
@@ -106,13 +212,19 @@
       "$ref": "#/definitions/generic_options"
     },
     {
-      "$ref": "#/definitions/new_group_1"
+      "$ref": "#/definitions/new_group_2"
+    },
+    {
+      "$ref": "#/definitions/illumina_specific_parameters"
+    },
+    {
+      "$ref": "#/definitions/step_2_options"
+    },
+    {
+      "$ref": "#/definitions/new_group_3"
     }
   ],
   "properties": {
-    "new_param_1": {
-      "type": "string"
-    },
     "tracedir": {
       "type": "string",
       "default": "/mnt/Data/Dropbox/Tedersoo/NextITS/results/pipeline_info"
@@ -123,13 +235,7 @@
     "enable_conda": {
       "type": "string"
     },
-    "data_path": {
-      "type": "string"
-    },
     "helpMsg": {
-      "type": "string"
-    },
-    "seqplatform": {
       "type": "string"
     },
     "its_region": {
@@ -154,57 +260,6 @@
       "type": "string"
     },
     "qc_polyglen": {
-      "type": "string"
-    },
-    "demultiplexed": {
-      "type": "string"
-    },
-    "barcodes": {
-      "type": "string"
-    },
-    "lima_minscore": {
-      "type": "string"
-    },
-    "lima_dualbarcode": {
-      "type": "string"
-    },
-    "lima_W": {
-      "type": "string"
-    },
-    "lima_minlen": {
-      "type": "string"
-    },
-    "barcode_window": {
-      "type": "string"
-    },
-    "barcode_errors": {
-      "type": "string"
-    },
-    "barcode_overlap": {
-      "type": "string"
-    },
-    "pe_minoverlap": {
-      "type": "string"
-    },
-    "pe_difflimit": {
-      "type": "string"
-    },
-    "pe_diffperclimit": {
-      "type": "string"
-    },
-    "pe_nlimit": {
-      "type": "string"
-    },
-    "pe_minlen": {
-      "type": "string"
-    },
-    "illumina_keep_notmerged": {
-      "type": "string"
-    },
-    "illumina_joinpadgap": {
-      "type": "string"
-    },
-    "illumina_joinpadqual": {
       "type": "string"
     },
     "primer_forward": {
@@ -241,30 +296,6 @@
       "type": "string"
     },
     "hp_iddef": {
-      "type": "string"
-    },
-    "chimera_db": {
-      "type": "string"
-    },
-    "chimera_rescueoccurrence": {
-      "type": "string"
-    },
-    "chimeranov_abskew": {
-      "type": "string"
-    },
-    "chimeranov_dn": {
-      "type": "string"
-    },
-    "chimeranov_mindiffs": {
-      "type": "string"
-    },
-    "chimeranov_mindiv": {
-      "type": "string"
-    },
-    "chimeranov_minh": {
-      "type": "string"
-    },
-    "chimeranov_xn": {
       "type": "string"
     },
     "otu_id": {
