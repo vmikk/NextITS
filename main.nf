@@ -367,7 +367,7 @@ process demux {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: 'symlink'  // , saveAs: { filename -> "foo_$filename" }
+    publishDir "${out_1_demux}", mode: "${params.storagemode}"  // , saveAs: { filename -> "foo_$filename" }
     // cpus 10
 
     input:
@@ -428,7 +428,7 @@ process merge_pe {
 
     label "main_container"
 
-    // publishDir "${out_1_demux}", mode: 'symlink'
+    // publishDir "${out_1_demux}", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -487,7 +487,7 @@ process prep_barcodes {
 
     label "main_container"
 
-    // publishDir "${out_1_demux}", mode: 'symlink'
+    // publishDir "${out_1_demux}", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -517,7 +517,7 @@ process demux_illumina {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: 'symlink'
+    publishDir "${out_1_demux}", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -566,7 +566,7 @@ process disambiguate {
 
     label "main_container"
 
-    // publishDir "${out_2_primer}", mode: 'symlink'
+    // publishDir "${out_2_primer}", mode: "${params.storagemode}"
     // cpus 1
 
     output:
@@ -608,7 +608,7 @@ process primer_check {
 
     label "main_container"
 
-    publishDir "${out_2_primer}", mode: 'symlink'
+    publishDir "${out_2_primer}", mode: "${params.storagemode}"
 
     // cpus 1
 
@@ -772,7 +772,7 @@ process itsx {
 
     label "main_container"
 
-    publishDir "${out_3_itsx}", mode: 'symlink'
+    publishDir "${out_3_itsx}", mode: "${params.storagemode}"
     // cpus 2
 
     // Add sample ID to the log file
@@ -912,7 +912,7 @@ process trim_primers {
 
     label "main_container"
 
-    publishDir "${out_3_trim}", mode: 'symlink'
+    publishDir "${out_3_trim}", mode: "${params.storagemode}"
     // cpus 2
 
     // Add sample ID to the log file
@@ -1029,7 +1029,7 @@ process assemble_its {
 
     label "main_container"
 
-    publishDir "${out_3_itsx}", mode: 'symlink'
+    publishDir "${out_3_itsx}", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1116,7 +1116,7 @@ process homopolymer {
 
     label "main_container"
 
-    publishDir "${out_4_homop}", mode: 'symlink'
+    publishDir "${out_4_homop}", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1197,7 +1197,7 @@ process just_derep {
 
     label "main_container"
 
-    // publishDir "${out_4_homop}", mode: 'symlink'
+    // publishDir "${out_4_homop}", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1238,7 +1238,7 @@ process chimera_ref {
 
     label "main_container"
 
-    publishDir "${out_5_chim}", mode: 'symlink'
+    publishDir "${out_5_chim}", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1316,7 +1316,7 @@ process chimera_rescue {
 
     label "main_container"
 
-    publishDir "${out_5_chim}", mode: 'symlink'
+    publishDir "${out_5_chim}", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -1384,7 +1384,7 @@ process chimera_denovo {
 
     label "main_container"
 
-    publishDir "${out_5_chim}", mode: 'symlink'
+    publishDir "${out_5_chim}", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1526,7 +1526,7 @@ process otu_clust {
 
     label "main_container"
 
-    publishDir "${out_6_tj}", mode: 'symlink'
+    publishDir "${out_6_tj}", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -1567,7 +1567,7 @@ process pool_seqs {
 
     label "main_container"
     
-    publishDir "${out_6_tj}", mode: 'symlink'
+    publishDir "${out_6_tj}", mode: "${params.storagemode}"
     // cpus 3
 
     input:
@@ -1612,7 +1612,7 @@ process otu_tab {
 
     label "main_container"
 
-    publishDir "${out_6_tj}", mode: 'symlink'
+    publishDir "${out_6_tj}", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -1656,7 +1656,7 @@ process tj {
 
     label "main_container"
 
-    publishDir "${out_6_tj}", mode: 'symlink'
+    publishDir "${out_6_tj}", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -1690,7 +1690,7 @@ process prep_seqtab {
 
     label "main_container"
 
-    publishDir "${out_7_seq}", mode: 'symlink'
+    publishDir "${out_7_seq}", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -1736,7 +1736,7 @@ process demux_illumina_notmerged {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: 'symlink'
+    publishDir "${out_1_demux}", mode: "${params.storagemode}"
     // cpus 20
 
     input:
@@ -1836,7 +1836,7 @@ process trim_primers_pe {
 
     label "main_container"
 
-    publishDir "${out_3_trimPE}", mode: 'symlink'
+    publishDir "${out_3_trimPE}", mode: "${params.storagemode}"
     // cpus 2
 
     // Add sample ID to the log file
@@ -2062,7 +2062,7 @@ process join_pe {
 
     label "main_container"
 
-    // publishDir "${out_1_joinPE}", mode: 'symlink'
+    // publishDir "${out_1_joinPE}", mode: "${params.storagemode}"
     // cpus 2
 
     // Add sample ID to the log file
@@ -2170,8 +2170,8 @@ process read_counts {
 
     label "main_container"
 
-    publishDir "${out_8_smr}",                 mode: 'symlink', pattern: "*.xlsx"
-    publishDir "${out_8_smr}/PerProcessStats", mode: 'symlink', pattern: "*.txt"
+    publishDir "${out_8_smr}",                 mode: "${params.storagemode}", pattern: "*.xlsx"
+    publishDir "${out_8_smr}/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
     // cpus 5
 
     input:
@@ -2359,8 +2359,8 @@ process quick_stats {
 
     label "main_container"
 
-    publishDir "${out_3_quickstats}",                 mode: 'symlink', pattern: "*.xlsx"
-    publishDir "${out_3_quickstats}/PerProcessStats", mode: 'symlink', pattern: "*.txt"
+    publishDir "${out_3_quickstats}",                 mode: "${params.storagemode}", pattern: "*.xlsx"
+    publishDir "${out_3_quickstats}/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
     // cpus 5
 
     input:
