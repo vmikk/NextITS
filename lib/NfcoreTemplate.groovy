@@ -317,22 +317,45 @@ class NfcoreTemplate {
     //
     // nf-core logo
     //
+    // public static String logo(workflow, monochrome_logs) {
+    //     Map colors = logColours(monochrome_logs)
+    //     String workflow_version = NfcoreTemplate.version(workflow)
+    //     String.format(
+    //         """\n
+    //         ${dashedLine(monochrome_logs)}
+    //                                                 ${colors.green},--.${colors.black}/${colors.green},-.${colors.reset}
+    //         ${colors.blue}        ___     __   __   __   ___     ${colors.green}/,-._.--~\'${colors.reset}
+    //         ${colors.blue}  |\\ | |__  __ /  ` /  \\ |__) |__         ${colors.yellow}}  {${colors.reset}
+    //         ${colors.blue}  | \\| |       \\__, \\__/ |  \\ |___     ${colors.green}\\`-._,-`-,${colors.reset}
+    //                                                 ${colors.green}`._,._,\'${colors.reset}
+    //         ${colors.purple}  ${workflow.manifest.name} ${workflow_version}${colors.reset}
+    //         ${dashedLine(monochrome_logs)}
+    //         """.stripIndent()
+    //     )
+    // }
+
+
+    //
+    // NextITS logo
+    //
     public static String logo(workflow, monochrome_logs) {
-         Map colors = logColours(monochrome_logs)
-         String workflow_version = NfcoreTemplate.version(workflow)
-         String.format(
-             """\n
-             ${dashedLine(monochrome_logs)}
-                                                     ${colors.green},--.${colors.black}/${colors.green},-.${colors.reset}
-             ${colors.blue}        ___     __   __   __   ___     ${colors.green}/,-._.--~\'${colors.reset}
-             ${colors.blue}  |\\ | |__  __ /  ` /  \\ |__) |__         ${colors.yellow}}  {${colors.reset}
-             ${colors.blue}  | \\| |       \\__, \\__/ |  \\ |___     ${colors.green}\\`-._,-`-,${colors.reset}
-                                                     ${colors.green}`._,._,\'${colors.reset}
-             ${colors.purple}  ${workflow.manifest.name} ${workflow_version}${colors.reset}
-             ${dashedLine(monochrome_logs)}
-             """.stripIndent()
-         )
+        Map colors = logColours(monochrome_logs)
+        String workflow_version = NfcoreTemplate.version(workflow)
+        String.format(
+            """\n
+            ${dashedLine(monochrome_logs)}
+            ${colors.green}                    𝗡𝗲𝘅𝘁${colors.purple}𝗜𝗧𝗦 ${colors.cyan}${workflow_version}${colors.reset}
+            ${colors.green}        LSU     ${colors.purple}ITS1    ${colors.green}5.8S   ${colors.purple}ITS2     ${colors.green}SSU      ${colors.reset}
+            ${colors.green}     ▒▒▒▒▒▒▒▒▒${colors.purple}░░░░░░░░░${colors.green}▒▒▒▒▒${colors.purple}░░░░░░░░░░${colors.green}▒▒▒▒▒▒▒▒▒▒▒▒${colors.reset}
+            ${dashedLine(monochrome_logs)}
+            """.stripIndent()
+        )
     }
 
 }
 
+
+
+//            🅽🅴🆇🆃🅸🆃🆂               // these symbols are not visible
+//  LSU   ITS1  5.8S   ITS2   SSU      
+// ▒▒▒▒▒░░░░░░░░▒▒▒▒▒░░░░░░░░▒▒▒▒▒▒▒▒▒▒
