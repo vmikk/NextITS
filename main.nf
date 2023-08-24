@@ -57,12 +57,12 @@ nextflow.enable.dsl = 2
 def helpMsg() {
     log.info"""
     =====================================================================
-    NextITS ${version}
+    NextITS v.${workflow.manifest.version}
     =====================================================================
     
     Pipeline Usage:
     To run the pipeline, enter the following in the command line:
-        nextflow run vmikk/nextits -r ${version} --input ... --outdir ...
+        nextflow run vmikk/nextits -r ${workflow.manifest.version} --input ... --outdir ...
     
     Options:
     REQUIRED:
@@ -185,7 +185,7 @@ if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true &
 // Print the parameters to the console and to the log
 log.info """
     =======================================================================
-    NextITS ${version}
+    NextITS v.${workflow.manifest.version}
     =======================================================================
     Input data path: ${params.input}
     Barcodes:        ${params.barcodes}
