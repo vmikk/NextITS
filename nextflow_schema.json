@@ -68,7 +68,7 @@
       "properties": {
         "qc_maxee": {
           "type": "number",
-          "default": 0.01
+          "default": null
         },
         "qc_maxeerate": {
           "type": "number",
