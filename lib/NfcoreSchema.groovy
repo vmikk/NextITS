@@ -249,7 +249,7 @@ class NfcoreSchema {
         if (workflow.revision) {
             workflow_summary['revision'] = workflow.revision
         }
-        workflow_summary['runName']      = workflow.runName
+        //workflow_summary['runName']      = workflow.runName
         if (workflow.containerEngine) {
             workflow_summary['containerEngine'] = workflow.containerEngine
         }
@@ -259,7 +259,7 @@ class NfcoreSchema {
         workflow_summary['launchDir']    = workflow.launchDir
         workflow_summary['workDir']      = workflow.workDir
         workflow_summary['projectDir']   = workflow.projectDir
-        workflow_summary['userName']     = workflow.userName
+        //workflow_summary['userName']     = workflow.userName
         workflow_summary['profile']      = workflow.profile
         workflow_summary['configFiles']  = workflow.configFiles.join(', ')
 
