@@ -26,12 +26,8 @@
           "description": "Path to the directory where the analysis results will be saved.",
           "fa_icon": "fas fa-folder-open"
         },
-        "email": {
-          "type": "string",
-          "description": "Email address for completion summary.",
-          "fa_icon": "fas fa-envelope",
-          "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
-          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
+        "barcodes": {
+          "type": "string"
         }
       }
     },
@@ -41,15 +37,14 @@
       "description": "",
       "default": "",
       "properties": {
-        "barcodes": {
-          "type": "string"
-        },
         "demultiplexed": {
           "type": "boolean"
         },
         "lima_minscore": {
           "type": "integer",
-          "default": 93
+          "default": 93,
+          "minimum": 0,
+          "maximum": 100
         },
         "lima_dualbarcode": {
           "type": "boolean",
@@ -71,19 +66,21 @@
       "description": "Sequence quality filtering",
       "default": "",
       "properties": {
+        "qc_maxee": {
+          "type": "number",
+          "default": 0.01
+        },
+        "qc_maxeerate": {
+          "type": "number",
+          "default": 0.01
+        },
         "qc_maxhomopolymerlen": {
           "type": "integer",
           "default": 25
         },
-        "qc_maxee": {
-          "type": "number"
-        },
         "qc_maxn": {
           "type": "integer",
           "default": 4
-        },
-        "qc_maxeerate": {
-          "type": "number"
         }
       }
     },
@@ -103,10 +100,10 @@
           "type": "integer",
           "default": 2
         },
-        "primer_roverlap": {
+        "primer_foverlap": {
           "type": "integer"
         },
-        "primer_foverlap": {
+        "primer_roverlap": {
           "type": "integer"
         }
       }
@@ -240,7 +237,9 @@
       "properties": {
         "tj_f": {
           "type": "number",
-          "default": 0.01
+          "default": 0.01,
+          "minimum": 0,
+          "maximum": 1
         },
         "tj_p": {
           "type": "number",
@@ -248,11 +247,15 @@
         },
         "otu_id": {
           "type": "number",
-          "default": 0.98
+          "default": 0.98,
+          "minimum": 0,
+          "maximum": 1
         },
         "otu_iddef": {
           "type": "integer",
-          "default": 2
+          "default": 2,
+          "minimum": 0,
+          "maximum": 4
         }
       }
     },
@@ -264,15 +267,24 @@
       "properties": {
         "its_region": {
           "type": "string",
-          "default": "full"
+          "default": "full",
+          "enum": [
+            "full",
+            "ITS1",
+            "ITS2",
+            "none",
+            "ITS1_5.8S_ITS2",
+            "SSU",
+            "LSU"
+          ]
         },
         "ITSx_tax": {
           "type": "string",
           "default": "all"
         },
         "ITSx_evalue": {
-          "type": "string",
-          "default": "1e-1"
+          "type": "number",
+          "default": 0.1
         },
         "ITSx_partial": {
           "type": "number",
@@ -292,11 +304,15 @@
         },
         "hp_iddef": {
           "type": "number",
-          "default": 2
+          "default": 2,
+          "minimum": 0,
+          "maximum": 4
         },
         "hp_similarity": {
           "type": "number",
-          "default": 0.999
+          "default": 0.999,
+          "minimum": 0.8,
+          "maximum": 1
         }
       }
     },
@@ -307,7 +323,8 @@
       "default": "",
       "properties": {
         "data_path": {
-          "type": "string"
+          "type": "string",
+          "format": "directory-path"
         }
       }
     },
@@ -320,16 +337,25 @@
       "properties": {
         "gzip_compression": {
           "type": "number",
-          "default": 7
+          "default": 7,
+          "minimum": 1,
+          "maximum": 9
         },
         "helpMsg": {
-          "type": "string"
+          "type": "boolean"
         },
         "help": {
           "type": "boolean",
           "description": "Display help text.",
           "fa_icon": "fas fa-question-circle",
           "hidden": true
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address for completion summary.",
+          "fa_icon": "fas fa-envelope",
+          "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
+          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
         },
         "email_on_fail": {
           "type": "string",
@@ -379,6 +405,9 @@
         "max_cpus": {
           "type": "integer",
           "default": 8
+        },
+        "schema_ignore_params": {
+          "type": "string"
         }
       }
     }
