@@ -21,17 +21,17 @@
 // - LULU (via MUMU implementation)
 // - Prepare OTU table (wide, aggregate sequence abundance by OTU/Swarm cluster)
 
+
+
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
-// Pipeline version
-version = '0.5.0'
-
-params.outdir = "Step2"
-
 
 // Path to the Step-1 results
-params.data_path = "${projectDir}/Output"
+params.data_path = "${launchDir}/Step1_Results"
+
+// Output directory
+params.outdir = "Step2"
 
 // Pool sample replicates (e.g., re-sequenced samples) in the final OTU table
 params.merge_replicates = false
