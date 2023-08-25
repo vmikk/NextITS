@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
-  "$id": "https://raw.githubusercontent.com/NextITS/master/nextflow_schema.json",
+  "$id": "https://raw.githubusercontent.com/vmikk/NextITS/main/nextflow_schema.json",
   "title": "NextITS pipeline parameters",
   "description": "Pipeline to process fungal ITS amplicons sequenced with PacBio",
   "type": "object",
@@ -17,17 +17,19 @@
           "format": "path",
           "exists": true,
           "mimetype": "text/csv",
-          "description": "Path to the input file containing single-end sequences (in FASTQ format) or the directory with pre-demultiplexed files",
+          "description": "Path to the input file containing single-end sequences (in FASTQ format) or the directory with pre-demultiplexed files.",
           "fa_icon": "fas fa-file-csv"
+        },
+        "barcodes": {
+          "type": "string",
+          "fa_icon": "fas fa-barcode",
+          "description": "Path to the file with barcodes (in FASTA format) used for demultiplexing the input data."
         },
         "outdir": {
           "type": "string",
           "format": "directory-path",
           "description": "Path to the directory where the analysis results will be saved.",
           "fa_icon": "fas fa-folder-open"
-        },
-        "barcodes": {
-          "type": "string"
         }
       }
     },
@@ -38,25 +40,35 @@
       "default": "",
       "properties": {
         "demultiplexed": {
-          "type": "boolean"
+          "type": "boolean",
+          "fa_icon": "fas fa-align-justify",
+          "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
         },
         "lima_minscore": {
           "type": "integer",
           "default": 93,
           "minimum": 0,
-          "maximum": 100
+          "maximum": 100,
+          "fa_icon": "fas fa-balance-scale-left",
+          "description": "Barcode score for demultiplexing."
         },
         "lima_dualbarcode": {
           "type": "boolean",
-          "default": true
-        },
-        "lima_minlen": {
-          "type": "integer",
-          "default": 40
+          "default": true,
+          "fa_icon": "fas fa-dna",
+          "description": "Dual-barcoding scheme with identical barcodes at both ends."
         },
         "lima_W": {
           "type": "integer",
-          "default": 70
+          "default": 70,
+          "fa_icon": "fas fa-text-width",
+          "description": "Window size for barcode lookup."
+        },
+        "lima_minlen": {
+          "type": "integer",
+          "default": 40,
+          "fa_icon": "fas fa-compress-alt",
+          "description": "Minimum sequence length after clipping barcodes."
         }
       }
     },
@@ -68,45 +80,68 @@
       "properties": {
         "qc_maxee": {
           "type": "number",
-          "default": null
+          "description": "Maximum number of expected errors.",
+          "fa_icon": "fas fa-times"
         },
         "qc_maxeerate": {
           "type": "number",
-          "default": 0.01
+          "default": 0.01,
+          "description": "Maximum number of expected errors per base.",
+          "fa_icon": "fas fa-times"
         },
         "qc_maxhomopolymerlen": {
           "type": "integer",
-          "default": 25
+          "default": 25,
+          "description": "Threshold for a homopolymer region length in a sequence.",
+          "fa_icon": "fas fa-redo"
         },
         "qc_maxn": {
           "type": "integer",
-          "default": 4
+          "default": 4,
+          "description": "Discard sequences with more than the specified number of ambiguous nucleotides (N's).",
+          "fa_icon": "fas fa-minus-square"
         }
-      }
+      },
+      "fa_icon": "fas fa-trash-restore"
     },
     "primer_trimming": {
       "title": "Primer trimming",
       "type": "object",
-      "description": "",
+      "description": "Removal of multiprimer-artifacts and reorienting of reads",
       "default": "",
       "properties": {
         "primer_forward": {
-          "type": "string"
+          "type": "string",
+          "fa_icon": "fas fa-arrow-right",
+          "description": "Sequence of the forward primer.",
+          "default": "TACACACCGCCCGTCG",
+          "help_text": "**Forward Primer:** `ITS9MUNngs` with sequence `TACACACCGCCCGTCG`  \nRefer to [Tedersoo & Lindahl, 2016 DOI:`10.1111/1758-2229.12438`](https://ami-journals.onlinelibrary.wiley.com/doi/10.1111/1758-2229.12438) for more details on these primers.  "
         },
         "primer_reverse": {
-          "type": "string"
+          "type": "string",
+          "fa_icon": "fas fa-arrow-left",
+          "description": "Sequence of the reverse primer.",
+          "default": "CCTSCSCTTANTDATATGC",
+          "help_text": "**Reverse Primer:** `ITS4ngsUni` with sequence `CCTSCSCTTANTDATATGC`  \nRefer to [Tedersoo & Lindahl, 2016 DOI:`10.1111/1758-2229.12438`](https://ami-journals.onlinelibrary.wiley.com/doi/10.1111/1758-2229.12438) for more details on these primers.  "
         },
         "primer_mismatches": {
           "type": "integer",
-          "default": 2
+          "default": 2,
+          "fa_icon": "fas fa-chevron-circle-down",
+          "description": "Allowed number of mismatches for primers."
         },
         "primer_foverlap": {
-          "type": "integer"
+          "type": "integer",
+          "fa_icon": "fas fa-angle-right",
+          "description": "Minimum overlap for the forward primer."
         },
         "primer_roverlap": {
-          "type": "integer"
+          "type": "integer",
+          "fa_icon": "fas fa-angle-left",
+          "description": "Minimum overlap for the reverse primer."
         }
-      }
+      },
+      "fa_icon": "fas fa-crop-alt"
     },
     "illumina_specific_parameters": {
       "title": "Illumina-specific parameters",
@@ -116,7 +151,8 @@
       "properties": {
         "seqplatform": {
           "type": "string",
-          "default": "PacBio"
+          "default": "PacBio",
+          "fa_icon": "fab fa-google-play"
         },
         "input_R1": {
           "type": "string"
@@ -185,8 +221,7 @@
           "type": "integer"
         },
         "qc_polyglen": {
-          "type": "integer",
-          "default": 8
+          "type": "integer"
         }
       }
     },
@@ -197,7 +232,8 @@
       "default": "",
       "properties": {
         "chimera_db": {
-          "type": "string"
+          "type": "string",
+          "fa_icon": "fas fa-database"
         },
         "chimera_rescueoccurrence": {
           "type": "integer",
@@ -227,7 +263,8 @@
           "type": "number",
           "default": 8
         }
-      }
+      },
+      "fa_icon": "fas fa-trash-alt"
     },
     "tag_jump_removal": {
       "title": "Tag-jump removal",
@@ -276,19 +313,23 @@
             "ITS1_5.8S_ITS2",
             "SSU",
             "LSU"
-          ]
+          ],
+          "fa_icon": "fas fa-arrows-alt-h"
         },
         "ITSx_tax": {
           "type": "string",
-          "default": "all"
+          "default": "all",
+          "fa_icon": "fas fa-user-tag"
         },
         "ITSx_evalue": {
           "type": "number",
-          "default": 0.1
+          "default": 0.1,
+          "fa_icon": "fas fa-check-circle"
         },
         "ITSx_partial": {
-          "type": "number",
-          "default": 0
+          "type": "integer",
+          "default": 0,
+          "fa_icon": "fas fa-arrows-alt-h"
         }
       }
     },
@@ -302,17 +343,17 @@
           "type": "boolean",
           "default": true
         },
-        "hp_iddef": {
-          "type": "number",
-          "default": 2,
-          "minimum": 0,
-          "maximum": 4
-        },
         "hp_similarity": {
           "type": "number",
           "default": 0.999,
           "minimum": 0.8,
           "maximum": 1
+        },
+        "hp_iddef": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 4
         }
       }
     },
@@ -324,7 +365,9 @@
       "properties": {
         "data_path": {
           "type": "string",
-          "format": "directory-path"
+          "format": "directory-path",
+          "fa_icon": "fas fa-folder-open",
+          "description": "Path to the Step-1 results."
         }
       }
     },
@@ -335,20 +378,30 @@
       "description": "Less common options for the pipeline, typically set in a config file.",
       "help_text": "These options are common to all nf-core pipelines and allow you to customise some of the core preferences for how the pipeline runs.\n\nTypically these options would be set in a Nextflow config file loaded for all pipeline runs, such as `~/.nextflow/config`.",
       "properties": {
+        "storagemode": {
+          "type": "string",
+          "default": "symlink",
+          "fa_icon": "fas fa-boxes",
+          "enum": ["symlink", "copy", "move", "rellink", "link"],
+          "description": "Adjusts how files are directed to the results folder."
+        },
         "gzip_compression": {
           "type": "number",
           "default": 7,
           "minimum": 1,
-          "maximum": 9
-        },
-        "helpMsg": {
-          "type": "boolean"
+          "maximum": 9,
+          "fa_icon": "fas fa-file-archive",
+          "description": "Controls GZIP compression level in output files."
         },
         "help": {
           "type": "boolean",
           "description": "Display help text.",
           "fa_icon": "fas fa-question-circle",
           "hidden": true
+        },
+        "helpMsg": {
+          "type": "boolean",
+          "fa_icon": "far fa-question-circle"
         },
         "email": {
           "type": "string",
@@ -386,25 +439,42 @@
         },
         "tracedir": {
           "type": "string",
-          "default": "/mnt/Data/Dropbox/Tedersoo/NextITS/results/pipeline_info"
+          "default": "results/pipeline_info"
         },
         "show_hidden_params": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Show all params when using `--help`.",
+          "help_text": "By default, parameters set as _hidden_ in the schema are not shown on the command line when a user runs with `--help`. Specifying this option will tell the pipeline to show all parameters.",
+          "fa_icon": "fas fa-eye-slash"
         },
         "enable_conda": {
-          "type": "string"
-        },
-        "max_time": {
-          "type": "integer",
-          "default": 240
-        },
-        "max_memory": {
-          "type": "integer",
-          "default": 32
+          "type": "boolean",
+          "fa_icon": "fas fa-adjust"
         },
         "max_cpus": {
           "type": "integer",
-          "default": 8
+          "default": 8,
+          "fa_icon": "fas fa-microchip",
+          "description": "Maximum number of CPUs that can be requested (for any single job).",
+          "help_text": "Use to set an upper-limit for the CPU requirement for each process. Should be an integer e.g. `--max_cpus 1`",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "max_memory": {
+          "type": "string",
+          "default": "32.GB",
+          "fa_icon": "fas fa-memory",
+          "description": "Maximum amount of memory that can be requested (for any single job).",
+          "pattern": "^\\d+(\\.\\d+)?\\.?\\s*(K|M|G|T)?B$",
+          "help_text": "Use to set an upper-limit for the memory requirement for each process. Should be a string in the format integer-unit e.g. `--max_memory '8.GB'`"
+        },
+        "max_time": {
+          "type": "string",
+          "default": "240.h",
+          "fa_icon": "fas fa-clock",
+          "description": "Maximum amount of time that can be requested (for any single job).",
+          "pattern": "^(\\d+\\.?\\s*(s|m|h|day)\\s*)+$",
+          "help_text": "Use to set an upper-limit for the time requirement for each process. Should be a string in the format integer-unit e.g. `--max_time '2.h'`"
         },
         "schema_ignore_params": {
           "type": "string"
