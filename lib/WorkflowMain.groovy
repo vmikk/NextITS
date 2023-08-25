@@ -40,7 +40,7 @@ class WorkflowMain {
         def summary_log = ''
         summary_log += NfcoreTemplate.logo(workflow, params.monochrome_logs)
         summary_log += NfcoreSchema.paramsSummaryLog(workflow, params)
-        summary_log += '\n' + citation(workflow) + '\n'
+        // summary_log += '\n' + citation(workflow) + '\n'
         summary_log += NfcoreTemplate.dashedLine(params.monochrome_logs)
         return summary_log
     }
