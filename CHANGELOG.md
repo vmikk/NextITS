@@ -8,6 +8,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 
 
 ## [0.5.0] - 2023-xx-xx
+## [0.5.0] - 2023-08-08
 
 - New `seqstats` sub-workflow (only dereplication, primer validation, and basic run stats)  
 - Add SWARM clustering ([Mahé et al., 2022 DOI:10.1093/bioinformatics/btab493](https://academic.oup.com/bioinformatics/article/38/1/267/6318385))  
@@ -17,6 +18,10 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 - Add support for UNOISE-only output (without clustering)  
 - Add `merge_replicates` parameter (Step-2) for merging or keeping separate sample replicates  
 - Update Step-1 run summary (add homopolymer stats)  
+- Deprecate taxonomy annotation workflow at Step-1  
+- Fixed different extensions in demultiplexed input  
+- Experimental: UNITE-style dereplication (allows query sequences to vary in length at 100% similarity)  
+- Experimental: support of alternative alignment penalty scores (ITS-specific feature)
 
 
 ## [0.4.0] - 2023-05-08
