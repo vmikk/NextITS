@@ -200,6 +200,7 @@ PER_SAMPLE_COUNTS_merged[ ,
 PER_RUN_COUNTS_merged <- data.table(
   Total_Number_Of_Reads = RAW$num_seqs,
   Reads_Passed_QC       = QC$num_seqs,
+  Reads_Demultiplexed   = sum(PER_SAMPLE_COUNTS_merged$Demultiplexed_Reads, na.rm = TRUE),
   Reads_PrimerChecked   = sum(PER_SAMPLE_COUNTS_merged$PrimerChecked_Reads, na.rm = TRUE)
   )
 
