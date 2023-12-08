@@ -1065,13 +1065,24 @@ process assemble_its {
       echo -e "\n..Joining ITS fragments"
       csvtk join -t -f   "id" tmp_1_ITS1.txt tmp_1_s58.txt tmp_1_ITS2.txt > tmp_2_ITS1_58S_ITS2.txt
 
-      ## Convert table back to fasta
-      ## Remove leading and trailing Ns
-      echo -e "\n..Preparing fasta"
-      awk 'NR>1 { print \$1 "\t" \$2\$3\$4 }' tmp_2_ITS1_58S_ITS2.txt \
-        | seqkit tab2fx -w 0  \
-        | seqkit replace -p "^n+|n+\$" -r "" -is -w 0 \
-        | gzip -${params.gzip_compression} > ${sampID}_ITS1_58S_ITS2.fasta.gz
+      ## Check joining results
+      NUMSEQS=\$(wc -l < tmp_2_ITS1_58S_ITS2.txt)
+      echo "...Number of joined sequences: " \$((NUMSEQS - 1))
+
+      if [ "\$NUMSEQS" -gt 1 ]; then
+
+        ## Convert table back to fasta
+        ## Remove leading and trailing Ns
+        echo -e "\n..Preparing fasta"
+        awk 'NR>1 { print \$1 "\t" \$2\$3\$4 }' tmp_2_ITS1_58S_ITS2.txt \
+          | seqkit tab2fx -w 0  \
+          | seqkit replace -p "^n+|n+\$" -r "" -is -w 0 \
+          | gzip -${params.gzip_compression} > ${sampID}_ITS1_58S_ITS2.fasta.gz
+
+      else
+        echo "...There are no sequences with all ITS parts present\n"
+        echo -e "\n..Skipping ITS assembly for this sample"
+      fi
 
     else 
       echo -e "\n..Some or all parts are missing"
