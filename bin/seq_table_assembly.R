@@ -4,8 +4,6 @@
 
 ## To do:
 #  - add HMM profile ID if ITSx was used
-#  - check if putative chimeric sequences occurrs in the other samples
-#  - reorder sequences in FASTA output?
 #  - export data in Excel format? (if table is not too large)
 #  - compress output tabs?
 
@@ -268,6 +266,11 @@ cat("..Adding sequences to the main table\n")
 
 TAB <- merge(x = TAB, y = SQTAB,
   by = c("SeqID___SampleID"), all.x = TRUE)
+
+
+cat("..Sorting table by SampleID and number of reads per sequence\n")
+
+setorder(x = TAB, SampleID, -Abundance)
 
 
 cat("..Preparing FASTA file with filtered sequences\n")
