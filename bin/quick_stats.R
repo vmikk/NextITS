@@ -204,7 +204,16 @@ PER_RUN_COUNTS_merged <- data.table(
   Reads_PrimerChecked   = sum(PER_SAMPLE_COUNTS_merged$PrimerChecked_Reads, na.rm = TRUE)
   )
 
-PER_RUN_COUNTS_merged[ , PercentagePassed := round(Reads_PrimerChecked / Total_Number_Of_Reads * 100, 1) ]
+## Estimate percentages
+cat("..Estimating per-run percentages\n")
+PER_RUN_COUNTS_merged[ , Percentage_QC := 
+  round(Reads_Passed_QC / Total_Number_Of_Reads * 100, 1) ]
+
+PER_RUN_COUNTS_merged[ , Percentage_Demultiplexed := 
+  round(Reads_Demultiplexed / Total_Number_Of_Reads * 100, 1) ]
+
+PER_RUN_COUNTS_merged[ , Percentage_Passed := 
+  round(Reads_PrimerChecked / Total_Number_Of_Reads * 100, 1) ]
 
 
 ## Export summary stats
