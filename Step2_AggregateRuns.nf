@@ -5,7 +5,6 @@
   NextITS: Pipeline to process fungal ITS amplicons
   Step II: aggregate sequencing runs
 ============================================================================
-  Version: v0.5.0
   License: Apache-2.0
   Github : https://github.com/vmikk/NextITS
   Website: https://next-its.github.io/
