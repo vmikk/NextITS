@@ -11,8 +11,6 @@
 #   --tags   tags.fasta \
 #   --output tags_validated.fasta
 
-## TO DO:
-# - If RunID is present, check that it is present in all samples
 
 
 cat("Parsing input options and arguments...\n")
@@ -157,14 +155,18 @@ if(length(TAGS) != nuniq){
 
 
 ## Check run name
+TESTRUN <- grepl(pattern = "__", x = names(TAGS))
+
 cat("\nTag names contain sequencing run ID: ", 
-    ifelse(test = any(grepl(pattern = "__", x = names(TAGS))), 
+    ifelse(test = any(TESTRUN), 
            yes = "TRUE", no = "FALSE"), "\n")
 
-if(any(grepl(pattern = "__", x = names(TAGS)))){
+if(any(TESTRUN)){
   
   ## Check that all samples contain RunID
-  # TO DO .....
+  cat("\nAll samples contain sequencing run ID: ", 
+    ifelse(test = sum(TESTRUN) == length(names(TAGS)), 
+           yes = "TRUE", no = "FALSE"), "\n")
 
   ## Check run name uniqness
   dtt <- data.table(TagName = names(TAGS))
