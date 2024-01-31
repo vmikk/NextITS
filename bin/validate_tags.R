@@ -71,8 +71,14 @@ if("try-error" %in% class(TAGS)){
   stop(TAGS)
 }
 
-cat("Number of tags in the file: ", length(TAGS), "\n")
-cat("Tag length: ", paste(unique(width(TAGS)), collapse = ", "), "\n")
+cat("Number of records in the file: ", length(TAGS), "\n")
+
+
+########################
+######################## Validate sample names
+########################
+
+cat("\n\n===== Validating sample names =====\n\n")
 
 cat("Positive control: ", 
     ifelse(test = any(grepl(pattern = "PosC", x = names(TAGS))), 
@@ -123,6 +129,7 @@ if(nrow(renamed) > 0){
     renamed[, .(OriginalName, NewName)],
     nrows = nrow(renamed), trunc.cols = FALSE)
 }
+
 
 
 ## Check tag name uniqness
@@ -179,7 +186,12 @@ if(any(TESTRUN)){
 }
 
 
-## Validate sequences
+########################
+######################## Validate sequences
+########################
+
+cat("\n\n===== Validating sequences =====\n\n")
+
 suniq <- length(unique(as.character(TAGS)))
 cat("\nAll tag sequences unique: ", 
     ifelse(test = (length(TAGS) == suniq), 
