@@ -5,6 +5,12 @@
 ## - Tag names should be unique
 ## - Tag names must be alphanumeric and must not contain whitespace, dot, comma, semicolon, or dash
 ## - Sequencing run ID could be present in tag names (before double underscore)
+## - Checks the presence of positive and negative controls
+## - Estimates number of unqiue tags and their length
+## - For dual assymetric tags, 
+##     unique barcodes are converted into a "long" format,
+##     a biosample tables (`biosamples_asym.csv` and `biosamples_sym.csv`),
+##     and file naming scheme (`file_renaming.tsv`) are exported as well
 
 ## Usage:
 # validate_tags.R \
