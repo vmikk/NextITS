@@ -61,15 +61,17 @@
         "lima_W": {
           "type": "integer",
           "default": 70,
-          "fa_icon": "fas fa-text-width",
-          "description": "Window size for barcode lookup."
+          "fa_icon": "fas fa-arrows-alt-h",
+          "description": "Window size for barcode lookup, in base pairs",
+          "minimum": 1
         },
         "lima_minlen": {
           "type": "integer",
           "default": 40,
           "fa_icon": "fas fa-compress-alt",
-          "description": "Minimum sequence length after clipping barcodes."
-        }
+          "description": "Minimum sequence length after clipping barcodes.",
+          "minimum": 1
+        },
       }
     },
     "quality_control": {
@@ -380,7 +382,7 @@
       "properties": {
         "storagemode": {
           "type": "string",
-          "default": "symlink",
+          "default": "rellink",
           "fa_icon": "fas fa-boxes",
           "enum": ["symlink", "copy", "move", "rellink", "link"],
           "description": "Adjusts how files are directed to the results folder."
