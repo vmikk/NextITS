@@ -192,8 +192,24 @@ if(any(TESTRUN)){
 
 cat("\n\n===== Validating sequences =====\n\n")
 
-suniq <- length(unique(as.character(TAGS)))
-cat("\nAll tag sequences unique: ", 
+
+DUAL <- grepl(pattern = "\\.\\.\\.", x = as.character(TAGS))
+
+if(any(DUAL)){
+  cat("Barcode type detected: Dual\n")
+} else {
+  cat("Barcode type detected: Single (or dual symmetric)\n")
+}
+
+
+##### Single tag
+
+if(any(DUAL) == FALSE){
+
+  cat("Tag length: ", paste(unique(width(TAGS)), collapse = ", "), "\n")
+
+  suniq <- length(unique(as.character(TAGS)))
+  cat("\nAll tag sequences unique: ", 
     ifelse(test = (length(TAGS) == suniq), 
            yes = "TRUE", no = "FALSE"), "\n")
 
@@ -216,17 +232,13 @@ if(length(TAGS) != suniq){
     ),
     by = "Tags"]
 
-  cat("..Duplicates: \n")
-  print(dup_smr, nrows = length(TAGS), trunc.cols = FALSE)
+    cat("..Duplicates: \n")
+    print(dup_smr, nrows = length(TAGS), trunc.cols = FALSE)
 
-  stop("Please fix the tag sequences!\n")
-}
+    stop("\nPlease fix the tag sequences!\n")
+  }
 
-
-
-cat("\nValidation finished\n")
-
-## Export FASTA
+  ## Export FASTA
 cat("Exporting validated tags in FASTA format\n")
 
 writeXStringSet(
@@ -235,6 +247,121 @@ writeXStringSet(
   compress=FALSE,
   format="fasta",
   width=9999)
+
+} # end of single tag
+
+
+
+##### Dual tags
+
+if(any(DUAL) == TRUE){
+
+  ## Convert to tabular format
+  dtt <- data.table(
+    SampleID = names(TAGS),
+    Tags     = as.character(TAGS))
+
+  ## Split dual tags
+  dtt[ , c("Tag1", "Tag2") := tstrsplit(x = Tags, split = "\\.\\.\\.", keep = c(1,2)) ]
+
+  ## Check if there are any missing tags
+  missing_tags <- dtt[ is.na(Tag1) | is.na(Tag2) ]
+  if(nrow(missing_tags) > 0){
+    cat("WARNING: missing dual tags detected!\n")
+    print(missing_tags)
+    stop("\nPlease fix the tag sequences!\n")
+  }
+
+  cat("..Forward tag length: ", paste(sort(unique(nchar(dtt$Tag1))), collapse = ", "), "\n")
+  cat("..Reverse tag length: ", paste(sort(unique(nchar(dtt$Tag2))), collapse = ", "), "\n")
+
+  cat("\n")
+  cat("..Number of unique forward tags: ", length(unique(dtt$Tag1)), "\n")
+  cat("..Number of unique reverse tags: ", length(unique(dtt$Tag2)), "\n")
+
+  ## Find unique barcodes
+  bu <- data.table(Sequence = unique(c(dtt$Tag1, dtt$Tag2)))
+
+  ## Name unique barcodes
+  len <- nchar(nrow(bu))
+  bu[ , ID := .I ]
+  bu[ , ID := sprintf(paste("%0", len, "d", sep = ""), ID) ]
+  bu[ , ID := paste0("bc", ID) ]
+
+  ## Convert to FASTA
+  seqs <- DNAStringSet(x = bu$Sequence)
+  names(seqs) <- bu$ID
+
+
+
+  ## Add bacrode IDs
+  dtt <- merge(x = dtt, y = bu, by.x = "Tag1", by.y = "Sequence", all.x = TRUE)
+  setnames(x = dtt, old = "ID", new = "ID1")
+
+  dtt <- merge(x = dtt, y = bu, by.x = "Tag2", by.y = "Sequence", all.x = TRUE)
+  setnames(x = dtt, old = "ID", new = "ID2")
+
+  dtt[ , Barcodes := paste0(ID1, "--", ID2)]
+
+
+  dtt[ , TagSymmetry := fifelse(Tag1 == Tag2, yes = "symmetric", no = "asymmetric", na = NA) ]
+  cat("Number of symmetric tag combinations: ",  sum(dtt$TagSymmetry %in% "symmetric"),  "\n")
+  cat("Number of asymmetric tag combinations: ", sum(dtt$TagSymmetry %in% "asymmetric"), "\n")
+
+  ## Validate barcode combination uniqness
+  if(nrow(dtt) != length(unique(dtt$Barcodes))){
+    cat("WARNING: non-unique barcode combination detected!\n")
+
+    dups <- dtt$Barcodes[ duplicated(dtt$Barcodes) ]
+    print( dtt[ Barcodes %in% dups ] )
+
+    stop("\nPlease fix the tag sequences!\n")
+  }
+
+
+  ## Prepare biosample table for LIMA
+  # https://lima.how/faq/biosample.html
+  cat("\nExporting biosample tables: 'biosamples_sym.csv' and 'biosamples_asym.csv'\n")
+  
+  res <- data.table(
+    Barcodes     = dtt$Barcodes,
+    `Bio Sample` = dtt$SampleID,
+    TagSymmetry  = dtt$TagSymmetry)
+
+  fwrite(
+    x = res[ TagSymmetry %in% "symmetric", .(Barcodes, `Bio Sample`) ] ,
+    file = "biosamples_sym.csv",
+    quote = FALSE, sep = ",", col.names = TRUE)
+
+  fwrite(
+    x = res[ TagSymmetry %in% "asymmetric", .(Barcodes, `Bio Sample`) ] ,
+    file = "biosamples_asym.csv",
+    quote = FALSE, sep = ",", col.names = TRUE)
+
+
+  ## File for sample renaming
+  res[ , OldName := paste0("lima.", Barcodes, ".fq.gz") ]
+  res[ , NewName := paste0(`Bio Sample`, ".fq.gz") ]
+
+  cat("Exporting file naming scheme: 'file_renaming.tsv'\n")
+
+  fwrite(x = res[ , .(OldName, NewName)],
+    file = "file_renaming.tsv", quote = F, sep = "\t", col.names = FALSE)
+
+  ## Export unique barcodes
+  cat("Exporting unique tags in FASTA format\n")
+  
+  writeXStringSet(
+    x        = seqs,
+    filepath = OUTP,
+    compress = FALSE,
+    format   = "fasta",
+    width    = 9999)
+
+} # end of dual tags
+
+
+cat("\nValidation finished\n")
 
 
 ##################### Session info
