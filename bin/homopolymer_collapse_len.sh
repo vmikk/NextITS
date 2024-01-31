@@ -1,5 +1,26 @@
 #!/bin/bash
 
+## Script to compress homopolymer stretches (e.g., prior to k-mer counting)
+## All homopolymer stretches will be collapsed to max H length (default, 1)
+
+## Input:
+# $1 = Parameter H (max homopolymer length)
+# $2 = input FASTA file
+
+## Usage example:
+# 
+# cat > input.fasta <<'EOT'
+# >s1
+# AACCCTTTTGGGGG
+# >s2
+# ACCTTTGGGGGGGG
+# >s3
+# ACTGACTGACTGAC
+# EOT
+# 
+# homopolymer_compression.sh 2 input.fasta
+
+
 
 awk -v H="$1" '\
 
