@@ -11,6 +11,7 @@ class WorkflowNextITS {
     // Check and validate parameters
     //
     public static void initialise(params, log) {
+
         genomeExistsError(params, log)
 
 
@@ -52,8 +53,18 @@ class WorkflowNextITS {
         meta.workflow = run_workflow.toMap()
         meta["manifest_map"] = run_workflow.manifest.toMap()
 
+        // Pipeline DOI
         meta["doi_text"] = meta.manifest_map.doi ? "(doi: <a href=\'https://doi.org/${meta.manifest_map.doi}\'>${meta.manifest_map.doi}</a>)" : ""
         meta["nodoi_text"] = meta.manifest_map.doi ? "": "<li>If available, make sure to update the text to include the Zenodo DOI of version of the pipeline used. </li>"
+
+        // Tool references
+        meta["tool_citations"] = ""
+        meta["tool_bibliography"] = ""
+
+        // TODO Only uncomment below if logic in toolCitationText/toolBibliographyText has been filled!
+        //meta["tool_citations"] = toolCitationText(params).replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
+        //meta["tool_bibliography"] = toolBibliographyText(params)
+
 
         def methods_text = mqc_methods_yaml.text
 
