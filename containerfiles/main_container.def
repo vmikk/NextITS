@@ -68,6 +68,7 @@ Stage: final
     doFuture \
     openxlsx \
     && R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
+    && R -e 'BiocManager::install("ShortRead", ask = FALSE)' \
     && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
     && R -e 'BiocManager::install("dada2", ask = FALSE)' \
     && R -e 'remotes::install_github("vmikk/metagMisc")' \
@@ -108,6 +109,7 @@ Stage: final
   ## Create conda environment and install software
   ${conda_prefix}/bin/mamba install -y \
     "lima>=2.9.0" \
+    "pbtk>=3.1.1" \
     "vsearch>=2.26.0" \
     "swarm>=3.1.4" \
     "seqkit>=2.6.0" \
@@ -124,6 +126,7 @@ Stage: final
     "bbmap>=39.01" \
     "ripgrep>=14.0.0" \
     "fd-find>=8.5.3" \
+    "mmseqs2"
 
   ## fqgrep v.0.4.4
   git clone --depth 1 https://github.com/indraniel/fqgrep
@@ -138,6 +141,12 @@ Stage: final
   tar -xzf rush_linux_amd64.tar.gz
   mv rush ${conda_prefix}/bin/
   rm rush_linux_amd64.tar.gz
+
+  ## brename
+  wget https://github.com/shenwei356/brename/releases/download/v2.14.0/brename_linux_amd64.tar.gz
+  tar -xzf brename_linux_amd64.tar.gz
+  mv brename ${conda_prefix}/bin/
+  rm brename_linux_amd64.tar.gz
 
   ## MUMU
   git clone --depth 1 https://github.com/frederic-mahe/mumu.git \
