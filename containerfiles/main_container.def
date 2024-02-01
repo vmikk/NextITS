@@ -3,25 +3,25 @@
 
 ## Build stage (Rust and Cargo), for runiq
 Bootstrap: docker
-From: rust:1.69.0
+From: rust:1.75.0
 Stage: build
 
 %post
-  # rustup --version   # 1.25.2
-  # rustc  --version   # 1.69.0
-  # cargo  --version   # 1.69.0
+  # rustup --version   # 1.26.0
+  # rustc  --version   # 1.75.0
+  # cargo  --version   # 1.75.0
   cargo install runiq sd
-  # runiq --version    # 1.2.2
-  # sd    --version    # 0.7.6
+  # runiq --version    # 2.0.0
+  # sd    --version    # 1.0.0
 
 ## Main stage
 Bootstrap: docker
-From: rocker/r-ver:4.3.0
+From: rocker/r-ver:4.3.2
 Stage: final
 
 %labels
   Maintainer vladimir.mikryukov@ut.ee
-  R_Version 4.3.0
+  R_Version 4.3.2
 
 %runscript
   exec "$@"
@@ -38,7 +38,7 @@ Stage: final
 
 ## Install the required dependencies
 %post
-  export R_VERSION=4.3.0
+  export R_VERSION=4.3.2
 
   apt-get update -qq \
   && apt-get -y --no-install-recommends install \
