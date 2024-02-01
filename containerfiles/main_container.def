@@ -107,24 +107,23 @@ Stage: final
 
   ## Create conda environment and install software
   ${conda_prefix}/bin/mamba install -y \
-    "lima>=2.7.1" \
-    "vsearch>=2.22.1" \
-    "swarm>=3.1.3" \
-    "seqkit>=2.4.0" \
-    "seqfu>=1.17.1" \
+    "lima>=2.9.0" \
+    "vsearch>=2.26.0" \
+    "swarm>=3.1.4" \
+    "seqkit>=2.6.0" \
+    "seqfu>=1.20.0" \
     "fastp>=0.23.2" \
-    "blast>=2.14.0" \
+    "blast>=2.15.0" \
     "bioawk" \
-    "miller>=6.7.0" \
+    "miller>=6.10.0" \
     "bedtools>=2.31.0" \
-    "parallel>=20230322" \
-    "csvtk>=0.25.0" \
+    "parallel>=20231122" \
+    "csvtk>=0.29.0" \
     "itsx>=1.1.3" \
-    "itsxpress>=1.8.0" \
-    "cutadapt>=4.4" \
+    "cutadapt>=4.6" \
     "bbmap>=39.01" \
-    "ripgrep>=13.0.0" \
-    "fd-find>=8.5.3"
+    "ripgrep>=14.0.0" \
+    "fd-find>=8.5.3" \
 
   ## fqgrep v.0.4.4
   git clone --depth 1 https://github.com/indraniel/fqgrep
@@ -134,13 +133,13 @@ Stage: final
   cd ..
   rm -r fqgrep
 
-  ## rush v.0.5.0
-  wget https://github.com/shenwei356/rush/releases/download/v0.5.0/rush_linux_amd64.tar.gz
+  ## rush
+  wget https://github.com/shenwei356/rush/releases/download/v0.5.4/rush_linux_amd64.tar.gz
   tar -xzf rush_linux_amd64.tar.gz
   mv rush ${conda_prefix}/bin/
   rm rush_linux_amd64.tar.gz
 
-  ## MUMU v.1.0.2
+  ## MUMU
   git clone --depth 1 https://github.com/frederic-mahe/mumu.git \
     && cd ./mumu/ \
     && make && make check && make install
