@@ -119,6 +119,7 @@ process dereplication {
     find . -name "*.fa.gz" | parallel -j1 \
       "zcat {}" \
       | sed '/^>/ s/;sample=.*;/;/' \
+      | vsearch --sortbysize - --sizein --output - \
       | vsearch \
         --derep_fulllength - \
         --output - \
