@@ -4,7 +4,6 @@
 ============================================================================
   NextITS: Pipeline to process fungal ITS amplicons
 ============================================================================
-  Version: v0.5.0
   License: Apache-2.0
   Github : https://github.com/vmikk/NextITS
   Website: https://next-its.github.io/
@@ -15,32 +14,6 @@
 // - provide absolute paths to the input data (e.g. --input and --barcodes)
 // - File names should not contain period (.) characters (except for extensions)
 
-// Dependencies:
-//  - lima >= 2.6.0
-//  - fqgrep >= 0.4.4
-//  - vsearch >= 2.21.1
-//  - seqkit >= 2.2.0
-//  - cutadapt >= 4.1
-//  - fastp >= 0.23.2
-//  - ITSx >= 1.1.3
-//  - R >= 4.1.0
-//    -- data.table >= 1.14.0
-//    -- Biostrings >= 2.60.0
-//    -- plyr
-//    -- DECIPHER >= 2.24.0
-//    -- R.utils
-//    -- ggplot2
-//    -- openxlsx
-//    -- optparse
-//  - bioawk >= 20110810
-//  - miller (mlr) >= 6.2.0
-//  - bedtools >= 2.30.0
-//  - GNU parallel
-//  - rush >= 0.4.2
-//  - csvtk >= 0.23.0
-//  - runiq >= 1.2.1
-//  - awk, sed, gzip, find, rename, cat, zcat, sha1sum
-//
 // Databases:
 //  - UDB for chimera identification
 
@@ -106,13 +79,16 @@ def helpMsg() {
         --otu_iddef Sequence similarity definition for tag-jump removal step (default, 2)
 
       # PacBio-specific parameters
+        --lima_barcodetype Tag type ("single", "dual", "dual_symmetric", "dual_asymmetric")
+        --lima_minscore    Minimum barcode score for demultiplexing (default, 93)
+        --lima_minendscore Minimum second barcode score (only for asymmetric and dual barcoding scheme; default, 50)
+        --lima_minrefspan  Minimum read span relative to the barcode length (0-1; default, 0.75)
+        --lima_minscoringregions Number of barcodes scored required for demultiplexing using dual barcodes (default, 2 = requires both barcodes)
+        --lima_windowsize  Window size for barcode lookup (default, 70 bp)
+        --lima_minlen      Minimum sequence length after clipping barcodes (default, 40)
         --qc_maxee         Maximum number of expected errors (default, false)
         --qc_maxeerate     Maximum number of expected errors per base (default, 0.01)
         --qc_maxhomopolymerlen  Threshold for a homopolymer region length in a sequence (default, 25)
-        --lima_minscore    Barcode score for demultiplexing (default, 93)
-        --lima_dualbarcode Dual-barcoding scheme with identical barcodes at both ends (default, true)
-        --lima_W           Window size for barcode lookup (default, 70 bp)
-        --lima_minlen      Minimum sequence length after clipping barcodes (default, 40)
 
       # Illumina-specific parameters
         --qc_avgphred      Average Phred score for QC (default, false)
@@ -133,7 +109,7 @@ def helpMsg() {
         --trim_minlen              Min sequence length after primer trimming (default, 10)
 
       # Miscellaneous parameters
-        --gzip_compression Compression level for GZIP (default, "-7"; "-1" = fastest (worst compression), "-9" = slowest (best))
+        --gzip_compression Compression level for GZIP (default, 7; 1 = fastest (worst compression), 9 = slowest (best))
 
     NEXTFLOW-SPECIFIC:
         -profile       Configuration profile
