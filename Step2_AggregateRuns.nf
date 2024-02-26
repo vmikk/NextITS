@@ -130,12 +130,12 @@ process dereplication {
         --sizein --sizeout \
         --uc Dereplicated.uc \
       > Dereplicated.fa
-    
-    echo -e "..Dereplication finished"
+
+    echo -e "..Dereplication finished\n"
 
     ## Compress results
     echo -e "\nCompressing results"
-    parallel -j ${task.cpus} "gzip -7 {}" \
+    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
       ::: "Dereplicated.uc" "Dereplicated.fa"
 
     """
