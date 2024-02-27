@@ -179,7 +179,7 @@ cat("... Total number unique samples (files): ", length(unique(TAB$SampleID)), "
 
 ## Load UC file for globally dereplicated sequences
 cat("..Loading dereplication UC file\n")
-UCA <- metagMisc::parse_uc(x = UCDEREP, map_only = TRUE, package = "data.table")
+UCA <- metagMisc::parse_uc(x = UCDEREP, map_only = TRUE)
 UCA <- unique(UCA)
 colnames(UCA) <- c("SeqID", "DerepID")
 
@@ -195,7 +195,7 @@ if(UCPRECLUST %in% "NoPrecluster"){
 
 ## Load UC file for clustered sequences (OTUs / SWARM clusters / UNOISE)
 cat("..Loading clustering UC file\n")
-UCO <- metagMisc::parse_uc(x = UCCLUST, map_only = TRUE, package = "data.table")
+UCO <- metagMisc::parse_uc(x = UCCLUST, map_only = TRUE)
 UCO <- unique(UCO)
 colnames(UCO) <- c("DerepID", "OTU")
 
