@@ -194,7 +194,7 @@ process dereplication_unite {
 
     ## Compress results
     echo -e "\nCompressing results"
-    parallel -j ${task.cpus} "gzip -7 {}" \
+    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
       ::: "Dereplicated.uc" "Dereplicated.fa"
 
     """
