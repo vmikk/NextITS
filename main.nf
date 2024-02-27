@@ -1141,39 +1141,49 @@ process homopolymer {
       --fasta_width 0 \
       --threads ${task.cpus} \
       --sizein --sizeout \
+      --minseqlength 20 \
       --centroids homo_clustered.fa \
       --uc ${sampID}_uch.uc
     echo -e "..Done"
 
-    ## Compress UC file
-    gzip -${params.gzip_compression} ${sampID}_uch.uc
+    ## Check if clustering was succeful
+    ## (e.g., if all compressed sequences were too short, the file with be empty)
+    if [ -s homo_clustered.fa ]; then
 
-    ## Substitute homopolymer-comressed sequences with uncompressed ones
-    ## (update size annotaions)
-    echo -e "\nExtracting sequences"
+      ## Compress UC file
+      gzip -${params.gzip_compression} ${sampID}_uch.uc
 
-    seqkit fx2tab ${input} > inp_tab.txt
-    seqkit fx2tab homo_clustered.fa > clust_tab.txt
+      ## Substitute homopolymer-comressed sequences with uncompressed ones
+      ## (update size annotaions)
+      echo -e "\nExtracting sequences"
 
-    if [ -s inp_tab.txt ]; then
-      substitute_compressed_seqs.R \
-        inp_tab.txt clust_tab.txt res.fa
+      seqkit fx2tab ${input} > inp_tab.txt
+      seqkit fx2tab homo_clustered.fa > clust_tab.txt
 
-      echo -e "..Done"
+      if [ -s inp_tab.txt ]; then
+        substitute_compressed_seqs.R \
+          inp_tab.txt clust_tab.txt res.fa
+
+        echo -e "..Done"
       else
         echo -e "..Input data looks empty, nothing to proceed with"
       fi
 
-    if [ -s res.fa ]; then
-      gzip -c res.fa > ${sampID}_Homopolymer_compressed.fa.gz
-    fi
+      if [ -s res.fa ]; then
+        gzip -c res.fa > ${sampID}_Homopolymer_compressed.fa.gz
+      fi
 
-    ## Remove temporary files
-    rm homo_compressed.fa
-    rm homo_clustered.fa
-    rm inp_tab.txt
-    rm clust_tab.txt
-    rm res.fa
+      ## Remove temporary files
+      rm homo_compressed.fa
+      rm homo_clustered.fa
+      rm inp_tab.txt
+      rm clust_tab.txt
+      rm res.fa
+
+    else
+      echo -e "Clustering homopolymer-compressed sequences returned to results\n"
+      echo -e "(most likely, sequences were too short)\n"
+    fi
 
     """
 }
