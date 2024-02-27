@@ -367,6 +367,7 @@ process summarize {
     input:
       path(seqtabs, stageAs: "?/*")
       path(uc_derep)
+      path(uc_preclust)
       path(uc_clust)
       path(otus_fasta)
 
@@ -381,11 +382,12 @@ process summarize {
     """
 
     pool_seq_runs.R \
-      --ucderep ${uc_derep} \
-      --ucclust ${uc_clust} \
-      --otus    ${otus_fasta} \
-      --maxmeep ${params.max_MEEP} \
-      --maxchim ${params.max_ChimeraScore} \
+      --ucderep    ${uc_derep} \
+      --ucpreclust ${uc_preclust} \
+      --ucclust    ${uc_clust} \
+      --otus       ${otus_fasta} \
+      --maxmeep    ${params.max_MEEP} \
+      --maxchim    ${params.max_ChimeraScore} \
       --recoverdenovo  ${params.recover_lowqsingletons} \
       --recoversinglet ${params.recover_denovochimeras} \
       --mergesamples   ${params.merge_replicates} \
