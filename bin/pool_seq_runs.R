@@ -19,6 +19,7 @@
 ## Usage:
 # ./pool_seq_runs.R \
 #    --ucderep "Dereplicated.uc.gz" \
+#    --ucpreclust "NoPrecluster" \
 #    --ucclust "Clustered.uc.gz" \
 #    --otus "Clustered.fa.gz" \
 #    --maxmeep 0.5 \
