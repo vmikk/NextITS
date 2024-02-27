@@ -37,6 +37,14 @@ params.merge_replicates = false
 
 // Denoising
 params.unoise         = false
+// Filtering sequences (trimmed amplicons) by length
+params.ampliconlen_min = null
+params.ampliconlen_max = null
+// if(params.ampliconlen_min != null | params.ampliconlen_max != null){
+//   length_filtering = true
+// } else {
+//   length_filtering = false
+// }
 params.unoise_alpha   = 2.0
 params.unoise_minsize = 8
 
