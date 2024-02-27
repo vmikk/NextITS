@@ -589,43 +589,43 @@ workflow {
       preclustuc_ch = precluster_swarm.out.clust_uc
     }
 
-    // Clustering
-    if ( params.clustering_method == "vsearch" ) {
-      cluster_vsearch(unoize_ch)
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Clustering
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+
+
+    // Greedy clustering with VSEARCH
+    if ( params.clustering == "vsearch" ) {
+      cluster_vsearch(denoise_ch)
       cluster_ch = cluster_vsearch.out.clust
       clustuc_ch = cluster_vsearch.out.clust_uc
-    }
-    if ( params.clustering_method == "swarm" ) {
-      cluster_swarm(unoize_ch)
-      cluster_ch = cluster_swarm.out.clust
-      clustuc_ch = cluster_swarm.out.clust_uc
-    }
-    if ( params.clustering_method == "unoise" ) {
+    
+    // Clustering with SWARM
+    } else if ( params.clustering == "swarm" ) {
+      
+      // If pre-clustering was already done with the same d, just take the previous results
+      if(params.preclustering == "swarm_d1" & params.swarm_d == 1){
+        cluster_ch = precluster_swarm.out.clust
+        clustuc_ch = precluster_swarm.out.clust_uc
+        preclustuc_ch = file('NoPrecluster')
+      
+      // Otherwise, run SWARM
+      } else {
+        cluster_swarm(denoise_ch)
+        cluster_ch = cluster_swarm.out.clust
+        clustuc_ch = cluster_swarm.out.clust_uc
+      }
+
+    // Do not cluster, use zOTUs from UNOISE
+    } else if ( params.preclustering == "unoise" & params.clustering == "none" ) {
       cluster_ch = unoise.out.unoise
       clustuc_ch = unoise.out.unoise_uc
+      preclustuc_ch = file('NoPrecluster')
     }
 
-   // Pool sequence tables and aggregate at OTU level
-   ch_seqtabs = Channel.fromPath(
-     params.data_path + "/**/07_SeqTable/Seqs.RData",
-     checkIfExists: true).collect()
-
-   // Summarize sequence abundances by OTU and sample
-   summarize(
-    ch_seqtabs,     // Step-1 sequnece tables in long format
-    derepuc_ch,     // UC file with dereplication info
-    clustuc_ch,     // UC file with OTU clustering info
-    cluster_ch      // FASTA file with OTUs
-   )
-
-   // Post-clustering curation with LULU
-   if ( params.lulu == true ) {
-     lulu(
-       summarize.out.otutabwide,
-       summarize.out.seqs
-       // cluster_ch        // In the Clustered.fa.gz, there are seqs excluded from OTU table
-     )
-   }
 
 
 }
