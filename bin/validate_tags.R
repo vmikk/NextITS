@@ -216,27 +216,27 @@ if(any(DUAL) == FALSE){
 
   suniq <- length(unique(as.character(TAGS)))
   cat("\nAll tag sequences unique: ", 
-    ifelse(test = (length(TAGS) == suniq), 
-           yes = "TRUE", no = "FALSE"), "\n")
+      ifelse(test = (length(TAGS) == suniq), 
+             yes = "TRUE", no = "FALSE"), "\n")
 
-if(length(TAGS) != suniq){
-  cat("..Not all tag sequences are unique!\n")
-  cat("..This should be resolved manually!\n")
+  if(length(TAGS) != suniq){
+    cat("..Not all tag sequences are unique!\n")
+    cat("..This should be resolved manually!\n")
 
-  dup_name <- unique( names(TAGS)[ duplicated(as.character(TAGS)) ])
-  dup_tags <- as.character(TAGS[ dup_name ])
+    dup_name <- unique( names(TAGS)[ duplicated(as.character(TAGS)) ])
+    dup_tags <- as.character(TAGS[ dup_name ])
 
-  cat("..Number of duplicated tags: ", length(dup_name), "\n")
+    cat("..Number of duplicated tags: ", length(dup_name), "\n")
 
-  dupss <- TAGS[ TAGS %in% dup_tags ]
-  dups <- data.table(
-    TagNames = names(dupss),
-    Tags = as.character(dupss))
+    dupss <- TAGS[ TAGS %in% dup_tags ]
+    dups <- data.table(
+      TagNames = names(dupss),
+      Tags = as.character(dupss))
 
-  dup_smr <- dups[ , .(
-    TagNames = paste0("[ ", paste(TagNames, collapse = ", "), " ]")
-    ),
-    by = "Tags"]
+    dup_smr <- dups[ , .(
+      TagNames = paste0("[ ", paste(TagNames, collapse = ", "), " ]")
+      ),
+      by = "Tags"]
 
     cat("..Duplicates: \n")
     print(dup_smr, nrows = length(TAGS), trunc.cols = FALSE)
@@ -245,14 +245,14 @@ if(length(TAGS) != suniq){
   }
 
   ## Export FASTA
-cat("Exporting validated tags in FASTA format\n")
+  cat("Exporting validated tags in FASTA format\n")
 
-writeXStringSet(
-  x = TAGS,
-  filepath = OUTP,
-  compress=FALSE,
-  format="fasta",
-  width=9999)
+  writeXStringSet(
+    x        = TAGS,
+    filepath = OUTP,
+    compress = FALSE,
+    format   = "fasta",
+    width    = 9999)
 
 } # end of single tag
 
