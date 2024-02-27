@@ -1160,9 +1160,9 @@ process homopolymer {
         inp_tab.txt clust_tab.txt res.fa
 
       echo -e "..Done"
-    else
-      echo -e "..Input data looks empty, nothin to proceed with"
-    fi
+      else
+        echo -e "..Input data looks empty, nothing to proceed with"
+      fi
 
     if [ -s res.fa ]; then
       gzip -c res.fa > ${sampID}_Homopolymer_compressed.fa.gz
