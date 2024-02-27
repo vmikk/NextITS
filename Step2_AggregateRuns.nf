@@ -564,12 +564,29 @@ workflow {
     // But it would add extra complexity to manage and combine two UC files.
 
 
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Pre-clustering / denoising
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+
     // Denoizing
-    if ( params.unoise == true ) {
+    if ( params.preclustering == "none" ) {
+      denoise_ch    = derep_ch
+      preclustuc_ch = file('NoPrecluster')
+    
+    // Denoise with UNOISE
+    } else if ( params.preclustering == "unoise" ) {
       unoise(derep_ch)
-      unoize_ch = unoise.out.unoise
-    } else {
-      unoize_ch = derep_ch
+      denoise_ch    = unoise.out.unoise
+      preclustuc_ch = unoise.out.unoise_uc
+    
+
+    // Precluster with SWARM
+    } else if ( params.preclustering == "swarm_d1" ){
+      precluster_swarm(derep_ch)
+      denoise_ch    = precluster_swarm.out.clust
+      preclustuc_ch = precluster_swarm.out.clust_uc
     }
 
     // Clustering
