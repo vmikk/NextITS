@@ -35,8 +35,6 @@ params.outdir = "Step2"
 // Pool sample replicates (e.g., re-sequenced samples) in the final OTU table
 params.merge_replicates = false
 
-// Denoising
-params.unoise         = false
 // Filtering sequences (trimmed amplicons) by length
 params.ampliconlen_min = null
 params.ampliconlen_max = null
@@ -45,11 +43,15 @@ params.ampliconlen_max = null
 // } else {
 //   length_filtering = false
 // }
+
+// Sequence denoising or pre-clustering ("none", "unoise", "dada2", "swarm_d1", "homopolymer")
+params.preclustering = "none"
 params.unoise_alpha   = 2.0
 params.unoise_minsize = 8
 
-// Sequence clustering method ("vsearch" / "swarm" / "unoise")
-params.clustering_method = "vsearch"
+
+// Sequence clustering method ("none" / "vsearch" / "swarm" / "shmatching")
+params.clustering = "vsearch"
 
 // VSEARCH clustering
 params.otu_id    = 0.98
