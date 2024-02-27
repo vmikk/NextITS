@@ -248,6 +248,58 @@ process unoise {
 
 
 
+
+// Preclustering with SWARM and d1
+process precluster_swarm {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/02.Preclustered_SWARM_d1", mode: 'symlink'
+    // cpus 8
+
+    input:
+      path input
+
+    output:
+      path "SWARM_representatives.fa.gz", emit: clust
+      path "SWARM.uc.gz",                 emit: clust_uc
+      path "SWARM.swarms.gz",             emit: swarms
+      path "SWARM.struct.gz",             emit: struct
+      path "SWARM.stats.gz",              emit: stats
+
+    script:
+    """
+    echo -e "Pre-clustering sequences with SWARM d=1\n"
+    echo -e "Note: sequences with ambiguous nucleotides will be excluded!\n"
+
+    ## Remove sequences with ambiguities
+    zcat ${input} \
+    | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+    | swarm \
+      --differences 1 \
+      --boundary    ${params.swarm_d1boundary} \
+      --fastidious \
+      --threads     ${task.cpus} \
+      --usearch-abundance \
+      --statistics-file    SWARM.stats \
+      --internal-structure SWARM.struct \
+      --uclust-file        SWARM.uc \
+      --seeds              SWARM_representatives.fa \
+      > SWARM.swarms
+
+    echo -e "\n..Swarm pre-clustering finished\n"
+
+    ## Compress results
+    echo -e "..Compressing results\n"
+    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
+      ::: "SWARM_representatives.fa" "SWARM.uc" "SWARM.swarms" "SWARM.struct" "SWARM.stats"
+
+    echo -e "..Done\n"
+    """
+}
+
+
+
 // Cluster sequences with VSEARCH (fixed similarity threshold)
 process cluster_vsearch {
 
