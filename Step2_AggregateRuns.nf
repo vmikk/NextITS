@@ -627,6 +627,19 @@ workflow {
     }
 
 
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Result processing
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+
+
+    // Pool sequence tables and aggregate at OTU level
+    ch_seqtabs = Channel.fromPath(
+      params.data_path + "/**/07_SeqTable/Seqs.RData",
+      checkIfExists: true).collect()
+
+ 
 
 }
 
