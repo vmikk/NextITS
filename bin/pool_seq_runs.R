@@ -51,6 +51,7 @@ suppressPackageStartupMessages(require(optparse))
 ## Parse arguments
 option_list <- list(
   make_option("--ucderep", action="store", default=NA,  type='character', help="UC file from global dereplication"),
+  make_option("--ucpreclust", action="store", default="NoPrecluster",  type='character', help="UC file from pre-clustering (optional; use 'NoPrecluster' to disable this step)"),
   make_option("--ucclust", action="store", default=NA,  type='character', help="UC file from clustering"),
   make_option("--otus",    action="store", default=NA,  type='character', help="FASTA file with OTU sequences"),
   make_option("--maxmeep", action="store", default=0.5, type='double', help="Max MEEP score"),
@@ -89,6 +90,7 @@ to_na <- function(x){
 
 ## Assign variables
 UCDEREP    <- to_na( opt$ucderep )
+UCPRECLUST <- to_na( opt$ucpreclust )
 UCCLUST    <- to_na( opt$ucclust )
 MAXMEEP    <- as.numeric( to_na( opt$maxmeep ) )
 MAXCHIM    <- as.numeric( to_na( opt$maxchim ) )
@@ -103,6 +105,7 @@ CPUTHREADS <- as.numeric( opt$threads )
 
 ## Log assigned variables
 cat(paste("UC file from global dereplication: ", UCDEREP, "\n", sep=""))
+cat(paste("UC file from pre-clustering or denoising: ", UCPRECLUST, "\n", sep=""))
 cat(paste("UC file from clustering: ",           UCCLUST, "\n", sep=""))
 cat(paste("Max MEEP score: ",                    MAXMEEP, "\n", sep=""))
 cat(paste("Max de novo chimera score: ",         MAXCHIM, "\n", sep=""))
@@ -121,6 +124,7 @@ cat("\n")
 
 # UCDEREP       <- "Dereplicated.uc.gz"
 # UCCLUST       <- "Clustered.uc.gz"
+# UCPRECLUST    <- "NoPrecluster"         # UNOISE.uc.gz"
 # MAXMEEP       <- 0.5
 # MAXCHIM       <- 0.6
 # RECOV_DENOVO  <- TRUE
@@ -178,6 +182,16 @@ cat("..Loading dereplication UC file\n")
 UCA <- metagMisc::parse_uc(x = UCDEREP, map_only = TRUE, package = "data.table")
 UCA <- unique(UCA)
 colnames(UCA) <- c("SeqID", "DerepID")
+
+## Load UC file for pre-clustering or denoising (e.g., UNOISE) - optional
+cat("..Loading pre-clustering or denoising UC file\n")
+if(UCPRECLUST %in% "NoPrecluster"){
+  cat("...No file provided, skipping this step\n")
+} else {
+  UCP <- metagMisc::parse_uc(x = UCPRECLUST, map_only = TRUE)
+  UCP <- unique(UCP)
+  colnames(UCP) <- c("DerepID", "PreclusterID")
+}
 
 ## Load UC file for clustered sequences (OTUs / SWARM clusters / UNOISE)
 cat("..Loading clustering UC file\n")
@@ -286,15 +300,40 @@ if(!is.na(MAXCHIM)){
 } # end of MAXCHIM filtering
 
 
-## Prepare OTU IDs
-cat("..Preparing OTU IDs\n")
-UCA <- merge(x = UCA, y = UCO, by = "DerepID", all.x = TRUE)
+## Prepare sequence IDs without pre-clustering or denoising
+if(UCPRECLUST %in% "NoPrecluster"){
+  
+  ## Prepare OTU IDs
+  cat("..Preparing OTU IDs [no pre-clustering or denoising ]\n")
+  UCA <- merge(x = UCA, y = UCO, by = "DerepID", all.x = TRUE)
 
-## Add OTU IDs to seq table
-cat("..Adding OTU IDs to sequence table\n")
-nrow(TAB)
-TAB <- merge(x = TAB, y = UCA, by = "SeqID", all.x = TRUE)
-nrow(TAB)
+  ## Add OTU IDs to seq table
+  cat("... Adding OTU IDs to sequence table\n")
+  cat(".... Number of records in sequence table before merging: ", nrow(TAB), "\n")
+  TAB <- merge(x = TAB, y = UCA, by = "SeqID", all.x = TRUE)
+  cat(".... Number of records in sequence table after merging: ",  nrow(TAB), "\n")
+
+} else {
+
+  ## Prepare OTU IDs
+  cat("..Preparing OTU IDs [with pre-clustering or denoising ]\n")
+  
+  cat("... Adding pre-cluster or denoised IDs\n")
+  UCA <- merge(x = UCA, y = UCP, by = "DerepID", all.x = TRUE)
+
+  cat("... Adding clustering IDs\n")
+  UCA <- merge(x = UCA, y = UCO, by.x = "PreclusterID", by.y = "DerepID", all.x = TRUE)
+
+  cat(".... Number of sequences without OTU ID: ", sum(is.na(UCA$OTU)), "\n")
+
+  cat("... Adding OTU IDs to sequence table\n")
+  cat(".... Number of records in sequence table before merging: ", nrow(TAB), "\n")
+  TAB <- merge(x = TAB, y = UCA, by = "SeqID", all.x = TRUE)
+  cat(".... Number of records in sequence table after merging: ",  nrow(TAB), "\n")
+
+}
+
+
 
 ## Remove NA OTUs -- probably excluded seqs
 if(any(is.na(TAB$OTU))){
