@@ -46,8 +46,10 @@ params.ampliconlen_max = null
 
 // Sequence denoising or pre-clustering ("none", "unoise", "dada2", "swarm_d1", "homopolymer")
 params.preclustering = "none"
-params.unoise_alpha   = 2.0
-params.unoise_minsize = 8
+
+// Denoising with UNOISE
+params.unoise_alpha   = 6.0
+params.unoise_minsize = 1
 
 
 // Sequence clustering method ("none" / "vsearch" / "swarm" / "shmatching")
