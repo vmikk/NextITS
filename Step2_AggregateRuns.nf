@@ -449,8 +449,12 @@ process cluster_swarm {
       path "SWARM.struct.gz",             emit: struct
       path "SWARM.stats.gz",              emit: stats
 
+    exec:
+      fastidious = (params.swarm_fastidious.toBoolean() == true & params.swarm_d.toInteger() == 1) ? "--fastidious --boundary ${params.swarm_d1boundary}" : ""
+      println("swarm_fastidious: ${params.swarm_fastidious}, swarm_d: ${params.swarm_d}")
+      println("fastid option:  ${fastidious}")
+
     script:
-    fastidious = params.swarm_fastidious ? "--fastidious" : ""
     """
     echo -e "Clustering sequences with SWARM\n"
     echo -e "Note: sequences with ambiguous nucleotides will be excluded!\n"
@@ -467,16 +471,15 @@ process cluster_swarm {
     zcat ${input} \
     | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
     | swarm \
-      --differences ${params.swarm_d} \
-      --boundary    ${params.swarm_d1boundary} \
-      ${fastidious} \
-      --threads     ${task.cpus} \
-      --usearch-abundance \
-      --statistics-file    SWARM.stats \
-      --internal-structure SWARM.struct \
-      --uclust-file        SWARM.uc \
-      --seeds              SWARM_representatives.fa \
-      > SWARM.swarms
+        --differences ${params.swarm_d} \
+        ${fastidious} \
+        --threads     ${task.cpus} \
+        --usearch-abundance \
+        --statistics-file    SWARM.stats \
+        --internal-structure SWARM.struct \
+        --uclust-file        SWARM.uc \
+        --seeds              SWARM_representatives.fa \
+        > SWARM.swarms
 
     # --output-file SWARM.swarms  # to avoid buffering, it's better to stream data into a file (with >)
     # -r, --mothur                # output using mothur-like format
