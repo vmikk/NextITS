@@ -240,7 +240,7 @@ process unoise {
 
     ## Compress results
     echo -e "\nCompressing UNOISE results"
-    parallel -j ${task.cpus} "gzip -7 {}" \
+    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
       ::: "UNOISE.fa" "UNOISE.uc"
 
     """
