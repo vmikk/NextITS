@@ -3,13 +3,13 @@
 
 ## Build stage (Rust and Cargo), for runiq
 Bootstrap: docker
-From: rust:1.75.0
+From: rust:1.76.0
 Stage: build
 
 %post
   # rustup --version   # 1.26.0
-  # rustc  --version   # 1.75.0
-  # cargo  --version   # 1.75.0
+  # rustc  --version   # 1.76.0
+  # cargo  --version   # 1.76.0
   cargo install runiq sd
   # runiq --version    # 2.0.0
   # sd    --version    # 1.0.0
@@ -42,10 +42,10 @@ Stage: final
 
   apt-get update -qq \
   && apt-get -y --no-install-recommends install \
-    tar zip unzip pigz gzip coreutils \
+    tar zip unzip pigz gzip xz-utils bzip2 coreutils \
     curl wget git less gawk nano rename bc \
     ca-certificates locales  \
-    libtre-dev libtre5 zlib1g zlib1g-dev \
+    libtre-dev libtre5 zlib1g zlib1g-dev liblzma-dev libbz2-dev libcurl4-openssl-dev \
     build-essential
 
   ## Configure default locale
@@ -71,6 +71,7 @@ Stage: final
     && R -e 'BiocManager::install("ShortRead", ask = FALSE)' \
     && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
     && R -e 'BiocManager::install("dada2", ask = FALSE)' \
+    && R -e 'BiocManager::install("phyloseq", ask = FALSE)' \
     && R -e 'remotes::install_github("vmikk/metagMisc")' \
     && rm -rf /tmp/downloaded_packages/
 
@@ -86,7 +87,7 @@ Stage: final
   ${conda_prefix}/bin/conda config --add channels defaults
   ${conda_prefix}/bin/conda config --add channels conda-forge
   ${conda_prefix}/bin/conda config --add channels bioconda
-  ${conda_prefix}/bin/conda install -y -c conda-forge mamba
+  ${conda_prefix}/bin/conda install -y -c conda-forge mamba "python=3.10"
 
   ## Conda initialization script by Antoine Prouvost
   # https://github.com/ds4dm/singularity-conda/blob/main/conda.def
