@@ -203,6 +203,92 @@ process dereplication_unite {
 }
 
 
+// Homopolymer correction (global, for pooled and dereplicated data)
+process homopolymer {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/02.Homopolymer", mode: "${params.storagemode}"
+    // cpus 1
+
+    input:
+      path input
+
+    output:
+      path "HomopolymerCompressed.fa.gz", emit: hp
+      path "HomopolymerCompressed.uc.gz", emit: hp_uc
+
+    script:
+    """
+    ## Run homopolyer correction globally
+
+    echo -e "Running homopolymer correction"
+
+    echo -e "\nCompressing repeats"
+    zcat ${input} \
+      | homopolymer_compression.sh \
+      | gzip -2 \
+      > homo_compressed.fa.gz
+
+    echo -e "\nAdditional dereplication"
+    vsearch \
+      --derep_fulllength homo_compressed.fa.gz \
+      --output - \
+      --strand both \
+      --fasta_width 0 \
+      --threads 1 \
+      --sizein --sizeout \
+      --uc HomopolymerCompressed.uc \
+    > homo_compressed_dereplicated.fa
+
+    ## Substitute homopolymer-comressed sequences with uncompressed ones
+    ## (update size annotaions)
+    echo -e "\nExtracting representative sequences"
+
+    seqkit fx2tab ${input} > inp_tab.txt
+    seqkit fx2tab homo_compressed_dereplicated.fa > clust_tab.txt
+
+    if [ -s inp_tab.txt ]; then
+      substitute_compressed_seqs.R \
+        inp_tab.txt clust_tab.txt \
+        HomopolymerCompressed_tmp.fa
+
+      echo -e "..Done"
+    else
+      echo -e "..Input data looks empty, nothing to proceed with"
+    fi
+
+
+    ## Sort by number of reads
+    vsearch \
+      --sortbysize HomopolymerCompressed_tmp.fa \
+      --sizein --sizeout \
+      --threads ${task.cpus} \
+      --fasta_width 0 \
+      --output - \
+      | gzip -${params.gzip_compression} \
+      > HomopolymerCompressed.fa.gz
+
+
+    #### combine_derep_and_hpcorrection.R
+
+    echo -e "\nHomopolymer correction finished\n"
+
+    ## Compress results
+    echo -e "\nCompressing results"
+    gzip -${params.gzip_compression} HomopolymerCompressed.uc
+    
+    ## Remove temporary files
+    echo -e "\nRemoving temporary files"
+    rm homo_compressed.fa.gz
+    rm homo_compressed_dereplicated.fa
+    rm HomopolymerCompressed_tmp.fa
+    rm inp_tab.txt
+    rm clust_tab.txt
+    """
+}
+
+
 // Denoize sequences with UNOISE
 process unoise {
 
