@@ -418,13 +418,13 @@ process cluster_vsearch {
       --fasta_width 0 \
       --uc Clustered.uc \
       --centroids - \
-    | gzip -7 > Clustered.fa.gz
+    | gzip -${params.gzip_compression} > Clustered.fa.gz
     
     echo -e "..Done"
 
     ## Compress UC file
     echo -e "\nCompressing UC file"
-    gzip -7 Clustered.uc
+    gzip -${params.gzip_compression} Clustered.uc
 
     """
 }
