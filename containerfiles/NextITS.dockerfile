@@ -6,7 +6,7 @@
 # docker build --tag nextits --file NextITS.dockerfile .
 
 ## Build stage 1 (Rust and Cargo)
-FROM rust:1.75.0 AS RUST
+FROM rust:1.76.0 AS RUST
 RUN  cargo install runiq sd
 
 ## Build stage 2 - Main
@@ -21,10 +21,10 @@ LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
-    tar zip unzip pigz gzip coreutils \
+    tar zip unzip pigz gzip xz-utils bzip2 coreutils \
     curl wget git less gawk nano rename bc \
     ca-certificates locales  \
-    libtre-dev libtre5 zlib1g zlib1g-dev \
+    libtre-dev libtre5 zlib1g zlib1g-dev liblzma-dev libbz2-dev libcurl4-openssl-dev \
     build-essential \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -46,6 +46,7 @@ RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("ShortRead", ask = FALSE)' \
     && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
     && R -e 'BiocManager::install("dada2", ask = FALSE)' \
+    && R -e 'BiocManager::install("phyloseq", ask = FALSE)' \
     && R -e 'remotes::install_github("vmikk/metagMisc")' \
     && rm -rf /tmp/downloaded_packages/
 
@@ -59,6 +60,7 @@ RUN mkdir -p /opt/software \
 ## Create conda environment and install software
 RUN ${CONDA_PREFIX}/bin/mamba install -y \
     -c conda-forge -c bioconda \
+    "python=3.10" \
     "nextflow>=23.10.0" \
     "lima>=2.9.0" \
     "pbtk>=3.1.1" \
