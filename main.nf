@@ -2632,7 +2632,10 @@ workflow {
       // Demultiplexing
       demux(
         qc_se.out.filtered,
-        tag_validation.out.fasta)
+        tag_validation.out.fasta,
+        ch_biosamples_sym, 
+        ch_biosamples_asym,
+        ch_file_renaming)
 
       // Check primers
       primer_check(
