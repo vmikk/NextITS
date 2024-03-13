@@ -2991,7 +2991,15 @@ workflow {
       // Tag-jump filtering channel
       ch_tj = tj.out.tjs
 
+
       // Count reads and prepare summary stats for the run
+      // Currently, implemented only for PacBio
+      // For Illumina, need replace:
+      //   `ch_input` -> `ch_inputR1` & `ch_inputR2`
+      //   `qc_se`    -> `qc_pe`
+
+      if(params.seqplatform == "PacBio"){
+
       read_counts(
           ch_input,                // input data
           qc_se.out.filtered,      // data that passed QC
@@ -3006,6 +3014,8 @@ workflow {
           ch_tj,                   // Tag-jump filtering stats
           prep_seqtab.out.seq_rd   // Final table with sequences
           )
+
+      } // end of read_counts for PacBio
 
 
 }
