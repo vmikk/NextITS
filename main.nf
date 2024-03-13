@@ -3020,16 +3020,24 @@ workflow seqstats {
   // Input file with multiplexed reads (FASTQ.gz)
   ch_input = Channel.value(params.input)
 
+  // Initial QC
+  qc_se(ch_input)
+
   // Validate tags
   tag_validation(ch_barcodes)
 
-  // Initial QC
-  qc_se(ch_input)
+  // Tag-validation channels
+  ch_biosamples_sym  = tag_validation.out.biosamples_sym.flatten().collect().ifEmpty(file("biosamples_sym"))
+  ch_biosamples_asym = tag_validation.out.biosamples_asym.flatten().collect().ifEmpty(file("biosamples_asym"))
+  ch_file_renaming   = tag_validation.out.file_renaming.flatten().collect().ifEmpty(file("file_renaming"))
 
   // Demultiplexing
   demux(
     qc_se.out.filtered,
-    tag_validation.out.fasta)
+    tag_validation.out.fasta,
+    ch_biosamples_sym, 
+    ch_biosamples_asym,
+    ch_file_renaming)
 
   // Check primers
   primer_check(
