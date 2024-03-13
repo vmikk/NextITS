@@ -2936,7 +2936,15 @@ workflow {
     
       // Initial data - Per-sample input channels
       if( params.demultiplexed == false ){
-        ch_all_demux = demux.out.samples_demux.flatten().collect()
+
+        if(params.seqplatform == "PacBio"){
+          ch_all_demux = demux.out.samples_demux.flatten().collect()
+        }
+
+        if(params.seqplatform == "Illumina"){
+          ch_all_demux = demux_illumina.out.samples_demux.flatten().collect()
+        }
+
       } else {
         ch_all_demux = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
       }
