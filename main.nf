@@ -2984,8 +2984,8 @@ workflow {
       }
 
       // Chimeric channels
-      ch_chimref = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
-      ch_chimdenovo = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
+      ch_chimref     = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
+      ch_chimdenovo  = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
       ch_chimrescued = chimera_rescue.out.rescuedchimeric.flatten().collect().ifEmpty(file("no_chimrescued"))
 
       // Tag-jump filtering channel
