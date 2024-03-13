@@ -2621,6 +2621,13 @@ workflow {
 
       // Initial QC
       qc_se(ch_input)
+      // Demultiplexing with dual barcodes requires 3 additional files
+      //  - "biosamples" with symmertic/asymmetirc tag combinations
+      //  - and a table for assigning sample names to demuxed files
+      // Create dummy files (for single or symmetic tags) if neccesary
+      ch_biosamples_sym  = tag_validation.out.biosamples_sym.flatten().collect().ifEmpty(file("biosamples_sym"))
+      ch_biosamples_asym = tag_validation.out.biosamples_asym.flatten().collect().ifEmpty(file("biosamples_asym"))
+      ch_file_renaming   = tag_validation.out.file_renaming.flatten().collect().ifEmpty(file("file_renaming"))
 
       // Demultiplexing
       demux(
