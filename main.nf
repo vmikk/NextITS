@@ -2977,7 +2977,11 @@ workflow {
       }
 
       // Homopolymer-correction channel
-      ch_homopolymers = homopolymer.out.uch.flatten().collect().ifEmpty(file("no_homopolymer"))
+      if(params.hp == true){
+        ch_homopolymers = homopolymer.out.uch.flatten().collect().ifEmpty(file("no_homopolymer"))
+      } else {
+        ch_homopolymers = file("no_homopolymer")
+      }
 
       // Chimeric channels
       ch_chimref = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
