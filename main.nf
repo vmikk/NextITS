@@ -353,52 +353,214 @@ process demux {
     input:
       path input_fastq
       path barcodes
+      path biosamples_sym    // for dual or asymmetric barcodes
+      path biosamples_asym   // for dual or asymmetric barcodes
+      path file_renaming     // for dual or asymmetric barcodes
 
     output:
-      path "LIMA/*.fq.gz", emit: samples_demux
+      path "LIMA/*.fq.gz",             emit: samples_demux
       path "LIMA/lima.lima.report.gz", emit: lima_report
-      path "LIMA/lima.lima.counts", emit: lima_counts
-      path "LIMA/lima.lima.summary", emit: lima_summary
+      path "LIMA/lima.lima.counts",    emit: lima_counts
+      path "LIMA/lima.lima.summary",   emit: lima_summary
 
     script:
-
-    // By default, demultiplex with dual barcodes
-    barcodetype = params.lima_dualbarcode ? "" : "--single-side"
-
     """
-    mkdir -p LIMA
     echo -e "Input file: " ${input_fastq}
-    echo -e "Barcodes: " ${barcodes}
+    echo -e "Barcodes: "   ${barcodes}
 
-    echo -e "\nDemultiplexing with LIMA:"
+    ## Directory for the results
+    mkdir -p LIMA
+    
+    echo -e "Validating data\n"
 
-    ## Demultiplex with LIMA
-    lima \
-      --same --ccs \
-      ${barcodetype} \
-      -W ${params.lima_W} \
-      --min-length ${params.lima_minlen} \
-      --min-score ${params.lima_minscore} \
+    ## Check if symmetric barcodes were provided in the `...` format
+    ## (if `biosamples_sym` does not exists, it means that it is a dummy file)
+    ## (if exists, it means that tags were split into sym and asym at the tag validation step)
+    if [[ ${params.lima_barcodetype} = "dual_symmetric" ]] && [ -e ${biosamples_sym} ] ; then
+        echo -e "\nERROR: Symmetric tags are provided in '...' format.\n"
+        echo -e "In the FASTA file, please include only one tag per sample, since these tags are identical.\n"
+        exit 1
+    fi
+
+    ## Count the number of samples in Biosample files - only for `dual` and `dual_asymmetric` barcodes
+    if [[ ${params.lima_barcodetype} == "dual_asymmetric" ]] || [[ ${params.lima_barcodetype} == "dual" ]]; then
+
+      if [ ! -e ${biosamples_asym} ]; then
+        
+        echo -e "\nERROR: Tags are specified in wrong format"
+        echo -e "Use the '...' format in FASTA file.\n"
+        exit 1
+      
+      else
+        line_count_sym=\$(wc  -l < ${biosamples_sym})
+        line_count_asym=\$(wc -l < ${biosamples_asym})
+
+        echo -e "..Number of lines in symmetric file: "  \$line_count_sym
+        echo -e "..Number of lines in asymmetric file: " \$line_count_asym
+
+        ## Check the presence of dual barcode combinations
+        ## If line count is less than 2, it means there are no samples specified
+        if [[ ${params.lima_barcodetype} == "dual_asymmetric" ]] && [[ \$line_count_asym -lt 2 ]]; then
+          echo -e "\nERROR: No asymmetric barcodes detected for demultiplexing.\n"
+          return 1
+        fi
+
+        if [[ ${params.lima_barcodetype} == "dual" ]] && [[ \$line_count_asym -lt 2 ]]; then
+          echo -e "\nWARNING: No asymmetric barcodes detected, consider using '--lima_barcodetype dual_symmetric'.\n"
+        fi
+
+      fi  # end of missing asym biosamples
+
+    fi    # end of dual/asym validation
+
+
+
+    ## Combine shared arguments into a single variable
+    ## Note the array syntax - that's because of LIMA parser error messages
+    ## (note also that it works in bash, but not in zsh)
+    common_args=("--ccs \
+      --window-size  ${params.lima_windowsize} \
+      --min-length   ${params.lima_minlen} \
+      --min-score    ${params.lima_minscore} \
+      --min-ref-span ${params.lima_minrefspan} \
       --split-named \
       --num-threads ${task.cpus} \
-      --log-level INFO --log-file LIMA/_log.txt \
-      ${input_fastq} \
-      ${barcodes} \
-      LIMA/lima.fq.gz
+      --log-level INFO \
+       ${input_fastq} \
+       ${barcodes}")
 
-    echo -e "..done"
 
-    ## Rename files
-    echo -e "\n..Renaming demultiplexed files"
-    rename --filename \
-      's/^lima.//g; s/--.*\$/.fq.gz/' \
-      \$(find LIMA -name "*.fq.gz")
+    ## Demultiplex, depending on the barcode type selected
+    case ${params.lima_barcodetype} in
+
+      "single")
+        echo -e "\nDemultiplexing with LIMA (single barcode)"
+        lima --same --single-side \
+          --log-file LIMA/_log.txt \
+          \$common_args \
+          "LIMA/lima.fq.gz"
+        ;;
+
+      "dual_symmetric")
+        echo -e "\nDemultiplexing with LIMA (dual symmetric barcodes)"
+        lima --same \
+          --min-end-score       ${params.lima_minendscore} \
+          --min-scoring-regions ${params.lima_minscoringregions} \
+          --log-file LIMA/_log.txt \
+          \$common_args \
+          "LIMA/lima.fq.gz"
+        ;;
+
+      "dual_asymmetric")
+        echo -e "\nDemultiplexing with LIMA (dual asymmetric barcodes)"
+        lima --different \
+          --min-end-score       ${params.lima_minendscore} \
+          --min-scoring-regions ${params.lima_minscoringregions} \
+          --biosample-csv       ${biosamples_asym} \
+          --log-file LIMA/_log.txt \
+          \$common_args \
+          "LIMA/lima.fq.gz"
+        ;;
+
+      "dual")
+        mkdir -p LIMAs LIMAd
+
+        if [[ \$line_count_sym -ge 2 ]]; then
+        echo -e "\nDemultiplexing with LIMA (dual symmetric barcodes)"
+        lima --same \
+          --min-end-score       ${params.lima_minendscore} \
+          --min-scoring-regions ${params.lima_minscoringregions} \
+          --biosample-csv       ${biosamples_sym} \
+          --log-file LIMAs/_log.txt \
+          \$common_args \
+          "LIMAs/lima.fq.gz"
+        fi
+
+        if [[ \$line_count_asym -ge 2 ]]; then
+        echo -e "\nDemultiplexing with LIMA (dual asymmetric barcodes)"
+        lima --different \
+          --min-end-score       ${params.lima_minendscore} \
+          --min-scoring-regions ${params.lima_minscoringregions} \
+          --biosample-csv       ${biosamples_asym} \
+          --log-file LIMAd/_log.txt \
+          \$common_args \
+          "LIMAd/lima.fq.gz"
+        fi
+        ;;
+    esac
+
+
+    ## Combining symmetric and asymmetric files
+    if [ ${params.lima_barcodetype} = "dual" ]; then
+
+      echo -e "\nPooling of symmetric and asymmetric barcodes"
+      cd LIMA
+      find ../LIMAd -name "*.fq.gz" | parallel -j1 "ln -s {} ."
+      find ../LIMAs -name "*.fq.gz" | parallel -j1 "ln -s {} ."
+      cd ..
+
+    fi
+
+
+    ## Rename barcode combinations into sample names
+    ## Only user-provided combinations whould be kept (based on `lima --biosample-csv`)
+    if [[ ${params.lima_barcodetype} == "dual_asymmetric" ]] || [[ ${params.lima_barcodetype} == "dual" ]]; then
+
+      echo -e "\n..Renaming files from tag IDs to sample names"
+      brename -p "(.+)" -r "{kv}" -k ${file_renaming} LIMA/
+
+    fi
+
+    if [[ ${params.lima_barcodetype} == "dual_symmetric" ]] || [[ ${params.lima_barcodetype} == "single" ]]; then
+
+      echo -e "\n..Renaming demultiplexed files"
+      rename --filename \
+        's/^lima.//g; s/--.*\$/.fq.gz/' \
+        \$(find LIMA -name "*.fq.gz")
+    
+    fi
+
+
+    ## Combine summary stats for dual barcodes (two LIMA runs)
+    if [[ ${params.lima_barcodetype} == "dual" ]]; then
+
+      echo -e "\n..Combining dual-barcode log files"
+
+      if [ -f "LIMAd/lima.lima.summary" ]; then
+        echo -e "Asymmetric barcodes summary\n\n" >> LIMA/lima.lima.summary
+        cat LIMAd/lima.lima.summary >> LIMA/lima.lima.summary
+
+        echo -e "Asymmetric barcodes counts\n\n" >> LIMA/lima.lima.counts
+        cat LIMAd/lima.lima.counts >> LIMA/lima.lima.counts
+
+        echo -e "Asymmetric barcodes report\n\n" >> LIMA/lima.lima.report
+        cat LIMAd/lima.lima.report >> LIMA/lima.lima.report
+      fi
+
+      if [ -f "LIMAs/lima.lima.summary" ]; then
+        echo -e "\n\nSymmetric barcodes summary\n\n" >> LIMA/lima.lima.summary
+        cat LIMAs/lima.lima.summary >> LIMA/lima.lima.summary
+
+        echo -e "\n\nSymmetric barcodes counts\n\n" >> LIMA/lima.lima.counts
+        cat LIMAs/lima.lima.counts >> LIMA/lima.lima.counts
+
+        echo -e "\n\nSymmetric barcodes report\n\n" >> LIMA/lima.lima.report
+        cat LIMAs/lima.lima.report >> LIMA/lima.lima.report
+      fi
+
+    fi  # end of dual logs pooling
+
 
     ## Compress logs
     echo -e "..Compressing log file"
     gzip -${params.gzip_compression} LIMA/lima.lima.report
 
-    echo -e "Demultiplexing finished"
+
+    ## LIMA defaults:
+    # SYMMETRIC  : --ccs --min-score 0 --min-end-score 80 --min-ref-span 0.75 --same --single-end
+    # ASYMMETRIC : --ccs --min-score 80 --min-end-score 50 --min-ref-span 0.75 --different --min-scoring-regions 2
+
+    echo -e "\nDemultiplexing finished"
     """
 }
 
