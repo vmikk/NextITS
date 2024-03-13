@@ -319,6 +319,9 @@ process tag_validation {
 
     output:
       path "barcodes_validated.fasta", emit: fasta
+      path "biosamples_asym.csv",      emit: biosamples_asym, optional: true
+      path "biosamples_sym.csv",       emit: biosamples_sym,  optional: true
+      path "file_renaming.tsv",        emit: file_renaming,   optional: true
 
     script:
     """
@@ -336,6 +339,7 @@ process tag_validation {
     echo -e "Tag validation finished"
     """
 }
+
 
 
 // Demultiplexing with LIMA - for PacBio reads
