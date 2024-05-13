@@ -937,6 +937,11 @@ process itsx {
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_no_detections.fasta.gz", emit: itsx_nondetects, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.summary.txt", emit: itsx_summary
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.extraction.results", emit: itsx_details, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.SSU.full_and_partial.fasta.gz",  emit: itsx_ssu_part,  optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS1.full_and_partial.fasta.gz", emit: itsx_its1_part, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.5_8S.full_and_partial.fasta.gz", emit: itsx_58s_part,  optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS2.full_and_partial.fasta.gz", emit: itsx_its2_part, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.LSU.full_and_partial.fasta.gz",  emit: itsx_lsu_part,  optional: true
 
     script:
     
