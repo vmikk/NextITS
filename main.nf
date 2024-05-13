@@ -2802,10 +2802,17 @@ workflow {
       itsx(trim_primers.out.primertrimmed_fq)
 
       // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
-      assemble_its(
-        itsx.out.itsx_its1,
-        itsx.out.itsx_58s,
-        itsx.out.itsx_its2)
+      if (params.ITSx_partial == 0) {
+        assemble_its(
+          itsx.out.itsx_its1,
+          itsx.out.itsx_58s,
+          itsx.out.itsx_its2)
+      } else {
+        assemble_its(
+          itsx.out.itsx_its1_part,
+          itsx.out.itsx_58s,
+          itsx.out.itsx_its2_part)
+      }
 
       // Merge tables with sequence qualities
       seq_qual(itsx.out.hashes.collect())
