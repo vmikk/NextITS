@@ -1030,6 +1030,25 @@ process itsx {
       # ITSx_no_detections.txt
       # ITSx.summary.txt
       # ITSx.extraction.results
+      # ITSx.SSU.full_and_partial.fasta
+      # ITSx.ITS1.full_and_partial.fasta
+      # ITSx.5_8S.full_and_partial.fasta
+      # ITSx.ITS2.full_and_partial.fasta
+      # ITSx.LSU.full_and_partial.fasta
+
+
+    ## If partial sequences were required, remove empty sequences
+    if [ \$(find . -type f -name "*.full_and_partial.fasta" | wc -l) -gt 0 ]; then
+      echo -e "Partial files found, removing empty sequences\n."
+
+      find . -name "*.full_and_partial.fasta" \
+        | parallel -j${task.cpus} "seqkit seq -m 1 -w 0 {} > {.}_tmp.fasta"
+
+      rm *.full_and_partial.fasta
+      brename -p "_tmp" -r "" -f "_tmp.fasta\$"
+
+    fi
+
 
     ## Remove empty files (no sequences)
     echo -e "\nRemoving empty files"
