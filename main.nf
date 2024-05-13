@@ -1062,11 +1062,13 @@ process itsx {
 
     ## Compress results
     echo -e "\nCompressing files"
-    gzip -${params.gzip_compression} ${sampID}_hash_table.txt
-    gzip -${params.gzip_compression} ${sampID}_uc.uc
-    gzip -${params.gzip_compression} *.fasta
-    echo -e "..Done"
 
+    parallel -j${task.cpus} "gzip -${params.gzip_compression} {}" ::: \
+      ${sampID}_hash_table.txt \
+      ${sampID}_uc.uc \
+      *.fasta
+    
+    echo -e "..Done"
     """
 }
 
