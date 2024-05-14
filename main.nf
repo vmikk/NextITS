@@ -2828,19 +2828,35 @@ workflow {
         }
         // --ITS1 sequences
         if(params.its_region == "ITS1"){
-          homopolymer(itsx.out.itsx_its1)
+          if (params.ITSx_partial == 0) {
+            homopolymer(itsx.out.itsx_its1)
+          } else {
+            homopolymer(itsx.out.itsx_its1_part)
+          }
         }
         // --ITS2 sequences
         if(params.its_region == "ITS2"){
-          homopolymer(itsx.out.itsx_its2)
+          if (params.ITSx_partial == 0) {
+            homopolymer(itsx.out.itsx_its2)
+          } else {
+            homopolymer(itsx.out.itsx_its2_part)
+          }
         }
         // --SSU sequences
         if(params.its_region == "SSU"){
-          homopolymer(itsx.out.itsx_ssu)
+          if (params.ITSx_partial == 0) {
+            homopolymer(itsx.out.itsx_ssu)
+          } else {
+            homopolymer(itsx.out.itsx_ssu_part)
+          }
         }
         // --LSU sequences
         if(params.its_region == "LSU"){
-          homopolymer(itsx.out.itsx_lsu)
+          if (params.ITSx_partial == 0) {
+            homopolymer(itsx.out.itsx_lsu)
+          } else {
+            homopolymer(itsx.out.itsx_lsu_part)
+          }
         }
 
         // --Primer-trimmed sequences
