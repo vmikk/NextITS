@@ -2880,25 +2880,42 @@ workflow {
       // Just dereplicate the data
 
       if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
+        
         // --Full-length ITS sequences
         if(params.its_region == "full"){
           just_derep(itsx.out.itsx_full)
         }
         // --ITS1 sequences
         if(params.its_region == "ITS1"){
-          just_derep(itsx.out.itsx_its1)
+          if (params.ITSx_partial == 0) {
+            just_derep(itsx.out.itsx_its1)
+          } else {
+            just_derep(itsx.out.itsx_its1_part)
+          }
         }
         // --ITS2 sequences
         if(params.its_region == "ITS2"){
-          just_derep(itsx.out.itsx_its2)
+          if (params.ITSx_partial == 0) {
+            just_derep(itsx.out.itsx_its2)
+          } else {
+            just_derep(itsx.out.itsx_its2_part)
+          }
         }
         // --SSU sequences
         if(params.its_region == "SSU"){
-          just_derep(itsx.out.itsx_ssu)
+          if (params.ITSx_partial == 0) {
+            just_derep(itsx.out.itsx_ssu)
+          } else {
+            just_derep(itsx.out.itsx_ssu_part)
+          }
         }
         // --LSU sequences
         if(params.its_region == "LSU"){
-          just_derep(itsx.out.itsx_lsu)
+          if (params.ITSx_partial == 0) {
+            just_derep(itsx.out.itsx_lsu)
+          } else {
+            just_derep(itsx.out.itsx_lsu_part)
+          }
         }
 
         // Reference-based chimera removal
