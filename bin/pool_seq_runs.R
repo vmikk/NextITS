@@ -167,7 +167,7 @@ setDTthreads(threads = CPUTHREADS)  # for data.table
 ######################################
 
 ## Load sequence tables
-cat("..Loading sequence tables\n")
+cat("..Looking for sequence tables\n")
 TABS <- list.files(path = ".", pattern = "Seqs.RData", full.names = TRUE, recursive = TRUE)
 cat("... Tables found: ", length(TABS), "\n")
 
@@ -516,9 +516,9 @@ if(any(duplicated(names(SQS)))){
 cat("....Subsetting OTUs\n")
 SQF <- SQS[ names(SQS) %in% unique(REW$OTU) ]
 
-cat("....Total number of OTUs in the input file: ", length(SQS), "\n")
-cat("....Number of OTUs to export: ",               length(SQF), "\n")
-cat("....Number of OTUs in the OTU talbe: ",        nrow(REW),   "\n")
+cat("....Total number of OTUs in input sequences: ", length(SQS), "\n")
+cat("....Number of OTUs to export: ",                length(SQF), "\n")
+cat("....Number of OTUs in the OTU table: ",         nrow(REW),   "\n")
 
 cat("...Writing FASTA file\n")
 writeXStringSet(x = SQF,
