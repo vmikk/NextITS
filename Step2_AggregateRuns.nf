@@ -555,7 +555,6 @@ process lulu {
       path "LULU_match_list.txt.gz",         emit: matches
       path "LULU_merging_statistics.txt.gz", emit: stats
       path "OTUs_LULU.fa.gz",                emit: fasta
-      
 
     script:
     """
@@ -566,7 +565,7 @@ process lulu {
     # echo -e "Removing size annotations from sequence headers"
     # zcat ${sequences} \
     #   | sed -r '/^>/ s/;size=[0-9]+//g' \
-    #   | gzip -4 > tmp_sequences.fa.gz
+    #   | gzip -${params.gzip_compression} > tmp_sequences.fa.gz
 
 
     ## MUMU similarity threshold is specified as % (e.g., 84.0)
@@ -617,7 +616,7 @@ process lulu {
       --minimum_relative_cooccurence ${params.lulu_relcooc}
 
     echo -e "..Compressing LULU-curated OTU table\n"
-    parallel -j ${task.cpus} "gzip -7 {}" \
+    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
       ::: "OTU_table_LULU.txt" "LULU_merging_statistics.txt" "LULU_match_list.txt"
 
     echo -e "..LULU done\n"
@@ -636,7 +635,7 @@ process lulu {
       --threads ${task.cpus} \
       ${sequences} \
     | sed '/^\$/d' \
-    | gzip -7 \
+    | gzip -${params.gzip_compression} \
     > OTUs_LULU.fa.gz
 
     ## Remove temporary files
