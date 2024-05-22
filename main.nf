@@ -2401,17 +2401,17 @@ process read_counts {
 
     ## Count raw reads
     echo -e "\n..Raw data"
-    seqkit stat --basename --tabular --threads ${task.cpus} \
+    seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       1_input/* > Counts_1.RawData.txt
     
     ## Count number of reads passed QC
     echo -e "\n..Sequenced passed QC"
-    seqkit stat --basename --tabular --threads ${task.cpus} \
+    seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       2_qc/* > Counts_2.QC.txt
     
     ## Count demultiplexed reads
     echo -e "\n..Demultiplexed data"
-    seqkit stat --basename --tabular --threads ${task.cpus} \
+    seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       3_demux/* > Counts_3.Demux.txt
     
 
@@ -2422,7 +2422,7 @@ process read_counts {
       echo -e "... No files found"
       touch Counts_4.PrimerCheck.txt
     else
-      seqkit stat --basename --tabular --threads ${task.cpus} \
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_primerch/* > Counts_4.PrimerCheck.txt
     fi
 
@@ -2434,7 +2434,7 @@ process read_counts {
       echo -e "... No files found"
       touch Counts_4.PrimerMultiArtifacts.txt
     else
-      seqkit stat --basename --tabular --threads ${task.cpus} \
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_multiprimer/* > Counts_4.PrimerMultiArtifacts.txt
     fi
 
@@ -2483,7 +2483,7 @@ process read_counts {
         > Counts_6.ChimRef_reads.txt
 
       ## Count number of unique sequences
-      seqkit stat --basename --tabular --threads ${task.cpus} \
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         6_chimref/* > Counts_6.ChimRef_uniqs.txt
 
     fi
@@ -2510,13 +2510,15 @@ process read_counts {
     else
       
       ## Count number of reads
+      echo -e "...Reads"
       find 8_chimrecov -name "*.fa.gz" \
         | parallel -j ${task.cpus} "count_number_of_reads.sh {} {/.}" \
         | sed '1i SampleID\tNumReads' \
         > Counts_8.ChimRecov_reads.txt
 
       ## Count number of unique sequences
-      seqkit stat --basename --tabular --threads ${task.cpus} \
+      echo -e "...Unique sequences"
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         8_chimrecov/* > Counts_8.ChimRecov_uniqs.txt
 
     fi
