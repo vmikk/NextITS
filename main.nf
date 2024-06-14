@@ -426,8 +426,8 @@ process demux {
       --split-named \
       --num-threads ${task.cpus} \
       --log-level INFO \
-       ${input_fastq} \
-       ${barcodes}")
+      ${input_fastq} \
+      ${barcodes}")
 
 
     ## Demultiplex, depending on the barcode type selected
@@ -845,11 +845,11 @@ process primer_check {
 
     ## If some artefacts are found
     if [ -s multiprimer.txt ]; then
- 
+
       ## Keep only uinque seqIDs
       runiq multiprimer.txt > multiprimers.txt
       rm multiprimer.txt
- 
+
       echo -e "\nNumber of artefacts found: " \$(wc -l < multiprimers.txt)
 
       echo -e "..Removing artefacts"
@@ -951,10 +951,28 @@ process itsx {
     // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
 
     """
+    echo "ITS extraction"
 
+    ## Trim primers    
+    echo -e "Trimming primers\n"
+
+    ## Reverse-complement rev primer
+    RR=\$(rc.sh ${params.primer_reverse})
+
+    cutadapt \
+      -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
+      --errors ${params.primer_mismatches} \
+      --revcomp --rename "{header}" \
+      --discard-untrimmed \
+      --cores ${task.cpus} \
+      --action trim \
+      --output ${sampID}_primertrimmed.fq.gz \
+      ${input}
+
+    ## Create a table with seq quality
     ## Sequence ID - Hash - Length - Average Phred score
     echo -e "Creating sequence hash table with average sequence quality"
-    seqkit replace -p "\\s.+" ${input} \
+    seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
       | seqkit fx2tab --length --avg-qual \
       | hash_sequences.sh \
       | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
@@ -963,7 +981,7 @@ process itsx {
 
     ## Estimating MaxEE
     echo -e "\nEstimating maximum number of expected errors per sequence"
-    seqkit replace -p "\\s.+" ${input} \
+    seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
       | vsearch \
         --fastx_filter - \
         --fastq_qmax 93 \
@@ -985,7 +1003,7 @@ process itsx {
 
     ## Dereplicate at sample level
     echo -e "\nDereplicating at sample level"
-    seqkit fq2fa -w 0 ${input} \
+    seqkit fq2fa -w 0 ${sampID}_primertrimmed.fq.gz \
       | vsearch \
         --derep_fulllength - \
         --output - \
