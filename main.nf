@@ -951,7 +951,7 @@ process itsx {
     // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
 
     """
-    echo "ITS extraction"
+    echo "Extraction of rRNA regions using ITSx\n"
 
     ## Trim primers    
     echo -e "Trimming primers\n"
@@ -962,16 +962,18 @@ process itsx {
     cutadapt \
       -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
       --errors ${params.primer_mismatches} \
-      --revcomp --rename "{header}" \
+      --revcomp --rename "{id}" \
       --discard-untrimmed \
       --cores ${task.cpus} \
       --action trim \
       --output ${sampID}_primertrimmed.fq.gz \
       ${input}
 
+    echo -e "..Done\n"
+
     ## Create a table with seq quality
     ## Sequence ID - Hash - Length - Average Phred score
-    echo -e "Creating sequence hash table with average sequence quality"
+    echo -e "\nCreating sequence hash table with average sequence quality"
     seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
       | seqkit fx2tab --length --avg-qual \
       | hash_sequences.sh \
