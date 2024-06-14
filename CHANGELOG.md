@@ -38,7 +38,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 
 - Add support for pre-demultiplexed data as input  
 - Add option for semi-full-length ITS (especially useful when forward primer is located at the very end of SSU and the HMM site can not be recognized by ITSx)  
-- Add removal of long homopolymer artifacts at QC stage  
+- Add removal of long homopolymer artefacts at QC stage  
 - Correct handling of a case with no valid sequences at primer checking step (thank to Taavi Riit for reporting the bug)  
 - Bug fixed in `assemble_its` (thanks to Kadri Põldmaa for discovering the error)  
 - Addition of ITSx detailed results (with information on the HMM profile used for ITS extraction)  
