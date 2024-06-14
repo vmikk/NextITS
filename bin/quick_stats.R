@@ -7,7 +7,7 @@
 #   --qc           Counts_2.QC.txt \
 #   --demuxed      Counts_3.Demux.txt \
 #   --primer       Counts_4.PrimerCheck.txt \
-#   --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+#   --primerartef  Counts_4.PrimerArtefacts.txt \
 #   --threads      4
 
 
@@ -29,7 +29,7 @@ option_list <- list(
   make_option("--qc",         action="store", default=NA, type='character', help="Counts of reads passed QC"),
   make_option("--demuxed",    action="store", default=NA, type='character', help="Counts of demultiplexed reads"),
   make_option("--primer",     action="store", default=NA, type='character', help="Counts of reads with both primers detected"),
-  make_option("--primermulti",action="store", default=NA, type='character', help="Counts of multi-primer artifacts"),
+  make_option("--primerartef",action="store", default=NA, type='character', help="Counts of primer artefacts"),
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -54,7 +54,7 @@ RAW         <- opt$raw
 QC          <- opt$qc
 DEMUXED     <- opt$demuxed
 PRIMER      <- opt$primer
-PRIMERMULTI <- opt$primermulti
+PRIMERARTEF <- opt$primerartef
 CPUTHREADS  <- as.numeric( opt$threads )
 
 ## Log assigned variables
@@ -62,8 +62,8 @@ cat(paste("Counts - RawData: " ,     RAW, "\n", sep=""))
 cat(paste("Counts - QC: " ,          QC, "\n", sep=""))
 cat(paste("Counts - Demux: " ,       DEMUXED, "\n", sep=""))
 cat(paste("Counts - PrimerCheck: " , PRIMER, "\n", sep=""))
-cat(paste("Counts - Primer Multi Artifacts: " , PRIMERMULTI, "\n", sep=""))
-cat(paste("Number of CPU threads to use: ",  CPUTHREADS,     "\n", sep=""))
+cat(paste("Counts - Primer Artefacts: " ,   PRIMERARTEF, "\n", sep=""))
+cat(paste("Number of CPU threads to use: ", CPUTHREADS,     "\n", sep=""))
 
 cat("\n")
 
@@ -74,7 +74,7 @@ cat("\n")
 # QC          <- "Counts_2.QC.txt"
 # DEMUXED     <- "Counts_3.Demux.txt"
 # PRIMER      <- "Counts_4.PrimerCheck.txt"
-# PRIMERMULTI <- "Counts_4.PrimerMultiArtifacts.txt"
+# PRIMERARTEF <- "Counts_4.PrimerArtefacts.txt"
 # CPUTHREADS  <- 6
 
 
@@ -124,7 +124,7 @@ SEQKITCOUNTS$DEMUXED <- fread(DEMUXED)
 
 cat("..Loading primer-checked data counts\n")
 SEQKITCOUNTS$PRIMER      <- fread(PRIMER)
-SEQKITCOUNTS$PRIMERMULTI <- fread(PRIMERMULTI)
+SEQKITCOUNTS$PRIMERARTEF <- fread(PRIMERARTEF)
 
 
 ## Remove NULL-files
@@ -168,8 +168,8 @@ setnames(x = SEQKITCOUNTS$DEMUXED, old = "num_seqs", new = "Demultiplexed_Reads"
 if(!is.null(SEQKITCOUNTS$PRIMER)){
 setnames(x = SEQKITCOUNTS$PRIMER,  old = "num_seqs", new = "PrimerChecked_Reads", skip_absent = TRUE)
 }
-if(!is.null(SEQKITCOUNTS$PRIMERMULTI)){
-setnames(x = SEQKITCOUNTS$PRIMERMULTI, old = "num_seqs", new = "MultiprimerArtifacts_Reads", skip_absent = TRUE)
+if(!is.null(SEQKITCOUNTS$PRIMERARTEF)){
+setnames(x = SEQKITCOUNTS$PRIMERARTEF, old = "num_seqs", new = "PrimerArtefacts_Reads", skip_absent = TRUE)
 }
 
 ## Merge seqkit and custom counts into a single list
@@ -180,10 +180,10 @@ COUNTS <- SEQKITCOUNTS
 merge_dt <- function(x,y){ merge(x, y, by = "file", all = TRUE) }
 PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
-## Estimate percentage of multiprimer artifacts
+## Estimate percentage of multiprimer artefacts
 PER_SAMPLE_COUNTS_merged[ , 
- MultiprimerArtifacts_Percent := round(
-  MultiprimerArtifacts_Reads / (PrimerChecked_Reads + MultiprimerArtifacts_Reads) * 100,
+ PrimerArtefacts_Percent := round(
+  PrimerArtefacts_Reads / (PrimerChecked_Reads + PrimerArtefacts_Reads) * 100,
   2)
  ]
 
