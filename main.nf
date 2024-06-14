@@ -742,7 +742,7 @@ process disambiguate {
 }
 
 
-// Check primers + QC  //////////////////////////////////////////////////
+// Check primers + QC + Reorient sequences
 // Count number of primer occurrences withnin a read,
 // discard reads with > 1 primer occurrence
 // NB. read names should not contain spaces! (because of bedtools)
@@ -766,7 +766,7 @@ process primer_check {
 
     output:
       path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked, optional: true
-      path "${input.getSimpleName()}_Mutiprimer.fq.gz", emit: mutiprimer, optional: true
+      path "${input.getSimpleName()}_PrimerArtefacts.fq.gz", emit: primerartefacts, optional: true
 
     script:
     """
@@ -843,7 +843,7 @@ process primer_check {
     fi
 
 
-    ## If some artifacts are found
+    ## If some artefacts are found
     if [ -s multiprimer.txt ]; then
  
       ## Keep only uinque seqIDs
@@ -853,19 +853,19 @@ process primer_check {
       echo -e "\nNumber of artefacts found: " \$(wc -l < multiprimers.txt)
 
       echo -e "..Removing artefacts"
-      ## Remove multiprimer artefacts
+      ## Remove primer artefacts
       seqkit grep --invert-match \
         --threads ${task.cpus} \
         --pattern-file multiprimers.txt \
         --out-file no_multiprimers.fq.gz \
         ${input}
 
-      ## Extract multiprimer artefacts
+      ## Extract primer artefacts
       echo -e "..Extracting artefacts"
       seqkit grep \
         --threads ${task.cpus} \
         --pattern-file multiprimers.txt \
-        --out-file "${input.getSimpleName()}_Mutiprimer.fq.gz" \
+        --out-file "${input.getSimpleName()}_PrimerArtefacts.fq.gz" \
         ${input}
 
       echo -e "..done"
@@ -2368,7 +2368,7 @@ process read_counts {
       path(qc, stageAs: "2_qc/*")
       path(samples_demux, stageAs: "3_demux/*")
       path(samples_primerch, stageAs: "4_primerch/*")
-      path(samples_primermult, stageAs: "4_multiprimer/*")
+      path(samples_primermult, stageAs: "4_primerartefacts/*")
       path(samples_itsx_or_primertrim, stageAs: "5_itsxtrim/*")
       path(homopolymers, stageAs: "5_homopolymers/*")
       path(samples_chimref, stageAs: "6_chimref/*")
@@ -2383,7 +2383,7 @@ process read_counts {
       path "Counts_2.QC.txt",                   emit: counts_2_qc
       path "Counts_3.Demux.txt",                emit: counts_3_demux,        optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,       optional: true
-      path "Counts_4.PrimerMultiArtifacts.txt", emit: counts_4_primermult,   optional: true
+      path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef,  optional: true
       path "Counts_5.ITSx_or_PrimTrim.txt",     emit: counts_5_itsx_ptrim,   optional: true
       path "Counts_5.Homopolymers.txt",         emit: counts_5_homopolymers, optional: true
       path "Counts_6.ChimRef_reads.txt",        emit: counts_6_chimref_r,    optional: true
@@ -2427,15 +2427,15 @@ process read_counts {
     fi
 
 
-    ## Count multiprimer-artifacts
-    echo -e "\n..Multiprimer-artifacts"
-    if [ `find 4_multiprimer -name no_multiprimer 2>/dev/null` ]
+    ## Count primer-artefacts
+    echo -e "\n..Primer-artefacts"
+    if [ `find 4_primerartefacts -name no_multiprimer 2>/dev/null` ]
     then
       echo -e "... No files found"
-      touch Counts_4.PrimerMultiArtifacts.txt
+      touch Counts_4.PrimerArtefacts.txt
     else
       seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
-        4_multiprimer/* > Counts_4.PrimerMultiArtifacts.txt
+        4_primerartefacts/* > Counts_4.PrimerArtefacts.txt
     fi
 
 
@@ -2529,7 +2529,7 @@ process read_counts {
       --qc           Counts_2.QC.txt \
       --demuxed      Counts_3.Demux.txt \
       --primer       Counts_4.PrimerCheck.txt \
-      --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+      --primerartef  Counts_4.PrimerArtefacts.txt \
       --itsx         Counts_5.ITSx_or_PrimTrim.txt \
       --homopolymer  Counts_5.Homopolymers.txt \
       --chimrefn     Counts_6.ChimRef_reads.txt \
@@ -2559,7 +2559,7 @@ process quick_stats {
       path(qc, stageAs: "2_qc/*")
       path(samples_demux, stageAs: "3_demux/*")
       path(samples_primerch, stageAs: "4_primerch/*")
-      path(samples_primermult, stageAs: "4_multiprimer/*")
+      path(samples_primermult, stageAs: "4_primerartefacts/*")
 
     output:
       path "Run_summary.xlsx",                  emit: xlsx
@@ -2567,7 +2567,7 @@ process quick_stats {
       path "Counts_2.QC.txt",                   emit: counts_2_qc
       path "Counts_3.Demux.txt",                emit: counts_3_demux,       optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,      optional: true
-      path "Counts_4.PrimerMultiArtifacts.txt", emit: counts_4_primermult,  optional: true
+      path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef, optional: true
 
     script:
 
@@ -2602,15 +2602,15 @@ process quick_stats {
         4_primerch/* > Counts_4.PrimerCheck.txt
     fi
 
-    ## Count multiprimer-artifacts
-    echo -e "\n..Multiprimer-artifacts"
-    if [ `find 4_multiprimer -name no_multiprimer 2>/dev/null` ]
+    ## Count primer-artefacts
+    echo -e "\n..Primer-areifacts"
+    if [ `find 4_primerartefacts -name no_multiprimer 2>/dev/null` ]
     then
       echo -e "... No files found"
-      touch Counts_4.PrimerMultiArtifacts.txt
+      touch Counts_4.PrimerArtefacts.txt
     else
       seqkit stat --basename --tabular --threads ${task.cpus} \
-        4_multiprimer/* > Counts_4.PrimerMultiArtifacts.txt
+        4_primerartefacts/* > Counts_4.PrimerArtefacts.txt
     fi
     
     ## Summarize read counts
@@ -2619,7 +2619,7 @@ process quick_stats {
       --qc           Counts_2.QC.txt \
       --demuxed      Counts_3.Demux.txt \
       --primer       Counts_4.PrimerCheck.txt \
-      --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+      --primerartef  Counts_4.PrimerArtefacts.txt \
       --threads      ${task.cpus}
 
     """
@@ -3019,7 +3019,7 @@ workflow {
         
       // Primer-checked and multiprimer sequences
       ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
-      ch_all_multiprimer = primer_check.out.mutiprimer.flatten().collect().ifEmpty(file("no_multiprimer"))
+      ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
       
       // ITSx and primer trimming channel
       if(params.its_region == "full"){
@@ -3089,7 +3089,7 @@ workflow {
           qc_se.out.filtered,      // data that passed QC
           ch_all_demux,            // demultiplexed sequences per sample
           ch_all_primerchecked,    // primer-cheched sequences
-          ch_all_multiprimer,      // multiprimer artifacts
+          ch_all_primerartefacts,  // multiprimer artefacts
           ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
           ch_homopolymers,         // Homopolymer stats
           ch_chimref,              // Reference-based chimeras
@@ -3149,7 +3149,7 @@ workflow seqstats {
   // Prepare input channels
   ch_all_demux = demux.out.samples_demux.flatten().collect()
   ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
-  ch_all_multiprimer = primer_check.out.mutiprimer.flatten().collect().ifEmpty(file("no_multiprimer"))
+  ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
 
   // Count reads and prepare summary stats for the run
   quick_stats(
@@ -3157,7 +3157,7 @@ workflow seqstats {
       qc_se.out.filtered,      // data that passed QC
       ch_all_demux,            // demultiplexed sequences per sample
       ch_all_primerchecked,    // primer-cheched sequences
-      ch_all_multiprimer       // multiprimer artifacts
+      ch_all_primerartefacts   // primer artefacts
       )
 
 } // end of `seqstats` subworkflow
