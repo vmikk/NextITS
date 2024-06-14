@@ -7,7 +7,7 @@
 #   --qc           Counts_2.QC.txt \
 #   --demuxed      Counts_3.Demux.txt \
 #   --primer       Counts_4.PrimerCheck.txt \
-#   --primermulti  Counts_4.PrimerMultiArtifacts.txt \
+#   --primerartef  Counts_4.PrimerArtefacts.txt \
 #   --itsx         Counts_5.ITSx_or_PrimTrim.txt \
 #   --homopolymer  Counts_5.Homopolymers.txt \
 #   --chimrefn     Counts_6.ChimRef_reads.txt \
@@ -38,7 +38,7 @@ option_list <- list(
   make_option("--qc",         action="store", default=NA, type='character', help="Counts of reads passed QC"),
   make_option("--demuxed",    action="store", default=NA, type='character', help="Counts of demultiplexed reads"),
   make_option("--primer",     action="store", default=NA, type='character', help="Counts of reads with both primers detected"),
-  make_option("--primermulti",action="store", default=NA, type='character', help="Counts of multi-primer artifacts"),
+  make_option("--primerartef",action="store", default=NA, type='character', help="Counts of primer artefacts"),
   make_option("--itsx",       action="store", default=NA, type='character', help="Read counts after ITSx or primer removal"),
   make_option("--homopolymer",action="store", default=NA, type='character', help="Homopolymer correction results"),
   make_option("--chimrefn",   action="store", default=NA, type='character', help="Number of reads for reference-based chimeras"),
@@ -72,7 +72,7 @@ RAW         <- opt$raw
 QC          <- opt$qc
 DEMUXED     <- opt$demuxed
 PRIMER      <- opt$primer
-PRIMERMULTI <- opt$primermulti
+PRIMERARTEF <- opt$primerartef
 ITSX        <- opt$itsx
 HOMOPOLY    <- opt$homopolymer
 CHIMREFN    <- opt$chimrefn
@@ -89,7 +89,7 @@ cat(paste("Counts - RawData: " ,     RAW, "\n", sep=""))
 cat(paste("Counts - QC: " ,          QC, "\n", sep=""))
 cat(paste("Counts - Demux: " ,       DEMUXED, "\n", sep=""))
 cat(paste("Counts - PrimerCheck: " , PRIMER, "\n", sep=""))
-cat(paste("Counts - Primer Multi Artifacts: " ,                        PRIMERMULTI, "\n", sep=""))
+cat(paste("Counts - Primer Artefacts: " ,                              PRIMERARTEF, "\n", sep=""))
 cat(paste("Counts - ITSx or Primer Trim: " ,                           ITSX, "\n", sep=""))
 cat(paste("Counts - Homopolymer correction results: " ,                HOMOPOLY, "\n", sep=""))
 cat(paste("Counts - Chimera Ref-based, reads: " ,                      CHIMREFN, "\n", sep=""))
@@ -110,7 +110,7 @@ cat("\n")
 # QC          <- "Counts_2.QC.txt"
 # DEMUXED     <- "Counts_3.Demux.txt"
 # PRIMER      <- "Counts_4.PrimerCheck.txt"
-# PRIMERMULTI <- "Counts_4.PrimerMultiArtifacts.txt"
+# PRIMERARTEF <- "Counts_4.PrimerArtefacts.txt"
 # ITSX        <- "Counts_5.ITSx_or_PrimTrim.txt"
 # HOMOPOLY    <- "Counts_5.Homopolymers.txt"
 # CHIMREFN    <- "Counts_6.ChimRef_reads.txt"
@@ -170,7 +170,7 @@ SEQKITCOUNTS$DEMUXED <- fread(DEMUXED)
 
 cat("..Loading primer-checked data counts\n")
 SEQKITCOUNTS$PRIMER      <- fread(PRIMER)
-SEQKITCOUNTS$PRIMERMULTI <- fread(PRIMERMULTI)
+SEQKITCOUNTS$PRIMERARTEF <- fread(PRIMERARTEF)
 
 cat("..Loading ITSx or primer trim counts\n")
 CUSTOMCOUNTS$ITSX <- fread(ITSX)
@@ -285,8 +285,8 @@ setnames(x = SEQKITCOUNTS$DEMUXED, old = "num_seqs", new = "Demultiplexed_Reads"
 if(!is.null(SEQKITCOUNTS$PRIMER)){
 setnames(x = SEQKITCOUNTS$PRIMER,  old = "num_seqs", new = "PrimerChecked_Reads", skip_absent = TRUE)
 }
-if(!is.null(SEQKITCOUNTS$PRIMERMULTI)){
-setnames(x = SEQKITCOUNTS$PRIMERMULTI, old = "num_seqs", new = "MultiprimerArtifacts_Reads", skip_absent = TRUE)
+if(!is.null(SEQKITCOUNTS$PRIMERARTEF)){
+setnames(x = SEQKITCOUNTS$PRIMERARTEF, old = "num_seqs", new = "PrimerArtefacts_Reads", skip_absent = TRUE)
 }
 if(!is.null(SEQKITCOUNTS$CHIMREFU)){
 setnames(x = SEQKITCOUNTS$CHIMREFU, old = "num_seqs", new = "ReferenceBasedChimera_NumUniqSequences", skip_absent = TRUE)
@@ -314,11 +314,11 @@ merge_dt <- function(x,y){ merge(x, y, by = "file", all = TRUE) }
 PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
 
-## Estimate percentage of multiprimer artifacts
-cat("Estimating percentage of multiprimer artifacts\n")
+## Estimate percentage of primer artefacts
+cat("Estimating percentage of primer artefacts\n")
 PER_SAMPLE_COUNTS_merged[ , 
- MultiprimerArtifacts_Percent := round(
-  MultiprimerArtifacts_Reads / (PrimerChecked_Reads + MultiprimerArtifacts_Reads) * 100,
+ PrimerArtefacts_Percent := round(
+  PrimerArtefacts_Reads / (PrimerChecked_Reads + PrimerArtefacts_Reads) * 100,
   2)
  ]
 
