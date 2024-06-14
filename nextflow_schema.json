@@ -109,7 +109,7 @@
     "primer_trimming": {
       "title": "Primer trimming",
       "type": "object",
-      "description": "Removal of multiprimer-artifacts and reorienting of reads",
+      "description": "Removal of primer-artefacts and reorienting of reads",
       "default": "",
       "properties": {
         "primer_forward": {
