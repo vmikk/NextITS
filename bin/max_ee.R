@@ -25,7 +25,12 @@ cat("..Loading Phred scores\n")
 T1 <- fread(
   file = args[1],
   sep = "\t", header = FALSE,
-  col.names = c("SeqID", "SeqHash", "Len", "PhredScore"))
+  col.names  = c("SeqID", "SeqHash", "Len", "PhredScore"),
+  colClasses = c("character", "character", "numeric", "numeric"))
+
+if(any(is.na(T1$Len))){
+  cat("WARNING: non-numeric data detected. Maybe there are some empty sequences\n")
+}
 
 ## Load table with Phred scores
 cat("..Loading MaxEE estimates\n")
