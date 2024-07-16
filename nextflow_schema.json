@@ -43,6 +43,12 @@
           "type": "boolean",
           "fa_icon": "fas fa-align-justify",
           "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
+        "lima_barcodetype": {
+          "type": "string",
+          "default": "dual_symmetric",
+          "fa_icon": "fab fa-slack-hash",
+          "description": "Tag type used for multiplexing samples",
+          "enum": ["single", "dual", "dual_symmetric", "dual_asymmetric"]
         },
         "lima_minscore": {
           "type": "integer",
@@ -52,11 +58,6 @@
           "fa_icon": "fas fa-balance-scale-left",
           "description": "Barcode score for demultiplexing."
         },
-        "lima_dualbarcode": {
-          "type": "boolean",
-          "default": true,
-          "fa_icon": "fas fa-dna",
-          "description": "Dual-barcoding scheme with identical barcodes at both ends."
         },
         "lima_W": {
           "type": "integer",
