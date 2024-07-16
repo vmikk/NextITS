@@ -16,12 +16,12 @@ Stage: build
 
 ## Main stage
 Bootstrap: docker
-From: rocker/r-ver:4.3.2
+From: rocker/r-ver:4.4.1
 Stage: final
 
 %labels
   Maintainer vladimir.mikryukov@ut.ee
-  R_Version 4.3.2
+  R_Version 4.4.1
 
 %runscript
   exec "$@"
@@ -38,7 +38,7 @@ Stage: final
 
 ## Install the required dependencies
 %post
-  export R_VERSION=4.3.2
+  export R_VERSION=4.4.1
 
   apt-get update -qq \
   && apt-get -y --no-install-recommends install \
