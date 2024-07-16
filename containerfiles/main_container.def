@@ -62,6 +62,8 @@ Stage: final
     R.utils \
     data.table \
     arrow \
+    duckdb \
+    qs \
     BiocManager \
     plyr \
     ggplot2 \
