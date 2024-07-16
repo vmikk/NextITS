@@ -89,7 +89,7 @@ Stage: final
   ${conda_prefix}/bin/conda config --add channels defaults
   ${conda_prefix}/bin/conda config --add channels conda-forge
   ${conda_prefix}/bin/conda config --add channels bioconda
-  ${conda_prefix}/bin/conda install -y -c conda-forge mamba "python=3.10"
+  ${conda_prefix}/bin/conda install -y -c conda-forge mamba "python=3.12"
 
   ## Conda initialization script by Antoine Prouvost
   # https://github.com/ds4dm/singularity-conda/blob/main/conda.def
