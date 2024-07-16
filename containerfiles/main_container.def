@@ -160,6 +160,19 @@ Stage: final
   cd ..
   rm -r mumu
 
+  ## Get the updated ITSx databases ["Version 2", 5 April 2024, curated by Henrik Nilsson]
+  git clone --depth 1 https://github.com/USDA-ARS-GBRU/ITS_HMMs/
+  ## Compress and index HMM flatfiles
+  find ITS_HMMs/ITSx_db/HMMs/ -name "*.hmm" | grep -v "N.hmm" \
+    | ${conda_prefix}/bin/parallel -j1 "${conda_prefix}/bin/hmmpress {}"
+  ## Replace old profiles
+  rm ${conda_prefix}/bin/ITSx_db/HMMs/*
+  mv ITS_HMMs/ITSx_db/HMMs/* ${conda_prefix}/bin/ITSx_db/HMMs/
+  rm -r ITS_HMMs
+  ## Activate Parabasalia model in ITSx
+  # grep "\#push(@profileSet,\"Y\")" ${conda_prefix}/bin/ITSx
+  sed -i '/#push(@profileSet,"Y")/s/#//' ${conda_prefix}/bin/ITSx
+
   ## Clean up
   apt-get autoremove -y \
     && apt-get autoclean -y \
