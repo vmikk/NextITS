@@ -55,6 +55,7 @@ def helpMsg() {
         --primer_foverlap   Min primer overlap (default, F primer length - 2)
         --primer_roverlap   Min primer overlap (default, R primer length - 2)
         --qc_maxn           Discard sequences with more than the specified number of N’s 
+        --trim_minlen       Min sequence length after primer trimming (default, 10)
         --ITSx_tax          ITSx taxonomy profile (default, "all")
         --ITSx_evalue       ITSx E-value cutoff threshold (default, 1e-1)
         --ITSx_partial      Keep partial ITS sequences (defalt, off), otherwise specify min length cutoff
@@ -106,7 +107,6 @@ def helpMsg() {
         --illumina_keep_notmerged  Keep not merged Illumina reads (default, true)
         --illumina_joinpadgap      Join not merged reads into one sequence using padding sequence string (default, NNNNNNNNNN)
         --illumina_joinpadqual     Join not merged reads into one sequence using padding quality string (default, IIIIIIIIII)
-        --trim_minlen              Min sequence length after primer trimming (default, 10)
 
       # Miscellaneous parameters
         --gzip_compression Compression level for GZIP (default, 7; 1 = fastest (worst compression), 9 = slowest (best))
@@ -964,6 +964,7 @@ process itsx {
       --errors ${params.primer_mismatches} \
       --revcomp --rename "{id}" \
       --discard-untrimmed \
+      --minimum-length ${params.trim_minlen} \
       --cores ${task.cpus} \
       --action trim \
       --output ${sampID}_primertrimmed.fq.gz \
