@@ -972,6 +972,14 @@ process itsx {
 
     echo -e "..Done\n"
 
+    ## Check if there are sequences in the output
+    NUMSEQS=\$( seqkit stat --tabular --quiet ${sampID}_primertrimmed.fq.gz | awk -F'\t' 'NR==2 {print \$4}' )
+    echo -e "Number of sequences after primer trimming: " \$NUMSEQS
+    if [ \$NUMSEQS -lt 1 ]; then
+      echo -e "\nIt looks like no reads remained after trimming the primers\n"
+      exit 0
+    fi
+
     ## Create a table with seq quality
     ## Sequence ID - Hash - Length - Average Phred score
     echo -e "\nCreating sequence hash table with average sequence quality"
