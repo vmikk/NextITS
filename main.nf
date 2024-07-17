@@ -1023,6 +1023,7 @@ process itsx {
         --threads 1 \
         --relabel_sha1 \
         --sizein --sizeout \
+        --minseqlength ${params.trim_minlen} \
         --uc ${sampID}_uc.uc \
         --quiet \
       > derep.fasta
