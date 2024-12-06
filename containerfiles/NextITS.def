@@ -3,13 +3,13 @@
 
 ## Build stage (Rust and Cargo), for runiq
 Bootstrap: docker
-From: rust:1.79.0
+From: rust:1.83.0
 Stage: build
 
 %post
   # rustup --version   # 1.27.1
-  # rustc  --version   # 1.79.0
-  # cargo  --version   # 1.79.0
+  # rustc  --version   # 1.83.0
+  # cargo  --version   # 1.83.0
   cargo install runiq sd
   # runiq --version    # 2.0.0
   # sd    --version    # 1.0.0
