@@ -1,5 +1,8 @@
 # NextITS - Singularity definition file, main container
 
+## To avoid GitHub API limits, use `SINGULARITYENV_GITHUB_PAT=[token]` with Singularity
+## to specify the GITHUB_PAT token (the token will be available only during the `%post` section of the build)
+
 
 ## Build stage (Rust and Cargo), for runiq
 Bootstrap: docker
@@ -16,12 +19,12 @@ Stage: build
 
 ## Main stage
 Bootstrap: docker
-From: rocker/r-ver:4.4.1
+From: rocker/r-ver:4.4.2
 Stage: final
 
 %labels
   Maintainer vladimir.mikryukov@ut.ee
-  R_Version 4.4.1
+  R_Version 4.4.2
 
 %runscript
   exec "$@"
@@ -38,14 +41,14 @@ Stage: final
 
 ## Install the required dependencies
 %post
-  export R_VERSION=4.4.1
+  export R_VERSION=4.4.2
 
   apt-get update -qq \
   && apt-get -y --no-install-recommends install \
-    tar zip unzip pigz gzip xz-utils bzip2 coreutils \
+    tar zip unzip pigz gzip zstd xz-utils bzip2 coreutils \
     curl wget git less gawk nano rename bc \
     ca-certificates locales  \
-    libtre-dev libtre5 zlib1g zlib1g-dev liblzma-dev libbz2-dev libcurl4-openssl-dev \
+    libtre-dev libtre5 zlib1g zlib1g-dev liblzma-dev libbz2-dev libcurl4-openssl-dev libglpk-dev libglpk40 \
     build-essential
 
   ## Configure default locale
@@ -63,9 +66,9 @@ Stage: final
     data.table \
     arrow \
     duckdb \
-    qs \
     BiocManager \
     plyr \
+    dplyr \
     ggplot2 \
     doFuture \
     openxlsx \
@@ -75,6 +78,7 @@ Stage: final
     && R -e 'BiocManager::install("dada2", ask = FALSE)' \
     && R -e 'BiocManager::install("phyloseq", ask = FALSE)' \
     && R -e 'remotes::install_github("vmikk/metagMisc")' \
+    && R -e 'remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2")' \
     && rm -rf /tmp/downloaded_packages/
 
   ## Install conda
@@ -89,6 +93,7 @@ Stage: final
   ${conda_prefix}/bin/conda config --add channels defaults
   ${conda_prefix}/bin/conda config --add channels conda-forge
   ${conda_prefix}/bin/conda config --add channels bioconda
+  ${conda_prefix}/bin/conda install --quiet --yes mamba "python=3.12"
   export MAMBA_ROOT_PREFIX=${conda_prefix}
 
   ## Conda initialization script by Antoine Prouvost
@@ -110,13 +115,13 @@ Stage: final
   } >> ${conda_prefix}/init.bash
 
   ## Create conda environment and install software
-  ${conda_prefix}/bin/mamba install -y \
+  ${conda_prefix}/bin/mamba install --quiet --yes \
     "lima>=2.12.0" \
     "pbtk>=3.4.0" \
     "vsearch>=2.29.1" \
     "swarm>=3.1.5" \
     "seqkit>=2.9.0" \
-    "seqfu>=1.23.3" \
+    "seqfu>=1.22.3" \
     "fastp>=0.24.0" \
     "blast>=2.16.0" \
     "bioawk" \
@@ -173,11 +178,17 @@ Stage: final
   # grep "\#push(@profileSet,\"Y\")" ${conda_prefix}/bin/ITSx
   sed -i '/#push(@profileSet,"Y")/s/#//' ${conda_prefix}/bin/ITSx
 
+  ## DuckDB
+  # https://duckdb.org/docs/installation/?version=stable
+  curl -L https://github.com/duckdb/duckdb/releases/download/v1.1.3/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && unzip duckdb_cli-linux-amd64.zip -d ${conda_prefix}/bin/ \
+    && rm duckdb_cli-linux-amd64.zip
+
   ## Clean up
   apt-get autoremove -y \
     && apt-get autoclean -y \
     && rm -rf /var/lib/apt/lists/* \
-    && ${conda_prefix}/bin/mamba clean --all --yes
+    && ${conda_prefix}/bin/mamba clean --all --quiet --yes
 
   ## Activate environment
   # source ${conda_prefix}/bin/activate ${conda_prefix}
