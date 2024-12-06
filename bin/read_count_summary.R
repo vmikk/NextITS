@@ -232,7 +232,7 @@ seqkit_process <- function(x){
     x[ , file := sub(pattern = ".ITS1.fasta.gz$",       replacement = "", x = file) ]
     x[ , file := sub(pattern = ".ITS2.fasta.gz$",       replacement = "", x = file) ]
     x[ , file := sub(pattern = "_PrimerChecked$",       replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_Mutiprimer$",          replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_PrimerArtefacts$",     replacement = "", x = file) ]
     x[ , file := sub(pattern = "_Chimera$",             replacement = "", x = file) ]
     x[ , file := sub(pattern = "_RescuedChimera$",      replacement = "", x = file) ]
     x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
