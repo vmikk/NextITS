@@ -2674,11 +2674,26 @@ workflow {
     // PacBio
     if ( params.seqplatform == "PacBio" ) {
       
-      // Input file with multiplexed reads (FASTQ.gz)
+      // Input file with multiplexed reads (FASTQ.gz or BAM)
       ch_input = Channel.value(params.input)
+
+      // Check the extension of input
+      input_type = file(params.input).getExtension() =~ /bam|BAM/ ? "bam" : "oth"
+      // println("${input_type}")
+
+      // If BAM is provided as input, convert it to FASTQ
+      if ( input_type == 'bam'){
+
+        bam2fastq(ch_input)
+        qc_se(bam2fastq.out.fastq)
+
+      } else {
 
       // Initial QC
       qc_se(ch_input)
+
+      }
+
       // Demultiplexing with dual barcodes requires 3 additional files
       //  - "biosamples" with symmertic/asymmetirc tag combinations
       //  - and a table for assigning sample names to demuxed files
