@@ -39,7 +39,7 @@ def helpMsg() {
     
     Options:
     REQUIRED:
-        --input           File with single-end input sequences, PacBio (FASTQ) or a directory with pre-demultiplexed files
+        --input           File with single-end input sequences, PacBio (FASTQ or BAM) or a directory with pre-demultiplexed files
         --input_R1        Files with paired-end input sequences, Illumina (FASTQ)
         --input_R2
         --barcodes        Barcodes for demultiplexing (FASTA)
