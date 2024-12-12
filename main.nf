@@ -208,6 +208,35 @@ out_8_smr    = params.outdir + "/08_RunSummary"
 out_3_quickstats = params.outdir + "/03_Stats"
 
 
+// Convert BAM to FASTQ
+process bam2fastq {
+
+    label "main_container"
+    publishDir "${out_0_bam}", mode: "${params.storagemode}"
+
+    // cpus 2
+
+    input:
+      path input
+
+    output:
+      path "*.fastq.gz", emit: fastq, optional: false
+
+    script:
+    """
+    echo -e "Converting BAM to FASTQ\n"
+    echo -e "Input file: " ${input}
+
+    bam2fastq \
+      -c ${params.gzip_compression} \
+      --num-threads ${task.cpus} \
+      ${input}
+
+    echo -e "\nConvertion finished"
+    """
+}
+
+
 // Quality filtering for single-end reads
 process qc_se {
 
