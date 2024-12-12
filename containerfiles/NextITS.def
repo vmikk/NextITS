@@ -137,6 +137,12 @@ Stage: final
     "fd-find>=10.2.0" \
     "mmseqs2"
 
+  ## seqhasher
+  # https://github.com/vmikk/seqhasher
+  wget https://github.com/vmikk/seqhasher/releases/download/1.1.1/seqhasher
+  chmod +x seqhasher
+  mv seqhasher ${conda_prefix}/bin/
+
   ## fqgrep v.0.4.4
   git clone --depth 1 https://github.com/indraniel/fqgrep
   cd fqgrep
