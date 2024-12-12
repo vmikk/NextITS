@@ -2826,12 +2826,9 @@ workflow {
 
     // Trim the primers, run ITSx, and assemble near-full-length ITS
     if(params.its_region == "ITS1_5.8S_ITS2"){
-      
-      // Trim primers with cutadapt
-      trim_primers(primer_check.out.fq_primer_checked)
 
       // Run ITSx
-      itsx(trim_primers.out.primertrimmed_fq)
+      itsx(primer_check.out.fq_primer_checked)
 
       // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
       if (params.ITSx_partial == 0) {
