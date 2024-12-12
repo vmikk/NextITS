@@ -192,6 +192,7 @@ log.info "\n"
 
 
 // Define output paths for different steps
+out_0_bam    = params.outdir + "/00_BAM2FASTQ"
 out_1_demux  = params.outdir + "/01_Demux"
 out_1_joinPE = params.outdir + "/01_JoinedPE"
 out_2_primer = params.outdir + "/02_PrimerCheck"
