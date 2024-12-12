@@ -127,7 +127,7 @@ if (params.helpMsg){
 
 // Check if input path was provided
 if (params.input == false && params.seqplatform == "PacBio") {
-    println( "Please provide the input file with sequences in FASTQ.gz format with `--input` parameter.")
+    println( "Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.")
     exit(1)
 }
 if (params.input_R1 == false && params.input_R2 == false && params.seqplatform == "Illumina") {
