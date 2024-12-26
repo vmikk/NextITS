@@ -28,6 +28,11 @@ if [ "$rRNA_part" == "full" ]; then
     rRNA_part="ITS"
 fi
 
+## DuckDB table name cannot start with a number
+if [[ "$rRNA_part" == "5_8S" ]]; then
+    rRNA_part="S58"
+fi
+
 ## Extract sample name from filename
 sample_name="${input_file/.fasta.gz/}"
 db_file="${sample_name}.db"
