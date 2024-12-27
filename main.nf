@@ -2698,8 +2698,8 @@ workflow {
 
       } else {
 
-      // Initial QC
-      qc_se(ch_input)
+        // Initial QC
+        qc_se(ch_input)
 
       }
 
