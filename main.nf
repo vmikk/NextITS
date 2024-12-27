@@ -1790,7 +1790,7 @@ process otu_clust {
 }
 
 
-// Pool sequences and add sample ID into header (for OTU and ASV table creation)
+// Pool sequences and add sample ID into header (for OTU and "ASV" table creation)
 process pool_seqs {
 
     label "main_container"
@@ -1802,8 +1802,8 @@ process pool_seqs {
       path input
 
     output:
-      path "ASV_tab_not_filtered.txt.gz", emit: seqtabnf
-      path "ASV_not_filtered.fa.gz", emit: seqsnf
+      path "Seq_tab_not_filtered.txt.gz", emit: seqtabnf
+      path "Seq_not_filtered.fa.gz", emit: seqsnf
 
     script:
     """
@@ -1819,15 +1819,15 @@ process pool_seqs {
         | sed -r '/^>/ s/;;/;/g'" \
       ::: *.fa.gz \
       | gzip -${params.gzip_compression} \
-      > ASV_not_filtered.fa.gz
+      > Seq_not_filtered.fa.gz
 
     echo "..Done"
 
     echo -e "\nExtracting sequence count table"
-    seqkit seq --name ASV_not_filtered.fa.gz \
+    seqkit seq --name Seq_not_filtered.fa.gz \
       | sed 's/;/\t/g; s/size=//; s/sample=// ; s/\t*\$//' \
       | gzip -${params.gzip_compression} \
-      > ASV_tab_not_filtered.txt.gz
+      > Seq_tab_not_filtered.txt.gz
 
     echo "..Done"
 
