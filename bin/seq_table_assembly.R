@@ -14,7 +14,7 @@
 #   3. sequence mapping to OTUs (`Sample_mapping.uc.gz`)
 #   4. tag-jumped OTU list      (`TagJump_OTUs.RData`)
 #   5. de novo chimera scores   (`DeNovo_Chimera.txt`)
-#   6. sequence qualities       (`SeqQualities.txt.gz`)
+#   6. sequence qualities       (`SeqQualities.parquet`)
 
 # Outputs:
 #  - FASTA with filtered Seqs       `Seqs.fa.gz`
@@ -32,12 +32,13 @@ args <- commandArgs(trailingOnly = TRUE)
 #   "Sample_mapping.uc.gz",
 #   "TagJump_OTUs.RData",
 #   "DeNovo_Chimera.txt",
-#   "SeqQualities.txt.gz"
+#   "SeqQualities.parquet"
 #   )
 
 suppressMessages(library(data.table))
 suppressMessages(library(Biostrings))
 suppressMessages(library(plyr))
+suppressMessages(library(arrow))
 suppressMessages(library(openxlsx))
 
 
@@ -98,10 +99,16 @@ if("try-error" %in% class(CHI)){
 
 ## Load sequence quality scores
 cat("..Loading sequence quality scores\n")
-QLT <- fread(
-  file = args[6],
-  header = TRUE, sep = "\t")
-  # header = FALSE, col.names = c("SampleID", "SeqID", "SeqLen", "PhredScore", "MaxEE", "MEEP"))
+QLT <- arrow::read_parquet(file = args[6])
+setDT(QLT)
+clz <- c("SampleID", "Hash", "Length", "AvgPhredScore", "MaxEE", "MEEP")
+QLT <- QLT[ , ..clz ]
+setnames(QLT,
+  old = c("Hash", "Length", "AvgPhredScore"),
+  new = c("SeqID", "SeqLen", "PhredScore"))
+
+# old header: c("SampleID", "SeqID", "SeqLen", "PhredScore", "MaxEE", "MEEP")
+# new header: c("SampleID", "Hash", "PacBioID", "PhredScore", "MaxEE", "MEEP", "Sequence", "Quality", "Length")
 
 
 
@@ -197,8 +204,8 @@ TAB[ Abundance > 1, MEEP := NA ]
 } else {
 ## No singletons
 TAB[ , PhredScore := NA ]
-TAB[ , MaxEE := NA ]
-TAB[ , MEEP := NA ]
+TAB[ , MaxEE      := NA ]
+TAB[ , MEEP       := NA ]
 }
 
 ## Convert variables to numberic scores
