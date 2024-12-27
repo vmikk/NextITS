@@ -1171,34 +1171,24 @@ process trim_primers {
 
     if [ -s ${sampID}.fq ]; then 
 
-      ## Estimate sequence quality (for the extracted region)
-      ## Sequence ID - Hash - Length - Average Phred score
-      echo -e "\nCreating sequence hash table with average sequence quality"
+      ## Estimate sequence quality and sort sequences by quality
+      echo -e "\nSorting by sequence quality"
       seqkit replace -p "\\s.+" ${sampID}.fq \
-        | seqkit fx2tab --length --avg-qual \
-        | hash_sequences.sh \
-        | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
-        > tmp_hash_table.txt
+        | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
+        | gzip -1 > ${sampID}_sorted.fq.gz
       echo -e "..Done"
 
-      ## Estimating MaxEE
-      echo -e "\nEstimating maximum number of expected errors per sequence"
-      seqkit replace -p "\\s.+" ${sampID}.fq \
-        | vsearch \
-          --fastx_filter - \
-          --fastq_qmax 93 \
-          --eeout \
-          --fastaout - \
-        | seqkit seq --name \
-        | sed 's/;ee=/\t/g' \
-        > tmp_ee.txt
-      echo -e "..Done"
+      rm ${sampID}.fq
+      mv ${sampID}_sorted.fq ${sampID}.fq
 
-      echo -e "\nMerging quality estimates"
-      max_ee.R \
-        tmp_hash_table.txt \
-        tmp_ee.txt \
-        ${sampID}_hash_table.txt
+      ## Hash sequences, add sample ID to the header
+      ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
+      ## Convert to Parquet format
+      echo -e "\nCreating hash table"
+      seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
+        | seqkit fx2tab --length \
+        | sed 's/;/\t/ ; s/;/\t/ ; s/ avgphred=/\t/ ; s/ maxee=/\t/ ; s/ meep=/\t/' \
+        > ${sampID}_hash_table.txt
       echo -e "..Done"
 
       ## Compress results
