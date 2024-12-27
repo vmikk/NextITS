@@ -955,23 +955,24 @@ process itsx {
 
     output:
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_hash_table.txt.gz", emit: hashes, optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_uc.uc.gz", emit: uc, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_uc.uc.gz",      emit: uc,        optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.full.fasta.gz", emit: itsx_full, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.SSU.fasta.gz",  emit: itsx_ssu,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS1.fasta.gz", emit: itsx_its1, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.5_8S.fasta.gz", emit: itsx_58s,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS2.fasta.gz", emit: itsx_its2, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.LSU.fasta.gz",  emit: itsx_lsu,  optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.positions.txt", optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.positions.txt",   optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.problematic.txt", optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_no_detections.fasta.gz", emit: itsx_nondetects, optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.summary.txt", emit: itsx_summary, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.summary.txt",        emit: itsx_summary, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.extraction.results", emit: itsx_details, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.SSU.full_and_partial.fasta.gz",  emit: itsx_ssu_part,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS1.full_and_partial.fasta.gz", emit: itsx_its1_part, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.5_8S.full_and_partial.fasta.gz", emit: itsx_58s_part,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS2.full_and_partial.fasta.gz", emit: itsx_its2_part, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.LSU.full_and_partial.fasta.gz",  emit: itsx_lsu_part,  optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_primertrimmed_sorted.fq.gz",     emit: trimmed_seqs,   optional: true
 
     script:
     
@@ -1009,42 +1010,31 @@ process itsx {
       echo -e "\nIt looks like no reads remained after trimming the primers\n"
       exit 0
     fi
-
-    ## Create a table with seq quality
-    ## Sequence ID - Hash - Length - Average Phred score
-    echo -e "\nCreating sequence hash table with average sequence quality"
+   
+    ## Estimate sequence quality and sort sequences by quality
+    echo -e "\nSorting by sequence quality"
     seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
-      | seqkit fx2tab --length --avg-qual \
-      | hash_sequences.sh \
-      | awk '{print \$1 "\t" \$6 "\t" \$4 "\t" \$5}' \
-      > tmp_hash_table.txt
+      | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
+      | gzip -1 > ${sampID}_primertrimmed_sorted.fq.gz
     echo -e "..Done"
 
-    ## Estimating MaxEE
-    echo -e "\nEstimating maximum number of expected errors per sequence"
-    seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
-      | vsearch \
-        --fastx_filter - \
-        --fastq_qmax 93 \
-        --eeout \
-        --fastaout - \
-      | seqkit seq --name \
-      | sed 's/;ee=/\t/g' \
-      > tmp_ee.txt
+    ## Hash sequences, add sample ID to the header
+    ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
+    ## Convert to Parquet format
+    echo -e "\nCreating hash table"
+    seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
+      | seqkit fx2tab --length \
+      | sed 's/;/\t/ ; s/;/\t/ ; s/ avgphred=/\t/ ; s/ maxee=/\t/ ; s/ meep=/\t/' \
+      > ${sampID}_hash_table.txt
     echo -e "..Done"
 
-    echo -e "\nMerging quality estimates"
+    ## Check the number of fields per record (should be 9!)
+    # awk '{print NF}' ${sampID}_hash_table.txt | sort | uniq -c
+    # awk 'NF > 9 {print \$0 }' ${sampID}_hash_table.txt
 
-    max_ee.R \
-      tmp_hash_table.txt \
-      tmp_ee.txt \
-      ${sampID}_hash_table.txt
-
-    echo -e "..Done"
-
-    ## Dereplicate at sample level
+    ## Dereplicate at sample level (use quality-sorted sequences to make sure that the representative sequence is with the highest quality)
     echo -e "\nDereplicating at sample level"
-    seqkit fq2fa -w 0 ${sampID}_primertrimmed.fq.gz \
+    seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
       | vsearch \
         --derep_fulllength - \
         --output - \
@@ -1117,8 +1107,7 @@ process itsx {
 
     ## Remove temporary file
     rm derep.fasta
-    rm tmp_hash_table.txt
-    rm tmp_ee.txt
+    rm ${sampID}_primertrimmed.fq.gz
 
     ## Compress results
     echo -e "\nCompressing files"
