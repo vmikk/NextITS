@@ -3041,8 +3041,8 @@ workflow {
 
     // Create sequence table
     prep_seqtab(
-      pool_seqs.out.seqtabnf,               // non-filtered ASV table
-      pool_seqs.out.seqsnf,                 // ASV sequences in FASTA
+      pool_seqs.out.seqtabnf,               // non-filtered sequence table
+      pool_seqs.out.seqsnf,                 // Sequences in FASTA format
       otu_tab.out.samples_uc,               // sequence mapping to OTUs
       tj.out.tjs,                           // tag-jumped OTU list
       ch_denovoscores,                      // de novo chimera scores
