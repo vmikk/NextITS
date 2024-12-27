@@ -1306,25 +1306,25 @@ process seq_qual {
 
     label "main_container"
 
-    // cpus 1
+    publishDir "${out_9_db}", mode: "${params.storagemode}"
+    // cpus 4
 
     input:
-      path input
+      path(input, stageAs: "hash_tables/*")
 
     output:
-      path "SeqQualities.txt.gz", emit: quals
+      path "SeqQualities.parquet", emit: quals
 
     script:
     """
     echo -e "Aggregating sequence qualities"
 
-    find . -maxdepth 1 -name "*_hash_table.txt.gz" \
-      | parallel -j1 "merge_sequnce_qualities.sh {} {/.}" \
-      | gzip -${params.gzip_compression} \
-      > SeqQualities.txt.gz
+    merge_hash_tables.sh \
+      -i ./hash_tables \
+      -o SeqQualities.parquet \
+      -t ${task.cpus}
 
     echo -e "..Done"
-
     """
 }
 
