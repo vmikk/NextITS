@@ -77,32 +77,33 @@ fi
 
 
 SQL_COMMAND+="
-SELECT 
-    column0 as SampleID,
-    column1 as Hash,
-    column2 as PacBioID,
-    column3 as AvgPhredScore,
-    column4 as MaxEE,
-    column5 as MEEP,
-    column6 as Sequence,
-    column7 as Quality,
-    column8 as Length
-FROM read_csv('${INPUT}/*.txt.gz', 
-    HEADER FALSE, 
-    DELIMITER '\t',
-    COLUMNS {
-        'column0': 'VARCHAR',
-        'column1': 'VARCHAR',
-        'column2': 'VARCHAR',
-        'column3': 'DOUBLE',
-        'column4': 'DOUBLE',
-        'column5': 'DOUBLE',
-        'column6': 'VARCHAR',
-        'column7': 'VARCHAR',
-        'column8': 'INTEGER'
-    }
-)
-COPY TO '${OUTPUT}/combined_data.parquet' (FORMAT PARQUET);
+COPY (
+    SELECT 
+        column0 as SampleID,
+        column1 as Hash,
+        column2 as PacBioID,
+        column3 as AvgPhredScore,
+        column4 as MaxEE,
+        column5 as MEEP,
+        column6 as Sequence,
+        column7 as Quality,
+        column8 as Length
+    FROM read_csv('${INPUT}/*.txt.gz', 
+        header  = false, 
+        delim   = '\t',
+        columns = {
+            'column0': 'VARCHAR',
+            'column1': 'VARCHAR',
+            'column2': 'VARCHAR',
+            'column3': 'DOUBLE',
+            'column4': 'DOUBLE',
+            'column5': 'DOUBLE',
+            'column6': 'VARCHAR',
+            'column7': 'VARCHAR',
+            'column8': 'INTEGER'
+        }
+    )
+) TO '${OUTPUT}' (FORMAT PARQUET, COMPRESSION 'ZSTD', COMPRESSION_LEVEL ${COMPRESSION});
 "
 
 ## Execute the SQL command
@@ -110,4 +111,3 @@ echo -e "\nExecuting DuckDB command"
 
 duckdb -c "${SQL_COMMAND}"
 
-echo -e "\nDone!"
