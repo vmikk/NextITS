@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: "NextITS: a pipeline for metabarcoding eukaryotes with full-length ITS sequenced with PacBio"
+type: software
+authors:
+- family-names: "Mikryukov"
+  given-names: "Vladimir"
+  orcid: "https://orcid.org/0000-0003-2786-2690"
+- family-names: "Anslan"
+  given-names: "Sten"
+  orcid: "https://orcid.org/0000-0002-2299-454X"
+- family-names: "Tedersoo"
+  given-names: "Leho"
+  orcid: "https://orcid.org/0000-0002-1635-1249"
+version: 1.0.0
+url: "https://github.com/vmikk/NextITS"
+license: Apache-2.0
+repository-code: "https://github.com/vmikk/NextITS"
