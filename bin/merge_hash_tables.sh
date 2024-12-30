@@ -91,6 +91,7 @@ COPY (
     FROM read_csv('${INPUT}/*.txt.gz', 
         header  = false, 
         delim   = '\t',
+        quote   = '',
         columns = {
             'column0': 'VARCHAR',
             'column1': 'VARCHAR',
