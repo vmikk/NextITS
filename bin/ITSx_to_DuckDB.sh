@@ -1,12 +1,19 @@
 #!/bin/bash
 
-## Check if filename is provided
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <filename>"
-    exit 1
-fi
+## Import sequences into DuckDB-compatible tables
 
-input_file="$1"
+## Input = FASTA formatted sequences (header = "hash;size=...")
+## Output = Table in DuckDB-native format or Parquet
+
+# Define usage function
+usage() {
+    echo "Usage: $0 [-i input_file] [-o output_file] [-f format]"
+    echo "  -i : Input FASTA file (required)"
+    echo "  -o : Output file (optional, defaults to input filename with .db/.parquet extension)"
+    echo "  -f : Output format (optional): 'duckdb' or 'parquet' (default, 'parquet')"
+    exit 1
+}
+
 
 ## Extract rRNA region name from filename
 if [[ $input_file =~ ([^.]+)\.fasta\.gz$ ]]; then
