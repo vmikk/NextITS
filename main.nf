@@ -219,6 +219,7 @@ process bam2fastq {
 
     input:
       path input
+      path bam_index
 
     output:
       path "*.fastq.gz", emit: fastq, optional: false
