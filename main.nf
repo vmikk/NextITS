@@ -1149,6 +1149,7 @@ process trim_primers {
     sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
 
     """
+    echo -e "Trimming primers\n"
     echo -e "Input sample: "   ${sampID}
     echo -e "Forward primer: " ${params.primer_forward}
     echo -e "Reverse primer: " ${params.primer_reverse}
@@ -1166,21 +1167,21 @@ process trim_primers {
       --action=trim \
       --discard-untrimmed \
       --minimum-length ${params.trim_minlen} \
-      --output ${sampID}.fq \
+      --output ${sampID}_primertrimmed.fq.gz \
       ${input}
 
 
-    if [ -s ${sampID}.fq ]; then 
+    if [ -n "\$(find . -name ${sampID}_primertrimmed.fq.gz -prune -size +29c)" ]; then 
 
       ## Estimate sequence quality and sort sequences by quality
       echo -e "\nSorting by sequence quality"
-      seqkit replace -p "\\s.+" ${sampID}.fq \
+      seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
         | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
-        | gzip -1 > ${sampID}_sorted.fq.gz
+        | gzip -${params.gzip_compression} \
+        > ${sampID}_primertrimmed_sorted.fq.gz
       echo -e "..Done"
 
-      rm ${sampID}.fq
-      mv ${sampID}_sorted.fq ${sampID}.fq
+      rm ${sampID}_primertrimmed.fq.gz
 
       ## Hash sequences, add sample ID to the header
       ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
@@ -1194,12 +1195,11 @@ process trim_primers {
 
       ## Compress results
       echo -e "Compressing result"
-      gzip -${params.gzip_compression} ${sampID}.fq
       gzip -${params.gzip_compression} ${sampID}_hash_table.txt
 
       ## Dereplicate at sample level
       echo -e "\nDereplicating at sample level"
-      seqkit fq2fa -w 0 ${sampID}.fq.gz \
+      seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
       | vsearch \
         --derep_fulllength - \
         --output - \
@@ -1221,7 +1221,7 @@ process trim_primers {
     else
 
       echo -e "\nNo sequences found after primer removal"
-      if [ -f ${sampID}.fq ]; then rm ${sampID}.fq; fi
+      if [ -f ${sampID}_primertrimmed.fq.gz ]; then rm ${sampID}_primertrimmed.fq.gz; fi
 
     fi
 
