@@ -1140,9 +1140,9 @@ process trim_primers {
       path input
 
     output:
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_hash_table.txt.gz", emit: hashes, optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.fq.gz", emit: primertrimmed_fq, optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.fa.gz", emit: primertrimmed_fa, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_hash_table.txt.gz",          emit: hashes, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_primertrimmed_sorted.fq.gz", emit: primertrimmed_fq, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.fa.gz",    emit: primertrimmed_fa, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_uc.uc.gz", emit: uc, optional: true
 
     script:
