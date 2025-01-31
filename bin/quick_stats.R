@@ -151,7 +151,7 @@ seqkit_process <- function(x){
     x[ , file := sub(pattern = ".fq.gz",           replacement = "", x = file) ]
     x[ , file := sub(pattern = ".fa.gz",           replacement = "", x = file) ]
     x[ , file := sub(pattern = "_PrimerChecked$",  replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_Mutiprimer$",     replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_PrimerArtefacts$",replacement = "", x = file) ]
     
   }
   return(x)
