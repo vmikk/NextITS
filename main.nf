@@ -2694,7 +2694,10 @@ workflow {
       // If BAM is provided as input, convert it to FASTQ
       if ( input_type == 'bam'){
 
-        bam2fastq(ch_input)
+        // Add BAM index file
+        ch_input_pbi = ch_input + ".pbi"
+
+        bam2fastq(ch_input, ch_input_pbi)
         qc_se(bam2fastq.out.fastq)
 
       } else {
