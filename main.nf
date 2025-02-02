@@ -1819,6 +1819,8 @@ process pool_seqs {
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: *.fa.gz \
+      | gzip -${params.gzip_compression} \
+      > Seq_not_filtered.fa.gz
 
     echo "..Done"
 
