@@ -228,6 +228,7 @@ process bam2fastq {
     """
     echo -e "Converting BAM to FASTQ\n"
     echo -e "Input file: " ${input}
+    echo -e "BAM index: "  ${bam_index}
 
     bam2fastq \
       -c ${params.gzip_compression} \
