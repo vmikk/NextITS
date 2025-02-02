@@ -1812,15 +1812,13 @@ process pool_seqs {
     echo -e "\nPooling and renaming sequences"
 
     ## If there is a sample ID in the header already, remove it
-    parallel -j ${task.cpus} --group \
+    parallel -j 1 --group \
       "zcat {} \
         | sed -r '/^>/ s/;sample=[^;]*/;/g ; s/;;/;/g' \
         | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g' \
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: *.fa.gz \
-      | gzip -${params.gzip_compression} \
-      > Seq_not_filtered.fa.gz
 
     echo "..Done"
 
