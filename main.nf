@@ -22,7 +22,10 @@
 nextflow.enable.dsl = 2
 
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
 
+//  Validate & print parameter summary
+WorkflowMain.initialise(workflow, params, log)
 
 
 
@@ -159,6 +162,7 @@ if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true &
 
 
 // Print the parameters to the console and to the log
+/*
 log.info """
     =======================================================================
     NextITS v.${workflow.manifest.version}
@@ -188,7 +192,7 @@ log.info """
 
 log.info "======================================================================="
 log.info "\n"
-
+*/
 
 
 // Define output paths for different steps
