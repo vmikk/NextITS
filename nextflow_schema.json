@@ -39,10 +39,6 @@
       "description": "",
       "default": "",
       "properties": {
-        "demultiplexed": {
-          "type": "boolean",
-          "fa_icon": "fas fa-align-justify",
-          "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
         "lima_barcodetype": {
           "type": "string",
           "default": "dual_symmetric",
@@ -73,7 +69,13 @@
           "description": "Minimum sequence length after clipping barcodes.",
           "minimum": 1
         },
-      }
+        "demultiplexed": {
+          "type": "boolean",
+          "fa_icon": "fas fa-align-justify",
+          "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
+        }
+      },
+      "fa_icon": "fas fa-tags"
     },
     "quality_control": {
       "title": "Quality Control",
