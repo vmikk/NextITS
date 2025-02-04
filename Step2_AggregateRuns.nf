@@ -106,6 +106,12 @@ params.lulu_ratiotype = "min"   // abundance ratio type - "min" or "avg" (defaul
 params.lulu_relcooc   = 0.95    // relative co-occurrence (default, 0.95)
 params.lulu_maxhits   = 0       // maximum number of hits (0 = unlimited; default, 10?)
 
+// Parameter validation
+if (params.preclustering == "none" && params.clustering == "none"){
+  println "Pre-clustering and clustering could not be both set to 'none'"
+  exit(1)
+}
+
 
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
