@@ -772,6 +772,11 @@ workflow {
       cluster_ch = unoise.out.unoise
       clustuc_ch = unoise.out.unoise_uc
       preclustuc_ch = file('NoPrecluster')
+    
+    } else if ( params.preclustering == "none" & params.clustering == "none" ){
+      println "No pre-clustering or clustering was done"
+
+      // TODO: create table based on dereplicated sequences?
     }
 
 
