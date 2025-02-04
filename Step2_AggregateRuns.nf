@@ -333,7 +333,8 @@ process unoise {
 
     ## Compress results
     echo -e "\nCompressing UNOISE results"
-    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
+    parallel -j 1 \
+      "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "UNOISE.fa" "UNOISE.uc"
 
     """
