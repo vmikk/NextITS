@@ -432,7 +432,7 @@ process cluster_vsearch {
 
     ## Compress UC file
     echo -e "\nCompressing UC file"
-    gzip -${params.gzip_compression} Clustered.uc
+    pigz -p ${task.cpus} -${params.gzip_compression} Clustered.uc
 
     """
 }
