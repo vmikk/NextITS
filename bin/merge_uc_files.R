@@ -2,7 +2,7 @@
 
 ## Merge UC files from different steps (dereplication, pre-clustering, clustering) into a single file
 
-cat("Merging UC files\n\n")
+cat("Joining parquet files\n\n")
 
 ## Check time
 start_time <- Sys.time()
