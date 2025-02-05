@@ -16,7 +16,7 @@ load_pckg <- function(pkg = "data.table"){
 cat("Loading packages:\n")
 load_pckg("DBI")
 load_pckg("duckdb")
-load_pckg("qs")
+# load_pckg("qs")
 # load_pckg("data.table")
 # load_pckg("arrow")
 # load_pckg("dplyr")
@@ -75,10 +75,14 @@ cat("\n")
 
 ## Data for debugging
 # UCDEREP    <- "UC_derep.parquet"
-# UCPRECLUST <- "UC_preclust.parquet"
+# UCPRECLUST <- "UC_preclust.parquet"  # "NoPrecluster"
 # UCCLUST    <- "UC_clust.parquet"
 # OUTPUT     <- "UC_Pooled.parquet"
 # CPUTHREADS <- 4
+
+if(UCPRECLUST == "NoPrecluster") {
+  UCPRECLUST <- NA
+}
 
 
 ######################################
@@ -87,7 +91,8 @@ cat("\n")
 
 ## Initialize DuckDB connection
 cat("..Initializing DuckDB connection\n")
-con <- dbConnect(duckdb::duckdb())
+con <- DBI::dbConnect(duckdb::duckdb())
+#                     duckdb::duckdb(dbdir = tempfile(pattern = "nextits.duckdb.")
 
 ## Register parquet files as tables
 cat("..Registering parquet files as tables\n")
