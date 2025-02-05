@@ -54,8 +54,31 @@
           "fa_icon": "fas fa-balance-scale-left",
           "description": "Barcode score for demultiplexing."
         },
+        "lima_minendscore": {
+          "type": "integer",
+          "default": 50,
+          "fa_icon": "fas fa-balance-scale-right",
+          "description": "Minimum second barcode score (only for asymmetric and dual barcoding scheme)",
+          "minimum": 0,
+          "maximum": 100
         },
-        "lima_W": {
+        "lima_minrefspan": {
+          "type": "number",
+          "default": 0.75,
+          "fa_icon": "fas fa-random",
+          "description": "Minimum read span relative to the barcode length",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lima_minscoringregions": {
+          "type": "integer",
+          "default": 2,
+          "fa_icon": "fas fa-angle-down",
+          "description": "Number of barcodes scored required for demultiplexing using dual barcodes",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "lima_windowsize": {
           "type": "integer",
           "default": 70,
           "fa_icon": "fas fa-arrows-alt-h",
