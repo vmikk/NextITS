@@ -21,7 +21,7 @@ load_pckg("qs")
 # load_pckg("arrow")
 # load_pckg("dplyr")
 
-cat("Parsing input options and arguments...\n")
+cat("\nParsing input options and arguments...\n")
 
 suppressPackageStartupMessages(require(optparse))
 
@@ -64,11 +64,12 @@ OUTPUT     <- opt$output
 CPUTHREADS <- as.numeric( opt$threads )
 
 ## Log assigned variables
-cat(paste("UC file from global dereplication: ",        UCDEREP,    "\n", sep=""))
-cat(paste("UC file from pre-clustering or denoising: ", UCPRECLUST, "\n", sep=""))
-cat(paste("UC file from clustering: ",                  UCCLUST,    "\n", sep=""))
-cat(paste("Output file name: ",                         OUTPUT,     "\n", sep=""))
-cat(paste("Number of CPU threads to use: ",             CPUTHREADS, "\n", sep=""))
+cat("\nParameters specified:\n")
+cat(paste("  UC file from global dereplication: ",        UCDEREP,    "\n", sep=""))
+cat(paste("  UC file from pre-clustering or denoising: ", UCPRECLUST, "\n", sep=""))
+cat(paste("  UC file from clustering: ",                  UCCLUST,    "\n", sep=""))
+cat(paste("  Output file name: ",                         OUTPUT,     "\n", sep=""))
+cat(paste("  Number of CPU threads to use: ",             CPUTHREADS, "\n", sep=""))
 
 cat("\n")
 
