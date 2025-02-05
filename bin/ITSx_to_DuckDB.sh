@@ -14,6 +14,32 @@ usage() {
     exit 1
 }
 
+# Parse command line arguments
+input_file=""
+output_file=""
+format="parquet"   # format="duckdb"
+
+while getopts "i:o:f:h" opt; do
+    case $opt in
+        i) input_file="$OPTARG" ;;
+        o) output_file="$OPTARG" ;;
+        f) format="$OPTARG" ;;
+        h) usage ;;
+        ?) usage ;;
+    esac
+done
+
+# Validate required parameters
+if [ -z "$input_file" ]; then
+    echo "Error: Input file is required"
+    usage
+fi
+
+# Validate output format
+if [ "$format" != "duckdb" ] && [ "$format" != "parquet" ]; then
+    echo "Error: Format must be either 'duckdb' or 'parquet'"
+    usage
+fi
 
 ## Extract rRNA region name from filename
 if [[ $input_file =~ ([^.]+)\.fasta\.gz$ ]]; then
