@@ -840,12 +840,17 @@ workflow {
       checkIfExists: true).collect()
 
  
+    // Pool UC files
+    merge_uc(
+     derepuc_ch,       // UC file with dereplication info
+     preclustuc_ch,    // UC file with pre-clustering or denoising (optional)
+     clustuc_ch        // UC file with OTU clustering info
+    )
+
     // Summarize sequence abundances by OTU and sample
     summarize(
      ch_seqtabs,       // Step-1 sequnece tables in long format
-     derepuc_ch,       // UC file with dereplication info
-     preclustuc_ch,    // UC file with pre-clustering or denoising (optional)
-     clustuc_ch,       // UC file with OTU clustering info
+     merge_uc.out.uc,  // Combined UC files with sequence membership info
      cluster_ch        // FASTA file with OTUs
     )
 
