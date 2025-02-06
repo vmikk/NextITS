@@ -129,8 +129,8 @@ process dereplication {
       path "Dereplicated.uc.gz", emit: derep_uc
 
     script:
-    minlen = params.ampliconlen_min ? "--minseqlength ${params.ampliconlen_min}" : ""
-    maxlen = params.ampliconlen_max ? "--maxseqlength ${params.ampliconlen_max}" : ""
+    def minlen = params.ampliconlen_min ? "--minseqlength ${params.ampliconlen_min}" : ""
+    def maxlen = params.ampliconlen_max ? "--maxseqlength ${params.ampliconlen_max}" : ""
     """
     echo -e "Dereplicating sequences\n"
 
