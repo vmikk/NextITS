@@ -506,6 +506,55 @@ process cluster_swarm {
 
 
 
+// Merge UC files
+process merge_uc {
+
+    label "main_container"
+    
+    publishDir "${params.outdir}/04.PooledResults", mode: 'symlink'
+    // cpus 4
+
+    input:
+      path(uc_derep)
+      path(uc_preclust)
+      path(uc_clust)
+
+    output:
+      path "UC_Pooled.parquet", emit: uc
+
+    script:
+    """
+    echo -e "merge_uc process\n"
+
+    ## Parse UC files from different steps, convert to parquet format
+    echo -e "..Parsing dereplicated UC file\n"
+    ucs --input ${uc_derep} --output UC_derep.parquet
+
+    if [ -f ${uc_preclust} ] && [ "${uc_preclust}" != "NoPrecluster" ]; then
+      echo -e "..Parsing pre-clustered UC file\n"
+      ucs --input ${uc_preclust} --output UC_preclust.parquet
+      UCPRECLUST="UC_preclust.parquet"
+    else
+      UCPRECLUST="NoPrecluster"
+    fi
+
+    if [ -f ${uc_clust} ]; then
+      echo -e "..Parsing clustered UC file\n"
+      ucs --input ${uc_clust} --output UC_clust.parquet
+    fi
+
+    ## Merge UC files into a single file
+    echo -e "..Merging UC files\n"
+    merge_uc_files.R \
+      --ucderep    UC_derep.parquet \
+      --ucpreclust \${UCPRECLUST} \
+      --ucclust    UC_clust.parquet \
+      --output     UC_Pooled.parquet
+
+    """
+}
+
+
 // Summarize sequence abundance by OTU
 process summarize {
 
@@ -516,9 +565,7 @@ process summarize {
 
     input:
       path(seqtabs, stageAs: "?/*")
-      path(uc_derep)
-      path(uc_preclust)
-      path(uc_clust)
+      path(uc_parquet)
       path(otus_fasta)
 
     output:
@@ -532,9 +579,7 @@ process summarize {
     """
 
     pool_seq_runs.R \
-      --ucderep    ${uc_derep} \
-      --ucpreclust ${uc_preclust} \
-      --ucclust    ${uc_clust} \
+      --uc         ${uc_parquet} \
       --otus       ${otus_fasta} \
       --maxmeep    ${params.max_MEEP} \
       --maxchim    ${params.max_ChimeraScore} \
