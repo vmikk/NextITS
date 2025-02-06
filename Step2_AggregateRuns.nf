@@ -385,7 +385,8 @@ process precluster_swarm {
 
     ## Compress results
     echo -e "..Compressing results\n"
-    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
+    parallel -j 1 \
+      "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "SWARM_representatives.fa" "SWARM.uc" "SWARM.swarms" "SWARM.struct" "SWARM.stats"
 
     echo -e "..Done\n"
