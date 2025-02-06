@@ -68,15 +68,23 @@ fi
 
 ## Extract sample name from filename
 sample_name="${input_file/.fasta.gz/}"
-db_file="${sample_name}.db"
+
+# Set output file if not specified
+if [ -z "${output_file}" ]; then
+    if [ "${format}" == "duckdb" ]; then
+        output_file="${sample_name}.db"
+    else
+        output_file="${sample_name}.parquet"
+    fi
+fi
 
 ## Check if input file exists
-if [ ! -f "$input_file" ]; then
-    echo "..Error: File $input_file not found"
+if [ ! -f "${input_file}" ]; then
+    echo "..Error: File ${input_file} not found"
     exit 1
 fi
 
-echo "..Importing $input_file into $db_file"
+echo "..Importing ${input_file} into ${output_file} (format: ${format})"
 
 seqkit fx2tab "$input_file" \
   | sed 's/;size=/\t/'  \
