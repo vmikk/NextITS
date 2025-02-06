@@ -670,7 +670,8 @@ process lulu {
       --minimum_relative_cooccurence ${params.lulu_relcooc}
 
     echo -e "..Compressing LULU-curated OTU table\n"
-    parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
+    parallel -j 1 \
+      "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "OTU_table_LULU.txt" "LULU_merging_statistics.txt" "LULU_match_list.txt"
 
     echo -e "..LULU done\n"
