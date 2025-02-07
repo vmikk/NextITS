@@ -128,30 +128,33 @@ if (params.helpMsg){
     exit(0)
 }
 
-// Check if input path was provided
+// Additional parameter validation
 if (params.input == false && params.seqplatform == "PacBio") {
-    println( "Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.")
+    println( "ERROR: Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.")
     exit(1)
 }
 if (params.input_R1 == false && params.input_R2 == false && params.seqplatform == "Illumina") {
-    println( "Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
+    println( "ERROR: Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
     exit(1)
 }
 if (params.barcodes == false && params.demultiplexed == false) {
-    println( "Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
+    println( "ERROR: Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
     exit(1)
 }
-if (params.chimera_db == false) {
-    println( "Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.")
+if (!params.chimera_db || !file(params.chimera_db).exists()) {
+    println( "ERROR: Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.")
     exit(1)
 }
-
+if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
+    println( "ERROR: The reference database file specified with `--chimera_db` parameter must be in UDB format." )
+    exit 1
+}
 if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
-    println( "Homopolymer compression is not implemented for Illumina non-merged reads.")
+    println( "ERROR: Homopolymer compression is not implemented for Illumina non-merged reads.")
     exit(1)
 }
 if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
-    println( "Handling demultiplexed data for Illumina is not implemented yet.")
+    println( "ERROR: Handling demultiplexed data for Illumina is not implemented yet.")
     exit(1)
 }
 
