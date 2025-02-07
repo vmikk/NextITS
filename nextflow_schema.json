@@ -17,7 +17,7 @@
           "format": "path",
           "exists": true,
           "mimetype": "text/csv",
-          "description": "Path to the input file containing single-end sequences (in FASTQ format) or the directory with pre-demultiplexed files.",
+          "description": "Path to input data: either a single FASTQ or BAM file containing multiplexed sequences, or a directory containing pre-demultiplexed FASTQ files.",
           "fa_icon": "fas fa-file-csv"
         },
         "barcodes": {
@@ -43,7 +43,7 @@
           "type": "string",
           "default": "dual_symmetric",
           "fa_icon": "fab fa-slack-hash",
-          "description": "Tag type used for multiplexing samples",
+          "description": "Barcode configuration type used for multiplexing samples: 'single' if only one of the primers was tagged, 'dual_symmetric' if identical barcodes were used, 'dual_asymmetric' if different barcodes were used, 'dual' if both primers were tagged with a mixture of identical and different barcodes",
           "enum": ["single", "dual", "dual_symmetric", "dual_asymmetric"]
         },
         "lima_minscore": {
@@ -52,7 +52,7 @@
           "minimum": 0,
           "maximum": 100,
           "fa_icon": "fas fa-balance-scale-left",
-          "description": "Barcode score for demultiplexing."
+          "description": "Minimum barcode score (0-100) required for successful demultiplexing. Higher values mean stricter matching."
         },
         "lima_minendscore": {
           "type": "integer",
@@ -108,13 +108,13 @@
       "properties": {
         "qc_maxee": {
           "type": "number",
-          "description": "Maximum number of expected errors.",
+          "description": "Maximum expected errors allowed in a sequence. Sequences with higher error rates will be discarded.",
           "fa_icon": "fas fa-times"
         },
         "qc_maxeerate": {
           "type": "number",
           "default": 0.01,
-          "description": "Maximum number of expected errors per base.",
+          "description": "Maximum expected error rate per sequence (between 0 and 1). Sequences with higher error rates will be discarded.",
           "fa_icon": "fas fa-times"
         },
         "qc_maxhomopolymerlen": {
@@ -342,6 +342,7 @@
             "SSU",
             "LSU"
           ],
+          "description": "Target ITS region to extract: 'full' for complete ITS region, 'ITS1' or 'ITS2' for specific spacers, 'ITS1_5.8S_ITS2' for the partial ITS (in case of HMM profiles are not able to detect the full ITS region), 'SSU' or 'LSU' for 18S or 28S ribosomal genes, or 'none' to skip extraction (in this case, only the primers will be trimmed)",
           "fa_icon": "fas fa-arrows-alt-h"
         },
         "ITSx_tax": {
@@ -369,13 +370,15 @@
       "properties": {
         "hp": {
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "Enable homopolymer error correction in sequences"
         },
         "hp_similarity": {
           "type": "number",
           "default": 0.999,
           "minimum": 0.8,
-          "maximum": 1
+          "maximum": 1,
+          "description": "Sequence similarity threshold for pre-clustering during homopolymer error correction (0.8-1.0)"
         },
         "hp_iddef": {
           "type": "number",
@@ -411,7 +414,7 @@
           "default": "rellink",
           "fa_icon": "fas fa-boxes",
           "enum": ["symlink", "copy", "move", "rellink", "link"],
-          "description": "Adjusts how files are directed to the results folder."
+          "description": "How to store output files: 'symlink' for symbolic links, 'copy' to copy files, 'move' to move files, 'rellink' for relative links, 'link' for hard links"
         },
         "gzip_compression": {
           "type": "number",
