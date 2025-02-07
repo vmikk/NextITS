@@ -86,29 +86,46 @@ fi
 
 echo "..Importing ${input_file} into ${output_file} (format: ${format})"
 
-seqkit fx2tab "$input_file" \
-  | sed 's/;size=/\t/'  \
-  | duckdb "$db_file" \
-"
-DROP TABLE IF EXISTS ${rRNA_part};
-CREATE TABLE ${rRNA_part} (
-  SeqID VARCHAR PRIMARY KEY,
-  Abundance INTEGER,
-  Sequence VARCHAR
-);
+if [ "$format" == "duckdb" ]; then
+    seqkit fx2tab "${input_file}" \
+      | sed 's/;size=/\t/'  \
+      | duckdb "${output_file}" \
+    "
+    DROP TABLE IF EXISTS ${rRNA_part};
+    CREATE TABLE ${rRNA_part} (
+      SeqID VARCHAR PRIMARY KEY,
+      Abundance INTEGER,
+      Sequence VARCHAR
+    );
 
-INSERT INTO ${rRNA_part}
-SELECT * FROM read_csv(
-  '/dev/stdin',
-  header = false,
-  columns = {
-    'SeqID': 'VARCHAR',
-    'Abundance': 'INTEGER',
-    'Sequence': 'VARCHAR'
-  }
-);"
+    INSERT INTO ${rRNA_part}
+    SELECT * FROM read_csv(
+      '/dev/stdin',
+      header = false, delim = '\t',
+      columns = {
+        'SeqID': 'VARCHAR',
+        'Abundance': 'INTEGER',
+        'Sequence': 'VARCHAR'
+      }
+    );"
+else
+    seqkit fx2tab "${input_file}" \
+      | sed 's/;size=/\t/'  \
+      | duckdb -c "
+    COPY (
+      SELECT * FROM read_csv(
+        '/dev/stdin',
+        header = false, delim = '\t',
+        columns = {
+          'SeqID': 'VARCHAR',
+          'Abundance': 'INTEGER',
+          'Sequence': 'VARCHAR'
+        }
+      )
+    ) TO '${output_file}' (FORMAT PARQUET, COMPRESSION 'ZSTD', COMPRESSION_LEVEL 12);"
+fi
 
-echo "..Data imported"
+echo "..Data imported to ${output_file}"
 
 
 #### Check the data
