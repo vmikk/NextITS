@@ -23,3 +23,8 @@
 - VSEARCH option usearch_global implements the [USEARCH](https://doi.org/10.1093/bioinformatics/btq461) algorithm
 
   > Edgar RC. Search and clustering orders of magnitude faster than BLAST. Bioinformatics. 2010 26(19) 2460-2461
+
+- [Cutadapt](https://journal.embnet.org/index.php/embnetjournal/article/view/200/479)
+
+  > Marcel, M. Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet. journal 17.1 (2011): pp-10. doi: 10.14806/ej.17.1.200.
+
