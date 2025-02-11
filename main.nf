@@ -1130,6 +1130,115 @@ process itsx {
     """
 }
 
+// Collect all ITS parts extracted by ITSx
+process itsx_collect {
+
+    label "main_container"
+
+    publishDir "${out_3_itsxp}", mode: "${params.storagemode}"
+    // cpus 1
+
+    input:
+      path(itsx_full, stageAs: "full/*")
+      path(itsx_ssu,  stageAs: "ssu/*")
+      path(itsx_its1, stageAs: "its1/*")
+      path(itsx_58s,  stageAs: "58s/*")
+      path(itsx_its2, stageAs: "its2/*")
+      path(itsx_lsu,  stageAs: "lsu/*")
+      path(itsx_ssu_part,  stageAs: "ssu_partial/*")
+      path(itsx_its1_part, stageAs: "its1_partial/*")
+      path(itsx_58s_part,  stageAs: "58s_partial/*")
+      path(itsx_its2_part, stageAs: "its2_partial/*")
+      path(itsx_lsu_part,  stageAs: "lsu_partial/*")
+
+    output:
+      path "ITS_Full.fasta.gz", emit: full, optional: true 
+      path "SSU.fasta.gz",      emit: ssu,  optional: true 
+      path "ITS1.fasta.gz",     emit: its1, optional: true 
+      path "5_8S.fasta.gz",     emit: s58,  optional: true 
+      path "ITS2.fasta.gz",     emit: its2, optional: true 
+      path "LSU.fasta.gz",      emit: lsu,  optional: true 
+      path "SSU_full_and_partial.fasta.gz",  emit: ssu_part,  optional: true 
+      path "ITS1_full_and_partial.fasta.gz", emit: its1_part, optional: true 
+      path "5_8S_full_and_partial.fasta.gz", emit: s58_part,  optional: true 
+      path "ITS2_full_and_partial.fasta.gz", emit: its2_part, optional: true 
+      path "LSU_full_and_partial.fasta.gz",  emit: lsu_part,  optional: true 
+    
+    script:
+    """
+    # Check if each sub-dir has files with rRNA regions, then concatenate
+
+    if [[ ! -n \$(find ./full -name NOFULL) ]]; then
+      echo -e "Pooling full ITS"
+      find full -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> ITS_Full.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./ssu -name NOSSU) ]]; then
+      echo -e "Pooling SSU"
+      find ssu -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> SSU.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./its1 -name NOITS1) ]]; then
+      echo -e "Pooling ITS1"
+      find its1 -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> ITS1.fasta.gz
+    fi
+    
+    if [[ ! -n \$(find ./58s -name NO58S) ]]; then
+      echo -e "Pooling 5.8S"
+      find 58s -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> 5_8S.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./its2 -name NOITS2) ]]; then
+      echo -e "Pooling ITS2"
+      find its2 -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> ITS2.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./lsu -name NOLSU) ]]; then
+      echo -e "Pooling LSU"
+      find lsu -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> LSU.fasta.gz
+    fi
+
+    ##### Full and partial sequences #####
+
+    if [[ ! -n \$(find ./ssu_partial -name NOSSUPART) ]]; then
+      echo -e "Pooling SSU partial sequences"
+      find ssu_partial -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> SSU_full_and_partial.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./its1_partial -name NOITS1PART) ]]; then
+      echo -e "Pooling ITS1 partial sequences"
+      find its1_partial -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> ITS1_full_and_partial.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./58s_partial -name NO58SPART) ]]; then
+      echo -e "Pooling 5.8S partial sequences"
+      find 58s_partial -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> 5_8S_full_and_partial.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./its2_partial -name NOITS2PART) ]]; then
+      echo -e "Pooling ITS2 partial sequences"
+      find its2_partial -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> ITS2_full_and_partial.fasta.gz
+    fi
+
+    if [[ ! -n \$(find ./lsu_partial -name NOLSUPART) ]]; then
+      echo -e "Pooling LSU partial sequences"
+      find lsu_partial -name "*.fasta.gz" \
+        | parallel -j1 "cat {}" >> LSU_full_and_partial.fasta.gz
+    fi
+
+    echo -e "\n..Done"
+    """
+}
 
 
 // Trim primers (do not extract ITS)
