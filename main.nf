@@ -1805,7 +1805,7 @@ process pool_seqs {
     label "main_container"
     
     publishDir "${out_6_tj}", mode: "${params.storagemode}"
-    // cpus 3
+    // cpus 2
 
     input:
       path input
@@ -2409,7 +2409,7 @@ process read_counts {
 
     publishDir "${out_8_smr}",                 mode: "${params.storagemode}", pattern: "*.xlsx"
     publishDir "${out_8_smr}/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
-    // cpus 5
+    // cpus 4
 
     input:
       path(input_fastq, stageAs: "1_input/*")
