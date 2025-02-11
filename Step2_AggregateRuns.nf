@@ -131,6 +131,18 @@ process dereplication {
     script:
     def minlen = params.ampliconlen_min ? "--minseqlength ${params.ampliconlen_min}" : ""
     def maxlen = params.ampliconlen_max ? "--maxseqlength ${params.ampliconlen_max}" : ""
+
+    // Calculate optimal number of threads
+    def maxPigzThreads = 8  // Maximum threads per pigz instance
+    def totalCPUs = task.cpus
+    
+    // Try to maximize CPUs per pigz while ensuring full CPU utilization
+    def pigzCPUs = Math.min(maxPigzThreads, Math.ceil(Math.sqrt(totalCPUs * 2)).intValue())
+    def parallelJobs = Math.max(1, Math.floor(totalCPUs / pigzCPUs).intValue())
+    
+    // Recalculate pigzCPUs to use all available CPUs
+    pigzCPUs = Math.min(maxPigzThreads, Math.floor(totalCPUs / parallelJobs).intValue())
+
     """
     echo -e "Dereplicating sequences\n"
 
@@ -153,8 +165,8 @@ process dereplication {
 
     ## Compress results
     echo -e "\nCompressing results"
-    parallel -j 1 \
-      "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
+    parallel -j ${parallelJobs} \
+      "pigz -p ${pigzCPUs} -${params.gzip_compression} {}" \
       ::: "Dereplicated.uc" "Dereplicated.fa"
 
     """
