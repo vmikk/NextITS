@@ -1951,7 +1951,7 @@ process otu_clust {
 
     ## Compress UC file
     echo -e "\nCompressing UC file"
-    gzip -${params.gzip_compression} OTUs.uc
+    pigz -p ${task.cpus} -${params.gzip_compression} OTUs.uc
 
     """
 }
