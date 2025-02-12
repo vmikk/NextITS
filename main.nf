@@ -414,6 +414,8 @@ process demux {
       path "LIMA/lima.lima.report.gz", emit: lima_report
       path "LIMA/lima.lima.counts",    emit: lima_counts
       path "LIMA/lima.lima.summary",   emit: lima_summary
+      tuple val("${task.process}"), val('lima'), eval('lima --version | head -n 1 | sed "s/lima //"'), topic: versions
+      tuple val("${task.process}"), val('brename'), eval('brename --help | head -n 4 | tail -1 | sed "s/Version: //"'), topic: versions
 
     script:
     """
