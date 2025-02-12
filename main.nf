@@ -24,6 +24,8 @@ nextflow.enable.dsl = 2
 // Enable topic channels
 nextflow.preview.topic = true
 
+// Include the software version parser function
+include { software_versions_to_yaml } from './modules/version_parser.nf'
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
