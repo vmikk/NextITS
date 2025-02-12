@@ -21,6 +21,10 @@
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
+// Enable topic channels
+nextflow.preview.topic = true
+
+
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
 
@@ -236,6 +240,7 @@ process bam2fastq {
 
     output:
       path "*.fastq.gz", emit: fastq, optional: false
+      tuple val("${task.process}"), val('bam2fastq'), eval('bam2fastq --version | head -n 1 | sed "s/bam2fastq //"'), topic: versions
 
     script:
     """
