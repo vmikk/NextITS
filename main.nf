@@ -1126,7 +1126,41 @@ process itsx {
       ${sampID}_hash_table.txt \
       ${sampID}_uc.uc \
       *.fasta
-    
+
+    ## Convert ITSx output to Parquet
+    if [ ${params.ITSx_to_parquet} == true ]; then
+
+      echo -e "\nConverting ITSx output to Parquet"
+      mkdir -p parquet
+
+      if [ -f ${sampID}.full.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.full.fasta.gz -o parquet/${sampID}.full.parquet
+      fi
+
+      if [ -f ${sampID}.SSU.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.SSU.fasta.gz -o parquet/${sampID}.SSU.parquet
+      fi
+
+      if [ -f ${sampID}.ITS1.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.ITS1.fasta.gz -o parquet/${sampID}.ITS1.parquet
+      fi
+
+      if [ -f ${sampID}.5_8S.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.5_8S.fasta.gz -o parquet/${sampID}.5_8S.parquet
+      fi
+
+      if [ -f ${sampID}.ITS2.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.ITS2.fasta.gz -o parquet/${sampID}.ITS2.parquet
+      fi
+
+      if [ -f ${sampID}.LSU.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.LSU.fasta.gz -o parquet/${sampID}.LSU.parquet
+      fi
+
+      echo -e "Parquet files created\n"
+
+    fi
+
     echo -e "..Done"
     """
 }
