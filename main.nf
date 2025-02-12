@@ -24,8 +24,13 @@ nextflow.enable.dsl = 2
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
 
-//  Validate & print parameter summary
+// Validate & print parameter summary
+// NB! works only with old schema (`everit-json-schema` library doesn't support JSON Schema draft-2020-12)
 WorkflowMain.initialise(workflow, params, log)
+
+// Include the pipeline initialisation subworkflow
+// requires newer nf-core template and schema
+// include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_NextITS_pipeline'
 
 
 
