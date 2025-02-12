@@ -29,7 +29,8 @@
           "type": "string",
           "format": "directory-path",
           "description": "Path to the directory where the analysis results will be saved.",
-          "fa_icon": "fas fa-folder-open"
+          "fa_icon": "fas fa-folder-open",
+          "default": "results"
         }
       }
     },
@@ -161,12 +162,14 @@
         "primer_foverlap": {
           "type": "integer",
           "fa_icon": "fas fa-angle-right",
-          "description": "Minimum overlap for the forward primer."
+          "description": "Minimum overlap for the forward primer.",
+          "default": 15
         },
         "primer_roverlap": {
           "type": "integer",
           "fa_icon": "fas fa-angle-left",
-          "description": "Minimum overlap for the reverse primer."
+          "description": "Minimum overlap for the reverse primer.",
+          "default": 15
         }
       },
       "fa_icon": "fas fa-crop-alt"
@@ -261,7 +264,9 @@
       "properties": {
         "chimera_db": {
           "type": "string",
-          "fa_icon": "fas fa-database"
+          "fa_icon": "fas fa-database",
+          "default": "Eukaryome_1.9.3_241222_FullITS_100-800.udb",
+          "description": "Database for refrence-based chimera removal"
         },
         "chimera_rescueoccurrence": {
           "type": "integer",
@@ -292,7 +297,8 @@
           "default": 8
         }
       },
-      "fa_icon": "fas fa-trash-alt"
+      "fa_icon": "fas fa-trash-alt",
+      "required": ["chimera_db"]
     },
     "tag_jump_removal": {
       "title": "Tag-jump removal",
@@ -359,13 +365,18 @@
           "type": "integer",
           "default": 0,
           "fa_icon": "fas fa-arrows-alt-h"
+        },
+        "ITSx_to_parquet": {
+          "type": "boolean",
+          "default": true,
+          "fa_icon": "fas fa-database"
         }
       }
     },
     "homopolymer_correction": {
       "title": "Homopolymer correction",
       "type": "object",
-      "description": "",
+      "description": "Correction of homopolymer errors",
       "default": "",
       "properties": {
         "hp": {
@@ -391,16 +402,18 @@
     "step_2_options": {
       "title": "Step 2 options",
       "type": "object",
-      "description": "",
+      "description": "Global dereplication, denoizing, and clustering",
       "default": "",
       "properties": {
         "data_path": {
           "type": "string",
           "format": "directory-path",
           "fa_icon": "fas fa-folder-open",
-          "description": "Path to the Step-1 results."
+          "description": "Path to the Step-1 results.",
+          "default": "Step1_Results"
         }
-      }
+      },
+      "fa_icon": "fab fa-draft2digital"
     },
     "generic_options": {
       "title": "Generic options",
@@ -434,27 +447,6 @@
           "type": "boolean",
           "fa_icon": "far fa-question-circle"
         },
-        "email": {
-          "type": "string",
-          "description": "Email address for completion summary.",
-          "fa_icon": "fas fa-envelope",
-          "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
-          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
-        },
-        "email_on_fail": {
-          "type": "string",
-          "description": "Email address for completion summary, only when pipeline fails.",
-          "fa_icon": "fas fa-exclamation-triangle",
-          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$",
-          "help_text": "An email address to send a summary email to when the pipeline is completed - ONLY sent if the pipeline does not exit successfully.",
-          "hidden": true
-        },
-        "plaintext_email": {
-          "type": "boolean",
-          "description": "Send plain-text email instead of HTML.",
-          "fa_icon": "fas fa-remove-format",
-          "hidden": true
-        },
         "monochrome_logs": {
           "type": "boolean",
           "description": "Do not use coloured log outputs.",
@@ -470,7 +462,7 @@
         },
         "tracedir": {
           "type": "string",
-          "default": "results/pipeline_info"
+          "fa_icon": "fas fa-folder-minus"
         },
         "show_hidden_params": {
           "type": "boolean",
@@ -478,13 +470,9 @@
           "help_text": "By default, parameters set as _hidden_ in the schema are not shown on the command line when a user runs with `--help`. Specifying this option will tell the pipeline to show all parameters.",
           "fa_icon": "fas fa-eye-slash"
         },
-        "enable_conda": {
-          "type": "boolean",
-          "fa_icon": "fas fa-adjust"
-        },
         "max_cpus": {
           "type": "integer",
-          "default": 8,
+          "default": 40,
           "fa_icon": "fas fa-microchip",
           "description": "Maximum number of CPUs that can be requested (for any single job).",
           "help_text": "Use to set an upper-limit for the CPU requirement for each process. Should be an integer e.g. `--max_cpus 1`",
@@ -493,7 +481,7 @@
         },
         "max_memory": {
           "type": "string",
-          "default": "32.GB",
+          "default": "132.GB",
           "fa_icon": "fas fa-memory",
           "description": "Maximum amount of memory that can be requested (for any single job).",
           "pattern": "^\\d+(\\.\\d+)?\\.?\\s*(K|M|G|T)?B$",
@@ -509,6 +497,42 @@
         },
         "schema_ignore_params": {
           "type": "string"
+        }
+      }
+    },
+    "uncategorized_unused": {
+      "title": "Uncategorized/Unused",
+      "type": "object",
+      "description": "",
+      "default": "",
+      "fa_icon": "fas fa-unlink",
+      "properties": {
+        "enable_conda": {
+          "type": "boolean",
+          "fa_icon": "fas fa-adjust",
+          "hidden": true
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address for completion summary.",
+          "fa_icon": "fas fa-envelope",
+          "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
+          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$",
+          "hidden": true
+        },
+        "email_on_fail": {
+          "type": "string",
+          "description": "Email address for completion summary, only when pipeline fails.",
+          "fa_icon": "fas fa-exclamation-triangle",
+          "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$",
+          "help_text": "An email address to send a summary email to when the pipeline is completed - ONLY sent if the pipeline does not exit successfully.",
+          "hidden": true
+        },
+        "plaintext_email": {
+          "type": "boolean",
+          "description": "Send plain-text email instead of HTML.",
+          "fa_icon": "fas fa-remove-format",
+          "hidden": true
         }
       }
     }
