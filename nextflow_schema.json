@@ -1,10 +1,10 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/vmikk/NextITS/main/nextflow_schema.json",
   "title": "NextITS pipeline parameters",
   "description": "Pipeline to process fungal ITS amplicons sequenced with PacBio",
   "type": "object",
-  "definitions": {
+  "$defs": {
     "input_output_options": {
       "title": "Input/output options",
       "type": "object",
@@ -515,37 +515,40 @@
   },
   "allOf": [
     {
-      "$ref": "#/definitions/input_output_options"
+      "$ref": "#/$defs/input_output_options"
     },
     {
-      "$ref": "#/definitions/demultiplexing"
+      "$ref": "#/$defs/demultiplexing"
     },
     {
-      "$ref": "#/definitions/quality_control"
+      "$ref": "#/$defs/quality_control"
     },
     {
-      "$ref": "#/definitions/primer_trimming"
+      "$ref": "#/$defs/primer_trimming"
     },
     {
-      "$ref": "#/definitions/illumina_specific_parameters"
+      "$ref": "#/$defs/illumina_specific_parameters"
     },
     {
-      "$ref": "#/definitions/chimera_removal"
+      "$ref": "#/$defs/chimera_removal"
     },
     {
-      "$ref": "#/definitions/tag_jump_removal"
+      "$ref": "#/$defs/tag_jump_removal"
     },
     {
-      "$ref": "#/definitions/its_extraction"
+      "$ref": "#/$defs/its_extraction"
     },
     {
-      "$ref": "#/definitions/homopolymer_correction"
+      "$ref": "#/$defs/homopolymer_correction"
     },
     {
-      "$ref": "#/definitions/step_2_options"
+      "$ref": "#/$defs/step_2_options"
     },
     {
-      "$ref": "#/definitions/generic_options"
+      "$ref": "#/$defs/generic_options"
+    },
+    {
+      "$ref": "#/$defs/uncategorized_unused"
     }
   ]
 }
