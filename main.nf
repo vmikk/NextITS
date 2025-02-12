@@ -3321,6 +3321,15 @@ workflow {
       } // end of read_counts for PacBio
 
 
+  // Dump the software versions to a file
+  software_versions_to_yaml(Channel.topic('versions'))
+      .collectFile(
+          storeDir: "${params.outdir}/pipeline_info",
+          name:     'software_versions.yml',
+          sort:     true,
+          newLine:  true
+      )
+
 }
 
 
