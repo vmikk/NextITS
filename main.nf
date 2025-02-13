@@ -1006,6 +1006,7 @@ process itsx {
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS2.full_and_partial.fasta.gz", emit: itsx_its2_part, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.LSU.full_and_partial.fasta.gz",  emit: itsx_lsu_part,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_primertrimmed_sorted.fq.gz",     emit: trimmed_seqs,   optional: true
+      path "parquet/*.parquet", emit: parquet, optional: true
 
     script:
     
