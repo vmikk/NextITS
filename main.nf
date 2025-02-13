@@ -3373,7 +3373,7 @@ workflow {
   // Dump the software versions to a file
   software_versions_to_yaml(Channel.topic('versions'))
       .collectFile(
-          storeDir: "${params.outdir}/pipeline_info",
+          storeDir: "${params.tracedir}",
           name:     'software_versions.yml',
           sort:     true,
           newLine:  true
