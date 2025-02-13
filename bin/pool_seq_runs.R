@@ -5,11 +5,10 @@
 ## 
 
 # Input:
-#   1. UC file from global dereplication  (`Dereplicated.uc.gz`)
-#   2. UC file from clustering            (`Clustered.uc.gz`)
-#   3. FASTA file with OTU sequences      (`Clustered.fa.gz`)
-#   4. Max MEEP score
-#   5. Max de novo chimera score
+#   1. UC file                         (`UC_Pooled.parquet`)
+#   2. FASTA file with OTU sequences   (`Clustered.fa.gz`)
+#   3. Max MEEP score
+#   4. Max de novo chimera score
 
 # Outputs:
 #  - OTU table in long format    (`OTU_table_long.txt.gz` & `OTU_table_long.RData`)
@@ -18,9 +17,7 @@
 
 ## Usage:
 # ./pool_seq_runs.R \
-#    --ucderep "Dereplicated.uc.gz" \
-#    --ucpreclust "NoPrecluster" \
-#    --ucclust "Clustered.uc.gz" \
+#    --uc   "UC_Pooled.parquet" \
 #    --otus "Clustered.fa.gz" \
 #    --maxmeep 0.5 \
 #    --maxchim 0.6 \
@@ -38,6 +35,9 @@
 # was observed in the other samples, it will be recovered
 
 
+## TO DO:
+# - load sequence tables (TAB) in parallel
+
 
 ############################################## Parse input parameters
 
@@ -51,9 +51,7 @@ suppressPackageStartupMessages(require(optparse))
 
 ## Parse arguments
 option_list <- list(
-  make_option("--ucderep", action="store", default=NA,  type='character', help="UC file from global dereplication"),
-  make_option("--ucpreclust", action="store", default="NoPrecluster",  type='character', help="UC file from pre-clustering (optional; use 'NoPrecluster' to disable this step)"),
-  make_option("--ucclust", action="store", default=NA,  type='character', help="UC file from clustering"),
+  make_option("--uc",      action="store", default=NA,  type='character', help="UC file (Parquet format)"),
   make_option("--otus",    action="store", default=NA,  type='character', help="FASTA file with OTU sequences"),
   make_option("--maxmeep", action="store", default=0.5, type='double', help="Max MEEP score"),
   make_option("--maxchim", action="store", default=0.6, type='double', help="Max de novo chimera score"),
@@ -68,14 +66,19 @@ option_list <- list(
 )
 opt <- parse_args(OptionParser(option_list=option_list))
 
+## Function to convert text "NA"s to NA
+to_na <- function(x){
+  if(x %in% c("NA", "null", "Null")){ x <- NA }
+  return(x)
+}
+
+## Replaces "null"s from Nextflow with NA
+opt <- lapply(X = opt, FUN = to_na)
+
 
 ## Validation of the required argiments
-if(is.na(opt$ucderep)){
-  cat("Input file is not specified: UC file from global dereplication.\n", file=stderr())
-  stop()
-}
-if(is.na(opt$ucclust)){
-  cat("Input file is not specified: UC file from clustering.\n", file=stderr())
+if(is.na(opt$uc)){
+  cat("Input file is not specified: UC file is required.\n", file=stderr())
   stop()
 }
 if(is.na(opt$otus)){
@@ -83,18 +86,10 @@ if(is.na(opt$otus)){
   stop()
 }
 
-## Function to convert text "NA"s to NA
-to_na <- function(x){ 
-  if(x %in% c("NA", "null", "Null")){ x <- NA }
-  return(x)
-}
-
 ## Assign variables
-UCDEREP    <- to_na( opt$ucderep )
-UCPRECLUST <- to_na( opt$ucpreclust )
-UCCLUST    <- to_na( opt$ucclust )
-MAXMEEP    <- as.numeric( to_na( opt$maxmeep ) )
-MAXCHIM    <- as.numeric( to_na( opt$maxchim ) )
+UCF        <- opt$uc
+MAXMEEP    <- as.numeric( opt$maxmeep )
+MAXCHIM    <- as.numeric( opt$maxchim )
 
 RECOV_DENOVO  <- as.logical(opt$recoverdenovo)
 RECOV_SINGLET <- as.logical(opt$recoversinglet)
@@ -105,16 +100,14 @@ CPUTHREADS <- as.numeric( opt$threads )
 # SCRIPTDIR  <- opt$scriptdir
 
 ## Log assigned variables
-cat(paste("UC file from global dereplication: ", UCDEREP, "\n", sep=""))
-cat(paste("UC file from pre-clustering or denoising: ", UCPRECLUST, "\n", sep=""))
-cat(paste("UC file from clustering: ",           UCCLUST, "\n", sep=""))
-cat(paste("Max MEEP score: ",                    MAXMEEP, "\n", sep=""))
-cat(paste("Max de novo chimera score: ",         MAXCHIM, "\n", sep=""))
-cat(paste("De novo chimera recovery: ",          RECOV_DENOVO,  "\n", sep=""))
-cat(paste("Low-quality singleton recovery: ",    RECOV_SINGLET, "\n", sep=""))
-cat(paste("Merge sample replicates: ",           MERGE_SAMPLES, "\n", sep=""))
-cat(paste("OTU sequences: ",                     OTUS,          "\n", sep=""))
-cat(paste("Number of CPU threads to use: ",      CPUTHREADS,    "\n", sep=""))
+cat(paste("UC file (Parquet format): ",       UCF,           "\n", sep=""))
+cat(paste("Max MEEP score: ",                 MAXMEEP,       "\n", sep=""))
+cat(paste("Max de novo chimera score: ",      MAXCHIM,       "\n", sep=""))
+cat(paste("De novo chimera recovery: ",       RECOV_DENOVO,  "\n", sep=""))
+cat(paste("Low-quality singleton recovery: ", RECOV_SINGLET, "\n", sep=""))
+cat(paste("Merge sample replicates: ",        MERGE_SAMPLES, "\n", sep=""))
+cat(paste("OTU sequences: ",                  OTUS,          "\n", sep=""))
+cat(paste("Number of CPU threads to use: ",   CPUTHREADS,    "\n", sep=""))
 # cat(paste("Directory containing source scripts: ", SCRIPTDIR, "\n", sep=""))
 
 cat("\n")
@@ -123,9 +116,7 @@ cat("\n")
 
 ############################################## Data for debugging
 
-# UCDEREP       <- "Dereplicated.uc.gz"
-# UCCLUST       <- "Clustered.uc.gz"
-# UCPRECLUST    <- "NoPrecluster"         # UNOISE.uc.gz"
+# UCF           <- "UC_Pooled.parquet"
 # MAXMEEP       <- 0.5
 # MAXCHIM       <- 0.6
 # RECOV_DENOVO  <- TRUE
@@ -148,6 +139,8 @@ load_pckg("data.table")
 load_pckg("plyr")
 load_pckg("metagMisc")
 load_pckg("Biostrings")
+load_pckg("arrow")
+
 
 cat("\n")
 
@@ -159,8 +152,8 @@ cat("\n")
 
 ## Set CPU thread number
 cat("Setting number of CPU threads to: ", CPUTHREADS, "\n")
-setDTthreads(threads = CPUTHREADS)  # for data.table
-
+setDTthreads(threads = CPUTHREADS)     # for data.table
+set_cpu_count(CPUTHREADS)              # for arrow
 
 ######################################
 ###################################### Load the data
@@ -179,26 +172,9 @@ cat("... Total number unique sequences: ",       length(unique(TAB$Sequence)), "
 cat("... Total number unique samples (files): ", length(unique(TAB$SampleID)), "\n")
 
 ## Load UC file for globally dereplicated sequences
-cat("..Loading dereplication UC file\n")
-UCA <- metagMisc::parse_uc(x = UCDEREP, map_only = TRUE)
-UCA <- unique(UCA)
-colnames(UCA) <- c("SeqID", "DerepID")
+cat("..Loading pooled UC file\n")
+UC <- open_dataset(UCF) |> dplyr::collect() |> setDT()
 
-## Load UC file for pre-clustering or denoising (e.g., UNOISE) - optional
-cat("..Loading pre-clustering or denoising UC file\n")
-if(UCPRECLUST %in% "NoPrecluster"){
-  cat("...No file provided, skipping this step\n")
-} else {
-  UCP <- metagMisc::parse_uc(x = UCPRECLUST, map_only = TRUE)
-  UCP <- unique(UCP)
-  colnames(UCP) <- c("DerepID", "PreclusterID")
-}
-
-## Load UC file for clustered sequences (OTUs / SWARM clusters / UNOISE)
-cat("..Loading clustering UC file\n")
-UCO <- metagMisc::parse_uc(x = UCCLUST, map_only = TRUE)
-UCO <- unique(UCO)
-colnames(UCO) <- c("DerepID", "OTU")
 
 ## Filter sequences by the max number of expected error per 100bp (MEEP)
 if(!is.na(MAXMEEP)){
@@ -301,38 +277,14 @@ if(!is.na(MAXCHIM)){
 } # end of MAXCHIM filtering
 
 
-## Prepare sequence IDs without pre-clustering or denoising
-if(UCPRECLUST %in% "NoPrecluster"){
-  
-  ## Prepare OTU IDs
-  cat("..Preparing OTU IDs [no pre-clustering or denoising ]\n")
-  UCA <- merge(x = UCA, y = UCO, by = "DerepID", all.x = TRUE)
 
-  ## Add OTU IDs to seq table
-  cat("... Adding OTU IDs to sequence table\n")
-  cat(".... Number of records in sequence table before merging: ", nrow(TAB), "\n")
-  TAB <- merge(x = TAB, y = UCA, by = "SeqID", all.x = TRUE)
-  cat(".... Number of records in sequence table after merging: ",  nrow(TAB), "\n")
+## Add OTU IDs to seq table
+cat("... Adding OTU IDs to sequence table\n")
+cat(".... Number of records in sequence table before merging: ", nrow(TAB), "\n")
 
-} else {
+TAB <- merge(x = TAB, y = UC, by = "SeqID", all.x = TRUE)
 
-  ## Prepare OTU IDs
-  cat("..Preparing OTU IDs [with pre-clustering or denoising ]\n")
-  
-  cat("... Adding pre-cluster or denoised IDs\n")
-  UCA <- merge(x = UCA, y = UCP, by = "DerepID", all.x = TRUE)
-
-  cat("... Adding clustering IDs\n")
-  UCA <- merge(x = UCA, y = UCO, by.x = "PreclusterID", by.y = "DerepID", all.x = TRUE)
-
-  cat(".... Number of sequences without OTU ID: ", sum(is.na(UCA$OTU)), "\n")
-
-  cat("... Adding OTU IDs to sequence table\n")
-  cat(".... Number of records in sequence table before merging: ", nrow(TAB), "\n")
-  TAB <- merge(x = TAB, y = UCA, by = "SeqID", all.x = TRUE)
-  cat(".... Number of records in sequence table after merging: ",  nrow(TAB), "\n")
-
-}
+cat(".... Number of records in sequence table after merging: ",  nrow(TAB), "\n")
 
 
 
