@@ -4,9 +4,6 @@
 
 ## To do:
 #  - add HMM profile ID if ITSx was used
-#  - export data in Excel format? (if table is not too large)
-#  - compress output tabs?
-
 
 # Input is given as positional arguments:
 #   1. non-filtered Seq table   (`Seq_tab_not_filtered.txt.gz`)
@@ -19,50 +16,117 @@
 # Outputs:
 #  - FASTA with filtered Seqs       `Seqs.fa.gz`
 #  - Seq table in long format       `Seqs.txt.gz`  (with additional sequence info)
-#  - Seq table in wide format       `Seq_tab.txt.gz`
-#  - Data in R-serialization format `Seqs.RData`
+#  - Data in Parquet format         `Seqs.parquet`
+#  - Seq table in wide format       `Seq_tab.txt.gz` -- deprecated
+#  - Data in R-serialization format `Seqs.RData`     -- deprecated
 
 
-args <- commandArgs(trailingOnly = TRUE)
+## Function to load packages
+load_pckg <- function(pkg = "data.table"){
+    suppressPackageStartupMessages( library(package = pkg, character.only = TRUE) )
+    cat(".. ", paste(pkg, packageVersion(pkg), "\n"))
+}
+
+cat("Loading packages:\n")
+
+load_pckg("optparse")
+load_pckg("data.table")
+load_pckg("Biostrings")
+load_pckg("plyr")
+load_pckg("arrow")
+# load_pckg("dplyr")
+# load_pckg("openxlsx")
+
+
+cat("Parsing input options and arguments...\n")
+
+option_list <- list(
+  make_option("--seqtab",  action="store", default=NA, type='character', help = "Non-filtered sequence table (tab-delimited)"),
+  make_option("--fasta",   action="store", default=NA, type='character', help = "Sequences in FASTA format"),
+  make_option("--mapping", action="store", default=NA, type='character', help = "Sequence mapping to OTUs (UC format)"),
+  make_option("--tagjump", action="store", default=NA, type='character', help = "Tag-jumped OTU list (RData format)"),
+  make_option("--chimera", action="store", default=NA, type='character', help = "De novo chimera scores"),
+  make_option("--quality", action="store", default=NA, type='character', help = "Sequence qualities (Parquet format)"),
+  make_option("--threads", action="store", default=4,  type='integer',   help = "Number of CPU threads to use")
+)
+
+opt <- parse_args(OptionParser(option_list=option_list))
+
+## Function to convert text "NA"s to NA
+to_na <- function(x){
+  if(x %in% c("NA", "null", "Null")){ x <- NA }
+  return(x)
+}
+
+## Replaces "null"s from Nextflow with NA
+opt <- lapply(X = opt, FUN = to_na)
+
+
+## Validation of the required arguments
+required_args <- c("seqtab", "fasta", "mapping", "tagjump", "quality")
+missing_args <- required_args[ sapply(required_args, function(x) is.na(opt[[x]])) ]
+if (length(missing_args) > 0) {
+  stop("Missing required arguments: ", paste(missing_args, collapse=", "))
+}
+
+## Assign variables
+SEQTAB  <- opt$seqtab
+FASTA   <- opt$fasta
+MAPPING <- opt$mapping
+TAGJUMP <- opt$tagjump
+CHIMERA <- opt$chimera
+QUALITY <- opt$quality
+CPUTHREADS <- as.numeric( opt$threads )
+
+## Log assigned variables
+cat(paste("Non-filtered sequence table: ",  SEQTAB,     "\n", sep=""))
+cat(paste("Sequences in FASTA format: ",    FASTA,      "\n", sep=""))
+cat(paste("Sequence mapping to OTUs: ",     MAPPING,    "\n", sep=""))
+cat(paste("Tag-jumped OTU list: ",          TAGJUMP,    "\n", sep=""))
+cat(paste("De novo chimera scores: ",       CHIMERA,    "\n", sep=""))
+cat(paste("Sequence qualities: ",           QUALITY,    "\n", sep=""))
+cat(paste("Number of CPU threads to use: ", CPUTHREADS, "\n", sep=""))
+
+cat("\n")
+
 
 ## Debug:
-# args <- c(
-#   "Seq_tab_not_filtered.txt.gz",
-#   "Seq_not_filtered.fa.gz",
-#   "Sample_mapping.uc.gz",
-#   "TagJump_OTUs.RData",
-#   "DeNovo_Chimera.txt",
-#   "SeqQualities.parquet"
-#   )
+# SEQTAB     <- "Seq_tab_not_filtered.txt.gz"
+# FASTA      <- "Seq_not_filtered.fa.gz"
+# MAPPING    <- "Sample_mapping.uc.gz"
+# TAGJUMP    <- "TagJump_OTUs.RData"
+# CHIMERA    <- "DeNovo_Chimera.txt"
+# QUALITY    <- "SeqQualities.parquet"
+# CPUTHREADS <- 4
 
-suppressMessages(library(data.table))
-suppressMessages(library(Biostrings))
-suppressMessages(library(plyr))
-suppressMessages(library(arrow))
-suppressMessages(library(openxlsx))
 
+## Set CPU thread number
+cat("\nSetting number of CPU threads to: ", CPUTHREADS, "\n")
+setDTthreads(threads = CPUTHREADS)     # for data.table
+set_cpu_count(CPUTHREADS)              # for arrow
 
 ######################################
 ###################################### Load the data
 ######################################
 
 ## Load sequnece table
-cat("..Loading non-filtered sequence table\n")
+cat("\n\n..Loading non-filtered sequence table\n")
+
 TAB <- fread(
-  file = args[1],
+  file = SEQTAB,
   sep = "\t", header = FALSE,
   col.names = c("SeqID", "Abundance", "SampleID"))
 
 
 ## Load sequences in fasta format
 cat("..Loading sequneces in FASTA format\n")
-SQS <- readDNAStringSet(filepath = args[2])
+SQS <- readDNAStringSet(filepath = FASTA)
 
 
-## Load sequence mapping to OTUs
+## Load sequence mapping to pre-clustered groups for tag-jump removal
 cat("..Loading sequence mapping table\n")
 MAP <- fread(
-  file = args[3],
+  file = MAPPING,
   header = FALSE, sep = "\t")
 
 MAP <- MAP[ V1 != "S" ]
@@ -75,7 +139,7 @@ MAP <- MAP[, .(SeqID, SampleID, OTU) ]
 
 ## Load list of tag-jumped OTUs
 cat("..Loading list of tag-jumped OTUs\n")
-JMP <- readRDS( args[4] )
+JMP <- readRDS( TAGJUMP )
 
 
 ## Load de novo chimera scores
@@ -83,7 +147,7 @@ cat("..Loading de novo chimera scores\n")
 
 CHI <- try(
   fread(
-    file = args[5],
+    file = CHIMERA,
     header = FALSE, sep = "\t",
     col.names = c("SeqID", "DeNovo_Chimera_Score", "SampleID"))
   )
@@ -99,22 +163,24 @@ if("try-error" %in% class(CHI)){
 
 ## Load sequence quality scores
 cat("..Loading sequence quality scores\n")
-QLT <- arrow::read_parquet(file = args[6])
-setDT(QLT)
-clz <- c("SampleID", "Hash", "Length", "AvgPhredScore", "MaxEE", "MEEP")
-QLT <- QLT[ , ..clz ]
+QLT <- arrow::open_dataset(QUALITY) |>
+  dplyr::select(Hash, Length, AvgPhredScore, MaxEE, MEEP) |>
+  dplyr::collect() |>
+  dplyr::filter(Hash %in% unique(TAB$SeqID)) |>
+  setDT()
+
 setnames(QLT,
   old = c("Hash", "Length", "AvgPhredScore"),
   new = c("SeqID", "SeqLen", "PhredScore"))
 
+## Quality data:
 # old header: c("SampleID", "SeqID", "SeqLen", "PhredScore", "MaxEE", "MEEP")
 # new header: c("SampleID", "Hash", "PacBioID", "PhredScore", "MaxEE", "MEEP", "Sequence", "Quality", "Length")
 
 
-
 ## Create SeqID___SampleID column
 TAB[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
-QLT[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
+# QLT[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
 MAP[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
 
 MAP[, c("SeqID", "SampleID") := NULL ]
@@ -123,7 +189,7 @@ MAP[, c("SeqID", "SampleID") := NULL ]
 ###################################### Remove tag-jumps
 ######################################
 
-cat("..Removing tag-jumped sequences\n")
+cat("\n\n..Removing tag-jumped sequences\n")
 
 if(nrow(JMP) > 0){
 
@@ -161,57 +227,21 @@ if(nrow(JMP) > 0){
 
 
 ######################################
-###################################### Add singleton qualities
+###################################### Add quality scores, for non-singleton use max score
 ######################################
 
-cat("..Looking for singleton sequences\n")
+cat("\n\n..Adding quality scores\n")
 
-## Find singletons
-cat("...Counting sequence occurrence\n")
-SNG <- TAB[ , .(Occurrence = .N), by = "SeqID" ]
-SNG <- SNG[ Occurrence < 2 ]$SeqID
+cat("...Prepareing quality scores\n")
+setorder(QLT, SeqID, -PhredScore)
+QLT <- QLT[QLT[, .I[which.max(PhredScore)], by=SeqID]$V1]
 
-cat("... ", length(SNG), " sequences with single occurrence found\n")
-
-## Remove non-singleton seqs from the quality table
-if(length(SNG) > 0){
-  cat("...Subsetting quality table\n")
-  
-  ## Remove sequences with multiple reads
-  dups <- QLT$SeqID___SampleID[ which(duplicated(QLT$SeqID___SampleID)) ]
-  if(length(dups) > 0){
-    QLT <- QLT[ ! SeqID___SampleID %in% dups ]
-  }
-
-  ## Keep only single-occurrence sequence
-  QLT <- QLT[ SeqID %in% SNG ]
-  QLT[ , SeqLen := NULL ]
+cat("...Adding data to the main table\n")
+if(any(! TAB$SeqID %in% QLT$SeqID)){
+  cat("WARNING: Some sequences are not present in the quality table\n")
 }
 
-## Add Phred scores to the main table
-if(nrow(QLT) > 0){
-
-cat("...Adding Phred-scores to the main table\n")
-TAB <- merge(x = TAB,
-  y = QLT[, .(SeqID___SampleID, PhredScore, MaxEE, MEEP) ],
-  by = c("SeqID___SampleID"), all.x = TRUE)
-
-## Remove scores for non-singleton sequences
-TAB[ Abundance > 1, PhredScore := NA ]
-TAB[ Abundance > 1, MaxEE := NA ]
-TAB[ Abundance > 1, MEEP := NA ]
-
-} else {
-## No singletons
-TAB[ , PhredScore := NA ]
-TAB[ , MaxEE      := NA ]
-TAB[ , MEEP       := NA ]
-}
-
-## Convert variables to numberic scores
-TAB[ , PhredScore := as.numeric(PhredScore) ]
-TAB[ , MaxEE      := as.numeric(MaxEE) ]
-TAB[ , MEEP       := as.numeric(MEEP) ]
+TAB <- merge(x = TAB, y = QLT, by = "SeqID", all.x = TRUE)
 
 # with(TAB, plot(Abundance, PhredScore))
 
@@ -254,7 +284,7 @@ if(nrow(CHI) > 0){
 ###################################### Add sequences
 ######################################
 
-cat("..Processing sequences\n")
+cat("\n\n..Processing sequences\n")
 
 SQTAB <- data.table(
   SeqHeader = names(SQS),
@@ -275,9 +305,9 @@ TAB <- merge(x = TAB, y = SQTAB,
   by = c("SeqID___SampleID"), all.x = TRUE)
 
 
-cat("..Sorting table by SampleID and number of reads per sequence\n")
+cat("..Sorting table by abundance, quality score, and SampleID\n")
 
-setorder(x = TAB, SampleID, -Abundance)
+setorder(x = TAB, -Abundance, -PhredScore, SampleID)
 
 
 cat("..Preparing FASTA file with filtered sequences\n")
@@ -299,35 +329,48 @@ writeXStringSet(x = SQF,
 ###################################### Export results
 ######################################
 
-cat("..Reshaping sequence table into wide format\n")
-
-TABW <- dcast(data = TAB,
-  formula = SeqID ~ SampleID, 
-  value.var = "Abundance",
-  fill = 0)
+# cat("..Reshaping sequence table into wide format\n")
+# 
+# TABW <- dcast(data = TAB,
+#   formula = SeqID ~ SampleID, 
+#   value.var = "Abundance",
+#   fill = 0)
 
 
 cat("..Exporting result\n")
 
-cat("...Exporting RData\n")
-saveRDS(object = TAB, file = "Seqs.RData", compress = "xz")
+setcolorder(
+  x = TAB,
+  neworder = c(
+    "SeqID___SampleID", "SampleID", "SeqID",
+    "Abundance", "SeqLen", "PhredScore", "MaxEE", "MEEP",
+    "DeNovo_Chimera", "DeNovo_Chimera_Score",
+    "Sequence"))
+
+# cat("...Exporting RData\n")
+# saveRDS(object = TAB, file = "Seqs.RData", compress = "xz")
+
+cat("...Exporting Parquet\n")
+
+write_parquet(
+  x    = TAB,
+  sink = "Seqs.parquet",
+  compression       = "zstd",
+  compression_level = 10,
+  use_dictionary    = TRUE)
+
 
 ## Long table
 cat("...Exporting long table\n")
 
 TAB[ , SeqID___SampleID := NULL ]
-setcolorder(
-  x = TAB,
-  neworder = c("SampleID", "SeqID", "Abundance",
-               "PhredScore", "MaxEE", "MEEP",
-               "DeNovo_Chimera", "DeNovo_Chimera_Score",
-               "Sequence"))
 
 fwrite(x = TAB, file = "Seqs.txt.gz", sep = "\t", compress = "gzip")
 
 ## Wide table
-cat("...Exporting wide table\n")
-fwrite(x = TABW, file = "Seq_tab.txt.gz", sep = "\t", compress = "gzip")
+# cat("...Exporting wide table\n")
+
+# fwrite(x = TABW, file = "Seq_tab.txt.gz", sep = "\t", compress = "gzip")
 
 
 cat("All done.")
