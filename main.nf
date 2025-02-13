@@ -2610,6 +2610,10 @@ process read_counts {
       path "Counts_7.ChimDenov.txt",            emit: counts_7_chimdenov,    optional: true
       path "Counts_8.ChimRecov_reads.txt",      emit: counts_8_chimrecov_r,  optional: true
       path "Counts_8.ChimRecov_uniqs.txt",      emit: counts_8_chimrecov_u,  optional: true
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+      tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
 
     script:
 
