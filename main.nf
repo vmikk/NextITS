@@ -2103,7 +2103,7 @@ process prep_seqtab {
     label "main_container"
 
     publishDir "${out_7_seq}", mode: "${params.storagemode}"
-    // cpus 1
+    // cpus 4
 
     input:
       path seqtabnf
@@ -2114,10 +2114,11 @@ process prep_seqtab {
       path quals
 
     output:
-      path "Seqs.txt.gz",    emit: seq_tl
-      path "Seq_tab.txt.gz", emit: seq_tw
-      path "Seqs.fa.gz",     emit: seq_fa
-      path "Seqs.RData",     emit: seq_rd
+      path "Seqs.parquet",      emit: seq_pq
+      path "Seqs.txt.gz",       emit: seq_tl   // long table
+      path "Seqs.fa.gz",        emit: seq_fa
+      // path "Seqs.RData",     emit: seq_rd   // deprecated
+      // path "Seq_tab.txt.gz", emit: seq_tw   // wide table
       tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
       tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
       tuple val("${task.process}"), val('arrow'), eval('Rscript -e "cat(as.character(packageVersion(\'arrow\')))"'),  topic: versions
@@ -2129,12 +2130,13 @@ process prep_seqtab {
     echo -e "Sequence table creation"
     
     seq_table_assembly.R \
-      ${seqtabnf} \
-      ${seqsnf}   \
-      ${mappings} \
-      ${tagjumps} \
-      ${denovos}  \
-      ${quals}
+      --seqtab  ${seqtabnf} \
+      --fasta   ${seqsnf}   \
+      --mapping ${mappings} \
+      --tagjump ${tagjumps} \
+      --chimera ${denovos}  \
+      --quality ${quals} \
+      --threads ${task.cpus}
 
     echo "..Done"
 
