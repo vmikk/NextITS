@@ -2111,7 +2111,10 @@ process prep_seqtab {
       path "Seq_tab.txt.gz", emit: seq_tw
       path "Seqs.fa.gz",     emit: seq_fa
       path "Seqs.RData",     emit: seq_rd
-
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
+      tuple val("${task.process}"), val('arrow'), eval('Rscript -e "cat(as.character(packageVersion(\'arrow\')))"'),  topic: versions
+      tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'),  topic: versions
 
     script:
     """
