@@ -3336,6 +3336,40 @@ workflow {
       } // end of read_counts for PacBio
 
 
+  // Collect ITSx-extracted sequences
+  if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU" || params.its_region == "ITS1_5.8S_ITS2"){
+
+    // Collect rRNA parts into separate channels
+    ch_cc_full = itsx.out.itsx_full.flatten().collect().ifEmpty(file("NOFULL"))
+    ch_cc_ssu  = itsx.out.itsx_ssu.flatten().collect().ifEmpty(file("NOSSU"))
+    ch_cc_its1 = itsx.out.itsx_its1.flatten().collect().ifEmpty(file("NOITS1"))
+    ch_cc_58s  = itsx.out.itsx_58s.flatten().collect().ifEmpty(file("NO58S"))
+    ch_cc_its2 = itsx.out.itsx_its2.flatten().collect().ifEmpty(file("NOITS2"))
+    ch_cc_lsu  = itsx.out.itsx_lsu.flatten().collect().ifEmpty(file("NOLSU"))
+    
+    ch_cc_ssu_part  = itsx.out.itsx_ssu_part.flatten().collect().ifEmpty(file("NOSSUPART"))
+    ch_cc_its1_part = itsx.out.itsx_its1_part.flatten().collect().ifEmpty(file("NOITS1PART"))
+    ch_cc_58s_part  = itsx.out.itsx_58s_part.flatten().collect().ifEmpty(file("NO58SPART"))
+    ch_cc_its2_part = itsx.out.itsx_its2_part.flatten().collect().ifEmpty(file("NOITS2PART"))
+    ch_cc_lsu_part  = itsx.out.itsx_lsu_part.flatten().collect().ifEmpty(file("NOLSUPART"))
+
+    itsx_collect(
+      ch_cc_full,
+      ch_cc_ssu,
+      ch_cc_its1,
+      ch_cc_58s,
+      ch_cc_its2,
+      ch_cc_lsu,
+      ch_cc_ssu_part,
+      ch_cc_its1_part,
+      ch_cc_58s_part,
+      ch_cc_its2_part,
+      ch_cc_lsu_part
+      )
+
+  }
+  
+  
   // Dump the software versions to a file
   software_versions_to_yaml(Channel.topic('versions'))
       .collectFile(
