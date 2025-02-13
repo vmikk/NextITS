@@ -115,6 +115,34 @@ if (params.preclustering == "none" && params.clustering == "none"){
 }
 
 
+// Aggregate sequences from all sequencing runs, remove de novo chimeras
+process aggregate_sequences {
+
+    label "main_container"
+
+    // cpus 6
+
+    input:
+      path(inputs, stageAs: "?/*")
+
+    output:
+      path "Seqs.fa.gz",   emit: seqs
+      path "Seqs.parquet", emit: seqs_parquet
+
+    script:
+    """
+    echo -e "Aggregating sequences\n"
+    
+    aggregate_sequences.R \
+      --seqtabs       . \
+      --maxchim       ${params.max_ChimeraScore} \
+      --recoverdenovo ${params.recover_denovochimeras} \
+      --output        Seqs \
+      --threads       ${task.cpus}
+
+    """
+}
+
 // Pool and dereplicate sequences from all sequencing runs
 process dereplication {
 
