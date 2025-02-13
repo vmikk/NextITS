@@ -1493,13 +1493,15 @@ process seq_qual {
       path "SeqQualities.parquet", emit: quals
 
     script:
+    def memoryArg = task.memory ? "-m ${task.memory.toMega()}.MB" : ""
     """
     echo -e "Aggregating sequence qualities"
 
     merge_hash_tables.sh \
       -i ./hash_tables \
       -o SeqQualities.parquet \
-      -t ${task.cpus}
+      -t ${task.cpus} \
+      ${memoryArg}
 
     echo -e "..Done"
     """
