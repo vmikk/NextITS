@@ -824,6 +824,12 @@ process primer_check {
     output:
       path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked, optional: true
       path "${input.getSimpleName()}_PrimerArtefacts.fq.gz", emit: primerartefacts, optional: true
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+      tuple val("${task.process}"), val('runiq'), eval('runiq --version | sed "s/runiq //"'), topic: versions
+      tuple val("${task.process}"), val('mlr'), eval('mlr --version | sed "s/mlr //"'), topic: versions
+      tuple val("${task.process}"), val('bedtools'), eval('bedtools --version | sed "s/bedtools v//"'), topic: versions
+      tuple val("${task.process}"), val('csvtk'), eval('csvtk version | sed "s/csvtk v//"'), topic: versions
+      tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
 
     script:
     """
