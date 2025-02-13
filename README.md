@@ -28,7 +28,6 @@ nextflow run vmikk/NextITS -r main \
   --primer_forward "GTACACACCGCCCGTCG" \
   --primer_reverse "CCTSCSCTTANTDATATGC" \
   --its_region     "full" \
-  --blast_taxdb    "false" \
   --outdir         "Results"
 ```
 
