@@ -32,7 +32,7 @@ include { software_versions_to_yaml } from './modules/version_parser.nf'
 params.data_path = "${launchDir}/Step1_Results"
 
 // Output directory
-params.outdir = "Step2"
+params.outdir = "Step2_Results"
 
 // Pool sample replicates (e.g., re-sequenced samples) in the final OTU table
 params.merge_replicates = false
