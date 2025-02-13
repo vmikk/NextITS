@@ -16,7 +16,8 @@ usage() {
     echo "  -i INPUTDIR    : Input directory with text files"
     echo "  -o OUTPUT      : Output Parquet file path"
     echo "  -t THREADS     : Number of CPU threads to use (optional)"
-    echo "  -z COMPRESSION: ZSTD compression level (0-22) (optional, default: 14)"
+    echo "  -m MEMORY      : Memory limit (e.g., '100GB') (optional)"
+    echo "  -z COMPRESSION : ZSTD compression level (0-22) (optional, default: 12)"
     exit 1
 }
 
@@ -24,14 +25,15 @@ usage() {
 INPUT=""
 OUTPUT=""
 THREADS=""
-COMPRESSION="14"
+MEMORY=""
 
 ## Parse command-line options
-while getopts "i:o:t:z:" opt; do
+while getopts "i:o:t:m:z:" opt; do
     case $opt in
         i) INPUT="$OPTARG" ;;
         o) OUTPUT="$OPTARG" ;;
         t) THREADS="$OPTARG" ;;
+        m) MEMORY="$OPTARG" ;;
         z) COMPRESSION="$OPTARG" ;;
         *) usage ;;
     esac
@@ -63,6 +65,9 @@ echo "Output file: $OUTPUT"
 if [[ -n "$THREADS" ]]; then
     echo "Threads: $THREADS"
 fi
+if [[ -n "$MEMORY" ]]; then
+    echo "Memory: $MEMORY"
+fi
 echo "Parquet compression level (ZSTD): $COMPRESSION"
 
 
@@ -75,6 +80,11 @@ SET threads TO ${THREADS};
 "
 fi
 
+if [[ -n "$MEMORY" ]]; then
+    SQL_COMMAND+="
+SET memory_limit = '${MEMORY}';
+"
+fi
 
 SQL_COMMAND+="
 COPY (
