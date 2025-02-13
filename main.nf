@@ -2049,8 +2049,8 @@ process otu_tab {
 
     ## Compress UC file
     echo -e "\nCompressing results"
-    gzip -${params.gzip_compression} OTU_tab_not_filtered.txt
-    gzip -${params.gzip_compression} Sample_mapping.uc
+    pigz -p ${task.cpus} -${params.gzip_compression} OTU_tab_not_filtered.txt
+    pigz -p ${task.cpus} -${params.gzip_compression} Sample_mapping.uc
 
     """
 }
