@@ -1505,6 +1505,7 @@ process seq_qual {
 
     output:
       path "SeqQualities.parquet", emit: quals
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | sed "s/^v//"'), topic: versions
 
     script:
     def memoryArg = task.memory ? "-m ${task.memory.toMega()}.MB" : ""
