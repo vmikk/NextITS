@@ -1,10 +1,11 @@
 # NextITS <img src='images/NextITS_logo.svg' align="right" height="70" />
 
-![GitHub (latest release)](https://img.shields.io/github/v/release/vmikk/NextITS?label=GitHub%20release)
+![GitHub (latest release)](https://img.shields.io/github/v/release/vmikk/NextITS?label=GitHub%20release&color=23aa62)
 [![Nextflow](https://img.shields.io/badge/Nextflow%20DSL2-%E2%89%A524.04-23aa62.svg)](https://www.nextflow.io/)
-[![Runs with singularity](https://img.shields.io/badge/Runs%20with-Singularity-blue?style=flat&logo=singularity)](https://sylabs.io/docs/)
-[![GitHub license](https://img.shields.io/github/license/vmikk/NextITS)](https://github.com/vmikk/NextITS/blob/main/LICENSE)
+[![GitHub license](https://img.shields.io/github/license/vmikk/NextITS)](https://github.com/vmikk/NextITS/blob/main/LICENSE)  
 
+[![Runs with singularity](https://img.shields.io/badge/Runs%20with-Singularity-blue?style=flat&logo=singularity)](https://sylabs.io/docs/)
+[![Runs with Docker](https://img.shields.io/badge/Runs%20with-Docker-blue?style=flat&logo=docker)](https://hub.docker.com/r/vmikk/nextits/tags)
 
 NextITS is an automated pipeline for metabarcoding fungi and other eukaryotes with full-length ITS sequenced with PacBio.
 Amplicons obtained with Illumina are also supported.
