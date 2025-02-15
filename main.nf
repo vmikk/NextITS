@@ -1822,6 +1822,7 @@ process chimera_denovo {
 
     output:
       path "${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}_DeNovoChim.txt", emit: denovochim, optional: true
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     sampID="${input.getSimpleName().replaceAll(/_Homopolymer_compressed/, '')}"
