@@ -1635,6 +1635,7 @@ process just_derep {
     output:
       path "${input.getSimpleName()}.fa.gz", emit: nhc, optional: true
       path "${input.getSimpleName()}_uch.uc.gz", emit: ucnh, optional: true
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     sampID="${input.getSimpleName()}"
