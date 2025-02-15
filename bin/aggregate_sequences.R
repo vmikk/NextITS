@@ -3,6 +3,10 @@
 ## Script to aggregate sequences from multiple runs into a single file (for dereplication and subsequent clustering)
 ## Also, performs removal of de novo chimeras with high scores (with option to recover sequences that occurred in multiple runs)
 
+## Do-novo chimera recovery:
+# if a sequence identified as putative chimera was observed in the other samples,
+# where there is no evidence that it is chimeric, it will be recovered
+
 
 ## Function to load packages
 load_pckg <- function(pkg = "data.table"){
@@ -64,7 +68,7 @@ cat(paste("CPU threads: ",               CPUTHREADS,   "\n", sep=""))
 cat("\n")
 
 ## Set CPU thread number
-cat("\nSetting number of CPU threads to: ", CPUTHREADS, "\n")
+cat("Setting number of CPU threads to: ", CPUTHREADS, "\n")
 setDTthreads(threads = CPUTHREADS)     # for data.table
 set_cpu_count(CPUTHREADS)              # for arrow
 
@@ -74,29 +78,31 @@ set_cpu_count(CPUTHREADS)              # for arrow
 ######################################
 
 ## Load sequence tables
-cat("..Looking for sequence tables\n")
+cat("\n..Looking for sequence tables\n")
 TABS <- list.files(path = SEQTABS, pattern = ".parquet", full.names = TRUE, recursive = TRUE)
 cat("... Tables found: ", length(TABS), "\n")
 
-cat("..Loading sequence tables\n")
+cat("\n..Loading sequence tables\n")
 TAB <- alply(.data = TABS, .margins = 1, .fun = function(x){
   res <- arrow::read_parquet(x)
   setDT(res)
   return(res)
 })
 TAB <- rbindlist(TAB, use.names = TRUE, fill = TRUE)
-cat("... Total number of records: ",             nrow(TAB), "\n")
-cat("... Total number unique sequences: ",       length(unique(TAB$Sequence)), "\n")
-cat("... Total number unique samples (files): ", length(unique(TAB$SampleID)), "\n")
+cat("... Total number of records: ",                   nrow(TAB), "\n")
+cat("... Total number unique sequences: ",             length(unique(TAB$Sequence)), "\n")
+cat("... Total number unique samples (fastq files): ", length(unique(TAB$SampleID)), "\n")
 
 
 ## Filter sequences by chimeric score (MAXCHIM)
 if(!is.na(MAXCHIM)){
 
-  cat("..Filtering data by max de novo chimera score\n")
+  cat("\n..Filtering data by max de novo chimera score\n")
   nrecs <- nrow(TAB)
   nabun <- sum(TAB$Abundance, na.rm = TRUE)
   
+  cat("... Max de novo chimera score observed: ", max(TAB$DeNovo_Chimera_Score, na.rm = TRUE), "\n")
+
   ## If no chimera recovery is required
   if(RECOV_DENOVO == FALSE){
 
@@ -138,7 +144,7 @@ if(!is.na(MAXCHIM)){
 } # end of MAXCHIM filtering
 
 
-cat("..Sorting table by abundance, quality score\n")
+cat("\n..Sorting table by abundance, quality score\n")
 setorder(x = TAB, -Abundance, -PhredScore, SeqID)
 
 cat("..Preparing FASTA file\n")
