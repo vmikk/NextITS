@@ -1903,6 +1903,7 @@ process glob_derep {
     output:
       path "Derep_for_clust.fa.gz", emit: globderep
       path "Derep_for_clust.uc.gz", emit: globderep_uc
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     """
