@@ -2184,6 +2184,7 @@ process demux_illumina_notmerged {
     output:
       tuple path("Combined/*.R1.fastq.gz"), path("Combined/*.R2.fastq.gz"), emit: demux_pe, optional: true
       path "NonMerged_samples.txt", emit: samples_nonm_pe, optional: true
+      tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
 
     script:
     """
