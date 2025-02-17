@@ -152,7 +152,7 @@ process dereplication {
     // cpus 8
 
     input:
-      path(inputs, stageAs: "?/*")
+      path seqs
 
     output:
       path "Dereplicated.fa.gz", emit: derep
@@ -176,20 +176,15 @@ process dereplication {
     """
     echo -e "Dereplicating sequences\n"
 
-    find . -name "*.fa.gz" | parallel -j1 \
-      "zcat {}" \
-      | sed '/^>/ s/;sample=.*;/;/' \
-      | vsearch --sortbysize - --sizein --output - \
-      | vsearch \
-        --derep_fulllength - \
-        --output - \
-        --strand both \
-        ${minlen} ${maxlen} \
-        --fasta_width 0 \
-        --threads 1 \
-        --sizein --sizeout \
-        --uc Dereplicated.uc \
-      > Dereplicated.fa
+    vsearch \
+      --derep_fulllength ${seqs} \
+      --output Dereplicated.fa \
+      --strand both \
+      ${minlen} ${maxlen} \
+      --fasta_width 0 \
+      --threads 1 \
+      --sizein --sizeout \
+      --uc Dereplicated.uc
 
     echo -e "..Dereplication finished\n"
 
