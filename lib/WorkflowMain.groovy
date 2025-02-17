@@ -24,7 +24,7 @@ class WorkflowMain {
     // Generate help string
     //
     public static String help(workflow, params) {
-        def command = "nextflow run ${workflow.manifest.name} --input samplesheet.csv --genome GRCh37 -profile docker"
+        def command = "nextflow run ${workflow.manifest.name}"
         def help_string = ''
         help_string += NfcoreTemplate.logo(workflow, params.monochrome_logs)
         help_string += NfcoreSchema.paramsHelp(workflow, params, command)
@@ -57,8 +57,7 @@ class WorkflowMain {
 
         // Print workflow version and exit on --version
         if (params.version) {
-            String workflow_version = NfcoreTemplate.version(workflow)
-            log.info "${workflow.manifest.name} ${workflow_version}"
+            log.info "${workflow.manifest.name} ${workflow.manifest.version}"
             System.exit(0)
         }
 
@@ -81,10 +80,10 @@ class WorkflowMain {
         // Check AWS batch settings
         NfcoreTemplate.awsBatch(workflow, params)
 
-        // Check input has been provided
-        if (!params.input) {
-            Nextflow.error("Please provide an input samplesheet to the pipeline e.g. '--input samplesheet.csv'")
-        }
+        // // Check input has been provided -- for Step2 param is different
+        // if (!params.input) {
+        //     Nextflow.error("Please provide an input parameter to the pipeline")
+        // }
     }
     //
     // Get attribute from genome config file e.g. fasta
