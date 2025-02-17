@@ -2288,6 +2288,9 @@ process trim_primers_pe {
       tuple path("${input[0].getSimpleName()}_hash_table_R1.txt.gz"), path("${input[0].getSimpleName()}_hash_table_R2.txt.gz"), emit: nm_hashes, optional: true
       tuple path("${input[0].getSimpleName()}_R1.fq.gz"), path("${input[0].getSimpleName()}_R2.fq.gz"), emit: nm_FQ, optional: true
       tuple path("${input[0].getSimpleName()}_uc_R1.uc.gz"), path("${input[0].getSimpleName()}_uc_R2.uc.gz"), emit: nm_UC, optional: true
+      tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     sampID="${input[0].getSimpleName()}"
