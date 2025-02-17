@@ -47,40 +47,45 @@ if (params.helpMsg){
     exit(0)
 }
 
-// Additional parameter validation
-if (params.input == false && params.seqplatform == "PacBio") {
-    println( "ERROR: Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.")
-    exit(1)
-}
-if (params.input_R1 == false && params.input_R2 == false && params.seqplatform == "Illumina") {
-    println( "ERROR: Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
-    exit(1)
-}
-if (params.barcodes == false && params.demultiplexed == false) {
-    println( "ERROR: Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
-    exit(1)
-}
-if (!params.chimera_db || !file(params.chimera_db).exists()) {
-    println( "ERROR: Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.")
-    exit(1)
-}
-if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
-    println( "ERROR: The reference database file specified with `--chimera_db` parameter must be in UDB format." )
-    exit 1
-}
-if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
-    println( "ERROR: Homopolymer compression is not implemented for Illumina non-merged reads.")
-    exit(1)
-}
-if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
-    println( "ERROR: Handling demultiplexed data for Illumina is not implemented yet.")
-    exit(1)
-}
 
+// Additional parameter validation for Step-1
+if( params.step == "Step1" ) {
 
-if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true && params.its_region != "none") {
-    println( "WARNING: Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.")
-}
+  if (params.input == false && params.seqplatform == "PacBio") {
+      println( "ERROR: Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.")
+      exit(1)
+  }
+  if (params.input_R1 == false && params.input_R2 == false && params.seqplatform == "Illumina") {
+      println( "ERROR: Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
+      exit(1)
+  }
+  if (params.barcodes == false && params.demultiplexed == false) {
+      println( "ERROR: Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
+      exit(1)
+  }
+  if (!params.chimera_db || !file(params.chimera_db).exists()) {
+      println( "ERROR: Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.")
+      exit(1)
+  }
+  if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
+      println( "ERROR: The reference database file specified with `--chimera_db` parameter must be in UDB format." )
+      exit 1
+  }
+  if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
+      println( "ERROR: Homopolymer compression is not implemented for Illumina non-merged reads.")
+      exit(1)
+  }
+  if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
+      println( "ERROR: Handling demultiplexed data for Illumina is not implemented yet.")
+      exit(1)
+  }
+
+  if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true && params.its_region != "none") {
+      println( "WARNING: Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.")
+  }
+
+}  // end of Step-1 parameter validation
+
 
 
 // Print the parameters to the console and to the log
