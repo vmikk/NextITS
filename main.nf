@@ -2006,6 +2006,8 @@ process pool_seqs {
     output:
       path "Seq_tab_not_filtered.txt.gz", emit: seqtabnf
       path "Seq_not_filtered.fa.gz", emit: seqsnf
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+      tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
 
     script:
     """
