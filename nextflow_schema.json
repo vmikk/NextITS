@@ -31,6 +31,12 @@
           "description": "Path to the directory where the analysis results will be saved.",
           "fa_icon": "fas fa-folder-open",
           "default": "results"
+        },
+        "step": {
+          "type": "string",
+          "enum": ["Step1", "Step2"],
+          "description": "The step of the pipeline to run.",
+          "fa_icon": "fas fa-step-forward"
         }
       }
     },
