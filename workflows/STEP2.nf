@@ -760,8 +760,8 @@ process lulu {
 // 18. `status` - status: 'accepted' or 'rejected'
 //     The potential parent OTU is either accepted as a parent, or rejected
 
-//  The default workflow
-workflow {
+// Step-2 workflow
+workflow S2 {
 
     // Find quality-filtered sequence tables
     ch_seqtabs = Channel.fromPath(
