@@ -871,12 +871,6 @@ workflow {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
 
-
-    // Pool sequence tables and aggregate at OTU level
-    ch_seqtabs = Channel.fromPath(
-      params.data_path + "/**/07_SeqTable/Seqs.RData",
-      checkIfExists: true).collect()
-
  
     // Pool UC files
     merge_uc(
@@ -887,9 +881,9 @@ workflow {
 
     // Summarize sequence abundances by OTU and sample
     summarize(
-     ch_seqtabs,       // Step-1 sequnece tables in long format
-     merge_uc.out.uc,  // Combined UC files with sequence membership info
-     cluster_ch        // FASTA file with OTUs
+     aggregate_sequences.out.seqs_parquet,  // Step-1 sequnece tables in long format with de novo chimeras removed
+     merge_uc.out.uc,                       // Combined UC files with sequence membership info
+     cluster_ch                             // FASTA file with OTUs
     )
 
     // Post-clustering curation with LULU
