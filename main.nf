@@ -25,7 +25,7 @@ nextflow.enable.dsl = 2
 nextflow.preview.topic = true
 
 // Include functions
-include { helpMsg }                   from './modules/help_message.nf'
+include { helpMsg } from './modules/help_message.nf'
 
 
 // Include workflows
