@@ -26,6 +26,7 @@ INPUT=""
 OUTPUT=""
 THREADS=""
 MEMORY=""
+COMPRESSION="12"
 
 ## Parse command-line options
 while getopts "i:o:t:m:z:" opt; do
