@@ -39,7 +39,9 @@ include { seqstats } from './workflows/STEP1.nf'
 
 // Validate & print parameter summary
 // NB! works only with old schema (`everit-json-schema` library doesn't support JSON Schema draft-2020-12)
-WorkflowMain.initialise(workflow, params, log)
+if(params.step == "Step1") {
+  WorkflowMain.initialise(workflow, params, log)
+}
 
 // Include the pipeline initialisation subworkflow
 // requires newer nf-core template and schema
