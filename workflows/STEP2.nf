@@ -894,17 +894,13 @@ workflow S2 {
         // cluster_ch        // In the Clustered.fa.gz, there are seqs excluded from OTU table
       )
     }
-}
+
+    // Run statistics
+    // run_summary()
 
 
-// On completion
-workflow.onComplete {
-    println "Pipeline completed at : $workflow.complete"
-    println "Duration              : ${workflow.duration}"
-    println "Execution status      : ${workflow.success ? 'All done!' : 'Failed' }"
-}
+  // Auto documentation of analysis procedures
+  // document_analysis_step2
 
-// On error
-workflow.onError {
-    println "Pipeline execution stopped with the following message: ${workflow.errorMessage}" 
+
 }
