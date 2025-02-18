@@ -10,7 +10,7 @@
       "type": "object",
       "fa_icon": "fas fa-terminal",
       "description": "Define where the pipeline should find input data and save output data.",
-      "required": ["input", "outdir"],
+      "required": [ ],
       "properties": {
         "input": {
           "type": "string",
@@ -304,7 +304,7 @@
         }
       },
       "fa_icon": "fas fa-trash-alt",
-      "required": ["chimera_db"]
+      "required": [ ]
     },
     "tag_jump_removal": {
       "title": "Tag-jump removal",
