@@ -28,6 +28,11 @@ nextflow.preview.topic = true
 include { helpMsg }                   from './modules/help_message.nf'
 
 
+// Include workflows
+// NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
+include { S1 } from './workflows/STEP1.nf'
+include { S2 } from './workflows/STEP2.nf'
+include { seqstats } from './workflows/STEP1.nf'
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
