@@ -25,7 +25,7 @@
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
-include { software_versions_to_yaml } from './modules/version_parser.nf'
+include { software_versions_to_yaml } from '../modules/version_parser.nf'
 
 
 // Path to the Step-1 results
