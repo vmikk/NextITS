@@ -602,7 +602,7 @@ process summarize {
     // cpus 4
 
     input:
-      path(seqtabs, stageAs: "?/*")
+      path(seqtab)
       path(uc_parquet)
       path(otus_fasta)
 
@@ -616,15 +616,14 @@ process summarize {
     script:
     """
 
-    pool_seq_runs.R \
-      --uc         ${uc_parquet} \
-      --otus       ${otus_fasta} \
-      --maxmeep    ${params.max_MEEP} \
-      --maxchim    ${params.max_ChimeraScore} \
-      --recoverdenovo  ${params.recover_lowqsingletons} \
-      --recoversinglet ${params.recover_denovochimeras} \
+    summarize_clustered_data.R \
+      --seqtab         ${seqtab} \
+      --uc             ${uc_parquet} \
+      --otus           ${otus_fasta} \
+      --maxmeep        ${params.max_MEEP} \
+      --recoversinglet ${params.recover_lowqsingletons} \
       --mergesamples   ${params.merge_replicates} \
-      --threads ${task.cpus}
+      --threads        ${task.cpus}
 
     """
 }
