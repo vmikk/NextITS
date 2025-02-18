@@ -763,15 +763,16 @@ process lulu {
 //  The default workflow
 workflow {
 
-    // Input files = FASTA files from individual sequencing runs
-    // e.g. "*/07_SeqTable/Seqs.fa.gz"
-    
-    ch_seqs = Channel.fromPath(
-      params.data_path + "/**/07_SeqTable/Seqs.fa.gz",
+    // Find quality-filtered sequence tables
+    ch_seqtabs = Channel.fromPath(
+      params.data_path + "/**/07_SeqTable/Seqs.parquet",
       checkIfExists: true).collect()
 
+    // Aggregate sequences, remove de novo chimeras
+    aggregate_sequences(ch_seqtabs)
+
     // Pool and dereplicate all sequences
-    dereplication(ch_seqs)
+    dereplication(aggregate_sequences.out.seqs)
     derep_ch   = dereplication.out.derep
     derepuc_ch = dereplication.out.derep_uc
 
