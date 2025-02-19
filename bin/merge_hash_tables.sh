@@ -10,6 +10,12 @@
 # - Tab-delimited tables with columns:
 #   SampleID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
 
+## Notes
+# - memory constraints might reduce the number of threads used
+# - when saving to parquet, the ROW_GROUP_SIZE param might be adjusted to reduce memory usage (but the effect is not very significant):
+#   default ROW_GROUP_SIZE = 122,880 (with DuckDB's vector size = 2,048 -> 60 row groups)
+#   here, a half of the default value is used (ROW_GROUP_SIZE = 61,440  -> 30 row groups)
+
 ## Function to display usage information
 usage() {
     echo "Usage: $0 -i INPUTDIR -o OUTPUT [-t THREADS] [-m MEMORY] [-x TEMP_DIR] [-z COMPRESSION]"
@@ -115,7 +121,7 @@ COPY (
             'column8': 'INTEGER'
         }
     )
-) TO '${OUTPUT}' (FORMAT PARQUET, COMPRESSION 'ZSTD', COMPRESSION_LEVEL ${COMPRESSION});
+) TO '${OUTPUT}' (FORMAT PARQUET, ROW_GROUP_SIZE 61_440, COMPRESSION 'ZSTD', COMPRESSION_LEVEL ${COMPRESSION});
 "
 
 ## Execute the SQL command
