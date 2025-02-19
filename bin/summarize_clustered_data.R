@@ -1,14 +1,12 @@
 #!/usr/bin/env Rscript
 
-## Script to pool quality-filtered and trimmed sequences from multiple sequencing runs
-## And summarize sequence abundance at OTU level (per sample)
-## 
+## Script to pool remove low-quality singletons and summarize sequence abundance at OTU level (per sample)
 
 # Input:
-#   1. UC file                         (`UC_Pooled.parquet`)
-#   2. FASTA file with OTU sequences   (`Clustered.fa.gz`)
-#   3. Max MEEP score
-#   4. Max de novo chimera score
+#   1. Sequence tables in long format with de novo chimeras removed (`Seqs.parquet`)
+#   2. UC file                         (`UC_Pooled.parquet`)
+#   3. FASTA file with OTU sequences   (`Clustered.fa.gz`)
+#   4. Max MEEP score
 
 # Outputs:
 #  - OTU table in long format    (`OTU_table_long.txt.gz` & `OTU_table_long.RData`)
@@ -16,27 +14,22 @@
 #  - FASTA file with sequences   (`OTUs.fa.gz`)
 
 ## Usage:
-# ./pool_seq_runs.R \
-#    --uc   "UC_Pooled.parquet" \
-#    --otus "Clustered.fa.gz" \
-#    --maxmeep 0.5 \
-#    --maxchim 0.6 \
-#    --recoverdenovo TRUE \
+# ./summarize_clustered_data.R \
+#    --seqtab  "Seqs.parquet" \
+#    --uc      "UC_Pooled.parquet" \
+#    --otus    "Clustered.fa.gz" \
+#    --maxmeep 0.6 \
 #    --recoversinglet TRUE \
 #    --mergesamples TRUE \
 #    --threads 4
 
-## Do-novo chimera recovery:
-# if a sequence identified as putative chimera was observed in the other samples,
-# where there is no evidence that it is chimeric, it will be recovered
 
-## Singleton recovery
-# if a within-sequencing run singleton sequence with relatively low qualty (based on MEEP)
-# was observed in the other samples, it will be recovered
+## Quality threshold:
+# MEEP score of 0.6 corresponds approximately to the average Phred score of 22.2
 
-
-## TO DO:
-# - load sequence tables (TAB) in parallel
+## Singleton recovery:
+# If enabled, then singleton OTUs with MEEP score <= 0.6 & will be preserved
+# Otherwise, singleton OTUs will be removed
 
 
 ############################################## Parse input parameters
