@@ -2,7 +2,7 @@
 
 ## **NextITS**
 
-> Mikryukov V., Anslan S., Tedersoo L. NextITS: a pipeline for metabarcoding fungi and other eukaryotes with full-length ITS sequenced with PacBio. [https://github.com/vmikk/NextITS](https://github.com/vmikk/NextITS)
+> Mikryukov V., Anslan S., Tedersoo L. NextITS: a pipeline for metabarcoding fungi and other eukaryotes with full-length ITS sequenced with PacBio. [https://github.com/vmikk/NextITS](https://github.com/vmikk/NextITS), doi: 10.5281/zenodo.15074881
 
 ## [**Nextflow**](https://pubmed.ncbi.nlm.nih.gov/28398311/)
 
