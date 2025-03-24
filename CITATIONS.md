@@ -35,6 +35,12 @@
   > Tedersoo L, Hosseyni Moghaddam MS, Mikryukov V, Hakimzadeh A, Bahram M, Nilsson RH, Yatsiuk I, Geisen S, Schwelm A, Piwosz K, Prous M, Sildever S, Chmolowska D, Rueckert S, Skaloud P, Laas P, Tines M, Jung J-H, Choi JH, Alkahtani S, Anslan S (2024). EUKARYOME: The rRNA gene reference database for identification of all eukaryotes. Database, 2024, baae043. doi: 10.1093/database/baae043
 
 
+### Taxonomic classification and databases
+
+- [UNITE - eukaryotic nuclear ribosomal ITS region](https://unite.ut.ee/)
+
+Abarenkov K, Nilsson RH, Larsson K-H, Taylor AFS, May TW, Frøslev TG, Pawlowska J, Lindahl B, Põldmaa K, Truong C, Vu D, Hosoya T, Niskanen T, Piirmann T, Ivanov F, Zirk A, Peterson M, Cheeke TE, Ishigami Y, Jansson AT, Stjernegaard Jeppesen T, Kristiansson E, Mikryukov V, Miller JT, Oono R, Ossandon FJ, Paupério J, Saar I, Schigel D, Suija A, Tedersoo L, Kõljalg U (2023). The UNITE database for molecular identification and taxonomic communication of fungi and other eukaryotes: Sequences, taxa and classifications reconsidered. Nucleic Acids Research, gkad1039. doi: 10.1093/nar/gkad1039
+
 
 ## Software packaging/containerisation tools
 
