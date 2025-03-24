@@ -7,7 +7,41 @@ For version numbering, we use the following convention: `MAJOR.MINOR.PATCH`.
 Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).  
 
 
-## [0.5.0] - 2023-xx-xx
+## [1.0.0] - 2025-03-24
+
+- Added support of asymmetric barcoding scheme for demultiplexing of PacBio data  
+- Added support of BAM files (CCS) as input  
+- Added support for SWARM *d*=1 pre-clustering  
+- Changed the selection of representative sequences (sequence with the highest quality score is taken as the representative; using [`phredsort`](https://github.com/vmikk/phredsort))  
+- Refactored sequence quality estimation  
+- Improved processing speed (using DuckDB and Parquet format)  
+- Improved tag valiadion for demultiplexing  
+- Improved compression speed for output files (runs in parallel using `pigz`)  
+- Update of the database for reference-based chimera detection (using the [EUKARYOME database](https://eukaryome.org/))  
+- New parameters added:  
+    - `step` (specifies which pipeline step to run - "Step1" or "Step2")  
+    - `storagemode` (Adjusts how files are directed to the results folder)  
+    - `gzip_compression` (Controls GZIP compression level in output files)  
+    - categorical `lima_barcodetype` replaces boolean `lima_dualbarcode`  
+    - `lima_minendscore` (For asymmetric and dual barcoding scheme)  
+    - `lima_minrefspan` (Controls barcode coverage)  
+    - `lima_minscoringregions` (Controls the number of reqired barcodes for demultiplexing using dual barcodes)  
+- Added auxilarry output files:  
+    - [Step-1] All rRNA parts extracted by ITSx (pooled within sequencing run - useful for extracting these regions for representative sequences)  
+    - [Step-1] File with quality scores for full-length sequences (after QC and trimming)  
+    - [Step-2] File with joined sequence memebership (dereplication, pre-clustering, and clustering)  
+- Primer trimming prior ITSx is now default (sequence quality is also estimated on trimmed sequence)  
+- Fixed VSEARCH clustering on denoised reads  
+- Resolved an issue where no *de novo* chimeras were detected  
+- Reconfigured parameter specification  
+- Introduced a parameter schema and enhanced parameter validation  
+- Container updates to included the latest versions of dependencies  
+- New dependencies - specialized tools written in Go to speed up the processing:  
+    - [`phredsort` (https://github.com/vmikk/phredsort)](https://github.com/vmikk/phredsort) (Sorts sequences by quality score)  
+    - [`seqhasher` (https://github.com/vmikk/seqhasher)](https://github.com/vmikk/seqhasher) (Hashes sequences)  
+    - [`ucs` (https://github.com/vmikk/ucs)](https://github.com/vmikk/ucs) (Parses UC files and converts them to parquet format)  
+
+
 ## [0.5.0] - 2023-08-08
 
 - New `seqstats` sub-workflow (only dereplication, primer validation, and basic run stats)  
