@@ -28,6 +28,13 @@
 
   > Marcel, M. Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet. journal 17.1 (2011): pp-10. doi: 10.14806/ej.17.1.200.
 
+### Database for reference-based chimera removal
+
+- [EUKARYOME database](https://eukaryome.org/)
+
+  > Tedersoo L, Hosseyni Moghaddam MS, Mikryukov V, Hakimzadeh A, Bahram M, Nilsson RH, Yatsiuk I, Geisen S, Schwelm A, Piwosz K, Prous M, Sildever S, Chmolowska D, Rueckert S, Skaloud P, Laas P, Tines M, Jung J-H, Choi JH, Alkahtani S, Anslan S (2024). EUKARYOME: The rRNA gene reference database for identification of all eukaryotes. Database, 2024, baae043. doi: 10.1093/database/baae043
+
+
 
 ## Software packaging/containerisation tools
 
