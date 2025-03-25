@@ -173,6 +173,7 @@ process tag_validation {
       path "biosamples_asym.csv",      emit: biosamples_asym, optional: true
       path "biosamples_sym.csv",       emit: biosamples_sym,  optional: true
       path "file_renaming.tsv",        emit: file_renaming,   optional: true
+      path "unknown_combinations.tsv", emit: unknown_combinations, optional: true
 
     script:
     """
