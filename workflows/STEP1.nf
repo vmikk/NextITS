@@ -2746,13 +2746,15 @@ workflow S1 {
 
       }
 
-      // Demultiplexing with dual barcodes requires 3 additional files
+      // Demultiplexing with dual barcodes requires 4 additional files:
       //  - "biosamples" with symmertic/asymmetirc tag combinations
-      //  - and a table for assigning sample names to demuxed files
+      //  - table for assigning sample names to demuxed files
+      //  - and a table for renaming unknown combinations (if params.lima_remove_unknown == true)
       // Create dummy files (for single or symmetic tags) if neccesary
       ch_biosamples_sym  = tag_validation.out.biosamples_sym.flatten().collect().ifEmpty(file("biosamples_sym"))
       ch_biosamples_asym = tag_validation.out.biosamples_asym.flatten().collect().ifEmpty(file("biosamples_asym"))
       ch_file_renaming   = tag_validation.out.file_renaming.flatten().collect().ifEmpty(file("file_renaming"))
+      ch_unknown_combs   = tag_validation.out.unknown_combinations.flatten().collect().ifEmpty(file("unknown_combinations"))
 
       // Demultiplexing
       demux(
@@ -2760,7 +2762,8 @@ workflow S1 {
         tag_validation.out.fasta,
         ch_biosamples_sym, 
         ch_biosamples_asym,
-        ch_file_renaming)
+        ch_file_renaming,
+        ch_unknown_combs)
 
       // Check primers
       primer_check(
@@ -3271,6 +3274,7 @@ workflow seqstats {
   ch_biosamples_sym  = tag_validation.out.biosamples_sym.flatten().collect().ifEmpty(file("biosamples_sym"))
   ch_biosamples_asym = tag_validation.out.biosamples_asym.flatten().collect().ifEmpty(file("biosamples_asym"))
   ch_file_renaming   = tag_validation.out.file_renaming.flatten().collect().ifEmpty(file("file_renaming"))
+  ch_unknown_combs   = tag_validation.out.unknown_combinations.flatten().collect().ifEmpty(file("unknown_combinations"))
 
   // Demultiplexing
   demux(
@@ -3278,7 +3282,8 @@ workflow seqstats {
     tag_validation.out.fasta,
     ch_biosamples_sym, 
     ch_biosamples_asym,
-    ch_file_renaming)
+    ch_file_renaming,
+    ch_unknown_combs)
 
   // Check primers
   primer_check(
