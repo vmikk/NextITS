@@ -10,7 +10,8 @@
 ## - For dual assymetric tags, 
 ##     unique barcodes are converted into a "long" format,
 ##     a biosample tables (`biosamples_asym.csv` and `biosamples_sym.csv`),
-##     and file naming scheme (`file_renaming.tsv`) are exported as well
+##     file naming scheme (`file_renaming.tsv`),
+##     and `unknown_combinations.tsv` are exported as well
 
 ## Usage:
 # validate_tags.R \
@@ -363,6 +364,48 @@ if(any(DUAL) == TRUE){
     compress = FALSE,
     format   = "fasta",
     width    = 9999)
+
+  
+  ## Prepare unknown combinations
+  cat("Preparing unknown tag combinations\n")
+
+  UNKN <- CJ(
+    Tag1 = unique(dtt$Tag1),
+    Tag2 = unique(dtt$Tag2))
+
+  UNKN <- merge(x = UNKN, y = bu, by.x = "Tag1", by.y = "Sequence", all.x = TRUE)
+  setnames(x = UNKN, old = "ID", new = "ID1")
+
+  UNKN <- merge(x = UNKN, y = bu, by.x = "Tag2", by.y = "Sequence", all.x = TRUE)
+  setnames(x = UNKN, old = "ID", new = "ID2")
+
+  ## Trying to parse RunID from the first sample
+  if(any(TESTRUN)){
+    cat("WARNING: in assumption that there is a single sequencing run, RunID of the first sample will be used!\n")
+    RUNID <- tstrsplit(dtt$SampleID[1], split = "__", keep = 1)[[1]]
+    if(is.na(RUNID)){
+      cat("WARNING: RunID is not found in the sample name\n")
+      RUNID <- "unknown"
+    }
+  } else {
+    RUNID <- "unknown"
+  }
+
+  UNKN[ , IDS      := paste0(ID1, "--", ID2) ]
+  UNKN[ , OldName  := paste0("lima.", IDS, ".fq.gz") ]
+  UNKN[ , Barcodes := paste0(Tag1, "_", Tag2) ]
+  UNKN[ , NewName  := paste0(RUNID, "__", Barcodes, ".fq.gz") ]
+  
+  ## Remove known combinations
+  UNKN <- UNKN[ !IDS %in% res$Barcodes ]
+
+  cat("Number of possible unknown combinations: ", nrow(UNKN), "\n")
+
+  ## Export unknown combinations
+  cat("Exporting unknown combinations\n")
+
+  fwrite(x = UNKN[ , .(OldName, NewName)],
+    file = "unknown_combinations.tsv", quote = F, sep = "\t", col.names = FALSE)
 
 } # end of dual tags
 
