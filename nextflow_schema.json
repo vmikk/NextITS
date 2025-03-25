@@ -99,6 +99,12 @@
           "description": "Minimum sequence length after clipping barcodes.",
           "minimum": 1
         },
+        "lima_remove_unknown": {
+          "type": "boolean",
+          "default": false,
+          "fa_icon": "fas fa-compress-alt",
+          "description": "Remove unknown barcode combinations from the demultiplexed data (if false, unknown combinations will be named as tag IDs)."
+        },
         "demultiplexed": {
           "type": "boolean",
           "fa_icon": "fas fa-align-justify",
