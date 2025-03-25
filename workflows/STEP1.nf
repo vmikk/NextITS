@@ -205,9 +205,10 @@ process demux {
     input:
       path input_fastq
       path barcodes
-      path biosamples_sym    // for dual or asymmetric barcodes
-      path biosamples_asym   // for dual or asymmetric barcodes
-      path file_renaming     // for dual or asymmetric barcodes
+      path biosamples_sym       // for dual or asymmetric barcodes
+      path biosamples_asym      // for dual or asymmetric barcodes
+      path file_renaming        // for dual or asymmetric barcodes
+      path unknown_combinations // for dual or asymmetric barcodes
 
     output:
       path "LIMA/*.fq.gz",             emit: samples_demux
@@ -363,7 +364,24 @@ process demux {
       echo -e "\n..Renaming files from tag IDs to sample names"
       brename -p "(.+)" -r "{kv}" -k ${file_renaming} LIMA/
 
-    fi
+      echo -e "\n..Checking for unknown tag combinations"
+      echo -e "\n...Number of unknowns detected:"
+      find LIMA -name "lima.*.fq.gz" | wc -l
+      
+      if [[ ${params.lima_remove_unknown} == "false" ]]; then
+
+        echo -e "\n...Renaming unknown combinations"
+        brename -p "(.+)" -r "{kv}" -k ${unknown_combinations} LIMA/
+
+        echo -e "\n...Number of unknowns remained:"
+        find LIMA -name "lima.*.fq.gz" | wc -l
+
+      fi
+
+      echo -e "\n...Removing unknowns:"
+      find LIMA -name "lima.*.fq.gz" | parallel -j1 "echo {} && rm {}"
+
+    fi  # end of dual/asym renaming
 
     if [[ ${params.lima_barcodetype} == "dual_symmetric" ]] || [[ ${params.lima_barcodetype} == "single" ]]; then
 
