@@ -370,8 +370,12 @@ process demux {
       
       if [[ ${params.lima_remove_unknown} == "false" ]]; then
 
-        echo -e "\n...Renaming unknown combinations"
-        brename -p "(.+)" -r "{kv}" -k ${unknown_combinations} LIMA/
+        if [ -s ${unknown_combinations} ]; then
+          echo -e "\n...Renaming unknown combinations"
+          brename -p "(.+)" -r "{kv}" -k ${unknown_combinations} LIMA/
+        else
+          echo -e "\n...No unknown combinations require renaming"
+        fi
 
         echo -e "\n...Number of unknowns remained:"
         find LIMA -name "lima.*.fq.gz" | wc -l
