@@ -16,7 +16,7 @@
 #   --chimrecovn   Counts_8.ChimRecov_reads.txt \
 #   --chimrecovu   Counts_8.ChimRecov_uniqs.txt \
 #   --tj           TagJump_OTUs.RData \
-#   --seqtab       Seqs.RData \
+#   --seqtab       Seqs.parquet \
 #   --threads      4
 
 
