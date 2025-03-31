@@ -313,6 +313,10 @@ COUNTS <- c(SEQKITCOUNTS, CUSTOMCOUNTS)
 merge_dt <- function(x,y){ merge(x, y, by = "file", all = TRUE) }
 PER_SAMPLE_COUNTS_merged <- Reduce(f = merge_dt, x = COUNTS)
 
+## If there are no primer artefacts
+if(is.null(SEQKITCOUNTS$PRIMERARTEF)){
+  PER_SAMPLE_COUNTS_merged[ , PrimerArtefacts_Reads := 0 ]
+}
 
 ## Estimate percentage of primer artefacts
 cat("Estimating percentage of primer artefacts\n")
