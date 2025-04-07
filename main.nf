@@ -21,6 +21,15 @@
 // Enable DSL2 syntax
 nextflow.enable.dsl = 2
 
+// Print the version and exit
+if (params.version) {
+  ver = "NextITS " + workflow.manifest.version
+  if (workflow.commitId) { ver += " revision " + workflow.commitId.substring(0, 7) }
+  println "${ver}\n"
+  exit(0)
+}
+
+
 // Enable topic channels
 nextflow.preview.topic = true
 
