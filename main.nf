@@ -29,13 +29,16 @@ if (params.version) {
   exit(0)
 }
 
+// Show a custom help message and exit
+if (params.helpMsg){
+  include { helpMsg } from './modules/help_message.nf'
+  helpMsg()
+  exit(0)
+}
+
 
 // Enable topic channels
 nextflow.preview.topic = true
-
-// Include functions
-include { helpMsg } from './modules/help_message.nf'
-
 
 // Include workflows
 // NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
