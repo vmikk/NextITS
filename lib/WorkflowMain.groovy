@@ -24,7 +24,7 @@ class WorkflowMain {
     // Generate help string
     //
     public static String help(workflow, params) {
-        def command = "nextflow run ${workflow.manifest.name}"
+        def command = "nextflow run vmikk/NextITS"
         def help_string = ''
         help_string += NfcoreTemplate.logo(workflow, params.monochrome_logs)
         help_string += NfcoreSchema.paramsHelp(workflow, params, command)
