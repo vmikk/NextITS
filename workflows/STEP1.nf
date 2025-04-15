@@ -2862,6 +2862,13 @@ workflow S1 {
     // Input files with demultiplexed reads (FASTQ.gz)
     ch_input = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' )
 
+    // Check if the input channel is empty
+    ch_input
+      .ifEmpty {
+          error("ERROR: No FASTQ files found in the input directory: ${params.input}")
+          exit 1
+      }   
+
     // QC
     qc_se(ch_input)
 
