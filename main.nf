@@ -38,7 +38,7 @@ if (params.helpMsg){
 
 
 // Enable topic channels
-nextflow.preview.topic = true
+// nextflow.preview.topic = true   // Nextflow < 25.04.0
 
 // Include workflows
 // NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
