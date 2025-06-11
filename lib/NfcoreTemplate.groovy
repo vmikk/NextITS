@@ -365,7 +365,7 @@ class NfcoreTemplate {
             """\n
             ${dashedLine(monochrome_logs)}
             ${colors.green}                    𝗡𝗲𝘅𝘁${colors.purple}𝗜𝗧𝗦 ${colors.cyan}${workflow_version}${colors.reset}
-            ${colors.green}        LSU     ${colors.purple}ITS1    ${colors.green}5.8S   ${colors.purple}ITS2     ${colors.green}SSU      ${colors.reset}
+            ${colors.green}        SSU     ${colors.purple}ITS1    ${colors.green}5.8S   ${colors.purple}ITS2     ${colors.green}LSU      ${colors.reset}
             ${colors.green}     ▒▒▒▒▒▒▒▒▒${colors.purple}░░░░░░░░░${colors.green}▒▒▒▒▒${colors.purple}░░░░░░░░░░${colors.green}▒▒▒▒▒▒▒▒▒▒▒▒${colors.reset}
             ${dashedLine(monochrome_logs)}
             """.stripIndent()
@@ -377,5 +377,5 @@ class NfcoreTemplate {
 
 
 //            🅽🅴🆇🆃🅸🆃🆂               // these symbols are not visible
-//  LSU   ITS1  5.8S   ITS2   SSU      
+//  SSU   ITS1  5.8S   ITS2   LSU      
 // ▒▒▒▒▒░░░░░░░░▒▒▒▒▒░░░░░░░░▒▒▒▒▒▒▒▒▒▒
