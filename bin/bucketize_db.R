@@ -175,15 +175,15 @@ cat("..Bucket summary:\n\n")
 
 ## Prepare bucket summary
 smr <- data.table(
-    BucketID  = 1:length(buckets),
-    Num_files = laply(.data = buckets, .fun = function(x){ length(x) }),
-    sum_len   = bucket_size_lenseqs,
-    num_seqs  = bucket_size_numseqs)
+    BucketID     = 1:length(buckets),
+    Num_clusters = laply(.data = buckets, .fun = function(x){ length(x) }),
+    sum_len      = bucket_size_lenseqs,
+    num_seqs     = bucket_size_numseqs)
 
 print(smr)
 
 ## Add percentages
-smr[ , NumFiles_Percent := round(Num_files / sum(Num_files) * 100, 2) ]
+smr[ , NumClust_Percent := round(Num_clusters / sum(Num_clusters) * 100, 2) ]
 smr[ , TotLen_Percent   := round(sum_len   / sum(sum_len)   * 100, 2) ]
 smr[ , TotSeqs_Percent  := round(num_seqs  / sum(num_seqs)  * 100, 2) ]
 
@@ -192,6 +192,8 @@ cat("\n\n..Exporting FASTA file for each bucket\n")
 
 ## Exporting function
 export_bucket <- function(clustnum = 1){
+
+  cat("...Bucket ", clustnum, "\n")
 
   ## IDs of cluster representatives
   clustids <- buckets[[ clustnum ]]
