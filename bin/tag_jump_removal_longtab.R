@@ -21,11 +21,20 @@ suppressPackageStartupMessages(require(optparse))
 ## Parse arguments
 option_list <- list(
   make_option(c("-s", "--seqtab"), action="store", default="seqtab.txt.gz", type='character', help="Sequence table in long format"),
-  make_option(c("-p", "--precls"), action="store", default="precls.txt.gz", type='character', help="Table with pre-clustered sequence membership"),
-  make_option(c("-f", "--f"), action="store", default=0.01, type='numeric', help="f-parameter of UNCROSS"),
-  make_option(c("-p", "--p"), action="store", default=1,    type='numeric', help="Additional p-parameter for UNCROSS")
+  make_option(c("-c", "--precls"), action="store", default="precls.txt.gz", type='character', help="Table with pre-clustered sequence membership"),
+  make_option(c("-f", "--uncross_f"), action="store", default=0.01, type='numeric', help="f-parameter of UNCROSS"),
+  make_option(c("-p", "--uncross_p"), action="store", default=1,    type='numeric', help="Additional p-parameter for UNCROSS")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
+
+## Function to convert text "NA"s to NA
+to_na <- function(x){
+  if(x %in% c("NA", "null", "Null")){ x <- NA }
+  return(x)
+}
+
+## Replaces "null"s from Nextflow with NA
+opt <- lapply(X = opt, FUN = to_na)
 
 ## Validation of the required arguments
 if(is.na(opt$seqtab)){
@@ -36,20 +45,20 @@ if(is.na(opt$precls)){
 }
 
 ## Set default params if not specified
-if(is.na(opt$f) | is.null(opt$f) | is.nan(opt$f) | !is.numeric(opt$f)){
+if(is.na(opt$uncross_f) | is.null(opt$uncross_f) | is.nan(opt$uncross_f) | !is.numeric(opt$uncross_f)){
   cat("f-parameter is not specified, using default value: 0.01\n")
-  opt$f <- 0.01
+  opt$uncross_f <- 0.01
 }
-if(is.na(opt$p) | is.null(opt$p) | is.nan(opt$p) | !is.numeric(opt$p)){
+if(is.na(opt$uncross_p) | is.null(opt$uncross_p) | is.nan(opt$uncross_p) | !is.numeric(opt$uncross_p)){
   cat("p-parameter is not specified, using default value: 1\n")
-  opt$p <- 1
+  opt$uncross_p <- 1
 }
 
 ## Assign variables
 SEQTAB <- opt$seqtab
 PRECLS <- opt$precls
-F      <- opt$f
-P      <- opt$p
+F      <- opt$uncross_f
+P      <- opt$uncross_p
 
 ## Log assigned variables
 cat("\nParameters specified:\n")
