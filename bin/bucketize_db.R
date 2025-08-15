@@ -197,14 +197,19 @@ export_bucket <- function(clustnum = 1){
   clustids <- buckets[[ clustnum ]]
 
   ## Find sequence IDs to export
-  ids <- DB[ Cluster %in% clustids ]$Member
+  ids <- data.table(SeqID = DB[ Cluster %in% clustids ]$Member)
+
+  ## Sort sequences by size
+  ids[ , Size := tstrsplit(SeqID, split = ";", keep = 2) ]
+  ids[ , Size := as.numeric( sub(pattern = "size=", replacement = "", x = Size) ) ]
+  setorder(ids, -Size, SeqID)
 
   ## Cluster ID with leading zero
   cl <- sprintf(paste0("%0", nchar(NBUCKETS), "d"), clustnum)
 
   ## Extract and export
   writeXStringSet(
-    x = seqs[ ids ],
+    x = seqs[ ids$SeqID ],
     filepath = paste0("bucket_", cl, ".fa.gz"),
     compress = TRUE,
     format = "fasta",
