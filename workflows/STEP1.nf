@@ -1778,7 +1778,7 @@ process pool_seqs {
     // cpus 2
 
     input:
-      path input
+      path(input, stageAs: 'sequences/*')
 
     output:
       path "Seq_tab_not_filtered.txt.gz", emit: seqtabnf
@@ -1798,7 +1798,7 @@ process pool_seqs {
         | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g' \
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
-      ::: *.fa.gz \
+      ::: sequences/*.fa.gz \
       | gzip -${params.gzip_compression} \
       > Seq_not_filtered.fa.gz
 
