@@ -1769,54 +1769,12 @@ process glob_derep {
 }
 
 
-// De-novo clustering of sequences into OTUs (for tag-jump removal)
-process otu_clust {
-
-    label "main_container"
-
-    publishDir "${out_6_tj}", mode: "${params.storagemode}"
-    // cpus 10
-
-    input:
-      path input
-
-    output:
-      path "OTUs.fa.gz", emit: otus
-      path "OTUs.uc.gz", emit: otus_uc
-      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
-
-    script:
-    """
-
-    echo -e "\nClustering sequences"
-    vsearch \
-      --cluster_size ${input} \
-      --id ${params.otu_id} \
-      --iddef ${params.otu_iddef} \
-      --sizein --sizeout \
-      --qmask dust --strand both \
-      --fasta_width 0 \
-      --uc OTUs.uc \
-      --threads ${task.cpus} \
-      --centroids - \
-    | gzip -${params.gzip_compression} > OTUs.fa.gz
-    
-    echo -e "..Done"
-
-    ## Compress UC file
-    echo -e "\nCompressing UC file"
-    pigz -p ${task.cpus} -${params.gzip_compression} OTUs.uc
-
-    """
-}
-
-
 // Pool sequences and add sample ID into header (for OTU and "ASV" table creation)
 process pool_seqs {
 
     label "main_container"
     
-    publishDir "${out_6_tj}", mode: "${params.storagemode}"
+    // publishDir "${out_6_tj}", mode: "${params.storagemode}"
     // cpus 2
 
     input:
@@ -1824,7 +1782,7 @@ process pool_seqs {
 
     output:
       path "Seq_tab_not_filtered.txt.gz", emit: seqtabnf
-      path "Seq_not_filtered.fa.gz", emit: seqsnf
+      path "Seq_not_filtered.fa.gz",      emit: seqsnf
       tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
       tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
 
@@ -1858,49 +1816,52 @@ process pool_seqs {
 }
 
 
-// Create OTU table (for tag-jump removal)
-process otu_tab {
+// De-novo clustering of sequences for tag-jump removal
+process tj_preclust {
 
     label "main_container"
 
-    publishDir "${out_6_tj}", mode: "${params.storagemode}"
+    // publishDir "${out_6_tj}", mode: "${params.storagemode}"
     // cpus 10
 
     input:
-      path otus
-      path sample_seqs
+      path input
 
     output:
-      path "OTU_tab_not_filtered.txt.gz", emit: otutab
-      path "Sample_mapping.uc.gz", emit: samples_uc
+      path "TJPreclust.fa.gz",      emit: preclust
+      path "TJPreclust.uc.gz",      emit: preclust_uc
+      path "TJPreclust.uc.parquet", emit: preclust_uc_parquet
       tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     """
-    
-    ## Read mapping (for OTU table)
-    echo -e "\nRead mapping"
+    echo -e "Pre-clustering sequences prior to tag-jump removal\n"
     vsearch \
-      --usearch_global "${sample_seqs}" \
-      --db "${otus}" \
-      --id ${params.otu_id} \
-      --strand both \
-      --qmask none \
-      --dbmask none \
+      --cluster_size ${input} \
+      --id    ${params.otu_id} \
+      --iddef ${params.otu_iddef} \
       --sizein --sizeout \
-      --otutabout "OTU_tab_not_filtered.txt" \
-      --uc Sample_mapping.uc \
-      --threads ${task.cpus}
-
-    echo -e "..Done"
-
+      --qmask dust --strand both \
+      --fasta_width 0 \
+      --uc         TJPreclust.uc \
+      --threads    ${task.cpus} \
+      --centroids - \
+    | gzip -${params.gzip_compression} > TJPreclust.fa.gz
+    
     ## Compress UC file
-    echo -e "\nCompressing results"
-    pigz -p ${task.cpus} -${params.gzip_compression} OTU_tab_not_filtered.txt
-    pigz -p ${task.cpus} -${params.gzip_compression} Sample_mapping.uc
+    echo -e "\nCompressing UC file"
+    pigz -p ${task.cpus} -${params.gzip_compression} TJPreclust.uc
 
+    ## Parse UC file
+    echo -e "\nParsing UC file"
+    ucs --map-only --split-id --rm-dups \
+      -i TJPreclust.uc.gz \
+      -o TJPreclust.uc.parquet
+
+    echo -e "\n..Done"
     """
 }
+
 
 
 // Tag-jump removal
@@ -1912,11 +1873,12 @@ process tj {
     // cpus 1
 
     input:
-      path otutab
+      path seqtab  // seq table in long format
+      path precls  // pre-clustered membership 
 
     output:
-      path "OTU_tab_TagJumpFiltered.txt.gz", emit: otutabtj
-      path "TagJump_OTUs.RData", emit: tjs
+      path "Seq_tab_TagJumpFiltered.txt.gz", emit: seqtabtj
+      path "TagJump_scores.qs",              emit: tjs
       path "TagJump_plot.pdf"
       tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
       tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
@@ -1927,15 +1889,18 @@ process tj {
 
     echo -e "Tag-jump removal"
     
-    tag_jump_removal.R \
-      ${otutab} \
-      ${params.tj_f} \
-      ${params.tj_p}
+    tag_jump_removal_longtab.R \
+      --seqtab ${seqtab} \
+      --precls ${precls} \
+      -f       ${params.tj_f} \
+      -p       ${params.tj_p}
 
     echo "..Done"
 
     """
 }
+
+
 
 
 // Prepare a table with non-tag-jumped sequences
@@ -1949,12 +1914,10 @@ process prep_seqtab {
     // cpus 4
 
     input:
-      path seqtabnf
-      path seqsnf
-      path mappings
-      path tagjumps
-      path denovos
-      path quals
+      path seqtab  // tag-jump filtered sequence table (long format)
+      path seqsnf  // sequences in FASTA
+      path denovos // de novo chimera scores
+      path quals   // quality scores
 
     output:
       path "Seqs.parquet",      emit: seq_pq
@@ -1973,10 +1936,8 @@ process prep_seqtab {
     echo -e "Sequence table creation"
     
     seq_table_assembly.R \
-      --seqtab  ${seqtabnf} \
+      --seqtab  ${seqtab} \
       --fasta   ${seqsnf}   \
-      --mapping ${mappings} \
-      --tagjump ${tagjumps} \
       --chimera ${denovos}  \
       --quality ${quals} \
       --threads ${task.cpus}
@@ -3081,31 +3042,24 @@ workflow S1 {
     // Pool sequences (for a final sequence table)
     pool_seqs(ch_filteredseqs)
 
-    // OTU clustering
-    otu_clust(glob_derep.out.globderep)
-
-    // Create OTU table
-    otu_tab(
-      otu_clust.out.otus,
-      pool_seqs.out.seqsnf)
+    // Pre-clustering prior to tag-jump removal
+    tj_preclust(pool_seqs.out.seqsnf)
 
     // Tag-jump removal
-    tj(otu_tab.out.otutab)
-
+    tj(
+      pool_seqs.out.seqtabnf,
+      tj_preclust.out.preclust_uc_parquet)
 
     // Check optional channel with de novo chimera scores
     ch_denovoscores = chimera_denovo_agg.out.alldenovochim.ifEmpty(file('DeNovo_Chimera.txt'))
 
     // Create sequence table
     prep_seqtab(
-      pool_seqs.out.seqtabnf,               // non-filtered sequence table
-      pool_seqs.out.seqsnf,                 // Sequences in FASTA format
-      otu_tab.out.samples_uc,               // sequence mapping to OTUs
-      tj.out.tjs,                           // tag-jumped OTU list
-      ch_denovoscores,                      // de novo chimera scores
-      seq_qual.out.quals                    // sequence qualities
+      tj.out.seqtabtj,       // tag-jump-filtered sequence table (long format)
+      pool_seqs.out.seqsnf,  // Sequences in FASTA format
+      ch_denovoscores,       // de novo chimera scores
+      seq_qual.out.quals     // sequence qualities
       )
-
 
     
     //// Read count summary
