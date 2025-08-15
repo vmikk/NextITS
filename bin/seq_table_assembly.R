@@ -5,20 +5,16 @@
 ## To do:
 #  - add HMM profile ID if ITSx was used
 
-# Input is given as positional arguments:
-#   1. non-filtered Seq table   (`Seq_tab_not_filtered.txt.gz`)
-#   2. Sequences in fasta       (`Seq_not_filtered.fa.gz`)
-#   3. sequence mapping to OTUs (`Sample_mapping.uc.gz`)
-#   4. tag-jumped OTU list      (`TagJump_OTUs.RData`)
-#   5. de novo chimera scores   (`DeNovo_Chimera.txt`)
-#   6. sequence qualities       (`SeqQualities.parquet`)
+# Inputs:
+#   1. tag-jump-filtered Seq table  (`Seq_tab_TagJumpFiltered.txt.gz`)
+#   2. Sequences in fasta           (`Seq_not_filtered.fa.gz`)
+#   3. de novo chimera scores       (`DeNovo_Chimera.txt`)
+#   4. sequence qualities           (`SeqQualities.parquet`)
 
 # Outputs:
 #  - FASTA with filtered Seqs       `Seqs.fa.gz`
 #  - Seq table in long format       `Seqs.txt.gz`  (with additional sequence info)
 #  - Data in Parquet format         `Seqs.parquet`
-#  - Seq table in wide format       `Seq_tab.txt.gz` -- deprecated
-#  - Data in R-serialization format `Seqs.RData`     -- deprecated
 
 
 ## Function to load packages
@@ -41,10 +37,8 @@ load_pckg("arrow")
 cat("Parsing input options and arguments...\n")
 
 option_list <- list(
-  make_option("--seqtab",  action="store", default=NA, type='character', help = "Non-filtered sequence table (tab-delimited)"),
+  make_option("--seqtab",  action="store", default=NA, type='character', help = "Sequence table (tab-delimited, long format)"),
   make_option("--fasta",   action="store", default=NA, type='character', help = "Sequences in FASTA format"),
-  make_option("--mapping", action="store", default=NA, type='character', help = "Sequence mapping to OTUs (UC format)"),
-  make_option("--tagjump", action="store", default=NA, type='character', help = "Tag-jumped OTU list (RData format)"),
   make_option("--chimera", action="store", default=NA, type='character', help = "De novo chimera scores"),
   make_option("--quality", action="store", default=NA, type='character', help = "Sequence qualities (Parquet format)"),
   make_option("--threads", action="store", default=4,  type='integer',   help = "Number of CPU threads to use")
@@ -63,7 +57,7 @@ opt <- lapply(X = opt, FUN = to_na)
 
 
 ## Validation of the required arguments
-required_args <- c("seqtab", "fasta", "mapping", "tagjump", "quality")
+required_args <- c("seqtab", "fasta", "quality")
 missing_args <- required_args[ sapply(required_args, function(x) is.na(opt[[x]])) ]
 if (length(missing_args) > 0) {
   stop("Missing required arguments: ", paste(missing_args, collapse=", "))
@@ -72,17 +66,13 @@ if (length(missing_args) > 0) {
 ## Assign variables
 SEQTAB  <- opt$seqtab
 FASTA   <- opt$fasta
-MAPPING <- opt$mapping
-TAGJUMP <- opt$tagjump
 CHIMERA <- opt$chimera
 QUALITY <- opt$quality
 CPUTHREADS <- as.numeric( opt$threads )
 
 ## Log assigned variables
-cat(paste("Non-filtered sequence table: ",  SEQTAB,     "\n", sep=""))
+cat(paste("Input sequence table: ",         SEQTAB,     "\n", sep=""))
 cat(paste("Sequences in FASTA format: ",    FASTA,      "\n", sep=""))
-cat(paste("Sequence mapping to OTUs: ",     MAPPING,    "\n", sep=""))
-cat(paste("Tag-jumped OTU list: ",          TAGJUMP,    "\n", sep=""))
 cat(paste("De novo chimera scores: ",       CHIMERA,    "\n", sep=""))
 cat(paste("Sequence qualities: ",           QUALITY,    "\n", sep=""))
 cat(paste("Number of CPU threads to use: ", CPUTHREADS, "\n", sep=""))
@@ -91,10 +81,8 @@ cat("\n")
 
 
 ## Debug:
-# SEQTAB     <- "Seq_tab_not_filtered.txt.gz"
+# SEQTAB     <- "Seq_tab_TagJumpFiltered.txt.gz"
 # FASTA      <- "Seq_not_filtered.fa.gz"
-# MAPPING    <- "Sample_mapping.uc.gz"
-# TAGJUMP    <- "TagJump_OTUs.RData"
 # CHIMERA    <- "DeNovo_Chimera.txt"
 # QUALITY    <- "SeqQualities.parquet"
 # CPUTHREADS <- 4
@@ -110,37 +98,15 @@ set_cpu_count(CPUTHREADS)              # for arrow
 ######################################
 
 ## Load sequnece table
-cat("\n\n..Loading non-filtered sequence table\n")
+cat("\n\n..Loading sequence table\n")
 
 TAB <- fread(
   file = SEQTAB,
-  sep = "\t", header = FALSE,
-  col.names = c("SeqID", "Abundance", "SampleID"))
-
+  sep = "\t", header = TRUE)
 
 ## Load sequences in fasta format
 cat("..Loading sequneces in FASTA format\n")
 SQS <- readDNAStringSet(filepath = FASTA)
-
-
-## Load sequence mapping to pre-clustered groups for tag-jump removal
-cat("..Loading sequence mapping table\n")
-MAP <- fread(
-  file = MAPPING,
-  header = FALSE, sep = "\t")
-
-MAP <- MAP[ V1 != "S" ]
-MAP[, c("SeqID", "SampleID") := tstrsplit(V9, ";", keep = c(1,3)) ]
-MAP[, OTU := tstrsplit(V10, ";", keep = 1) ]
-MAP[V1 == "C", OTU := SeqID ]
-MAP[, SampleID := gsub(pattern = "sample=", replacement = "", x = SampleID) ]
-MAP <- MAP[, .(SeqID, SampleID, OTU) ]
-
-
-## Load list of tag-jumped OTUs
-cat("..Loading list of tag-jumped OTUs\n")
-JMP <- readRDS( TAGJUMP )
-
 
 ## Load de novo chimera scores
 cat("..Loading de novo chimera scores\n")
@@ -181,49 +147,6 @@ setnames(QLT,
 ## Create SeqID___SampleID column
 TAB[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
 # QLT[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
-MAP[, SeqID___SampleID := paste0(SeqID, "___", SampleID) ]
-
-MAP[, c("SeqID", "SampleID") := NULL ]
-
-######################################
-###################################### Remove tag-jumps
-######################################
-
-cat("\n\n..Removing tag-jumped sequences\n")
-
-if(nrow(JMP) > 0){
-
-  # JMP[ , SeqID___SampleID := paste0(OTU, "___", SampleID) ]
-  JMP[ , TagJump := TRUE ]
-
-  ## Add OTU ID to sequences
-  cat("...Adding OTU IDs to sequences\n")
-
-  TAB <- merge(x = TAB, y = MAP,
-    by = "SeqID___SampleID", all.x = TRUE)
-
-  ## Add tag-jump information to the sequence table
-  TAB <- merge(x = TAB, y = JMP,
-    by = c("OTU", "SampleID"),
-    all.x = TRUE)
-
-  cat("... ", sum(TAB$TagJump, na.rm = TRUE), " tag-jump occurrences detected\n")
-
-  ## Remove tag-jumps
-  if(any(TAB$TagJump)){
-    TAB <- TAB[(!TagJump %in% TRUE)]
-    # because of NAs, TAB[ ! TagJump ] does not work properly
-  }
-
-  TAB[, TagJump := NULL ]
-  TAB[, OTU := NULL ]
-
-# end of `nrow(JMP) > 0`
-} else {
-
-  cat("...no tag-jumps found\n")
-
-}
 
 
 ######################################
