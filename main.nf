@@ -49,11 +49,26 @@ include { seqstats } from './workflows/STEP1.nf'
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
 
-// Validate & print parameter summary
-// NB! works only with old schema (`everit-json-schema` library doesn't support JSON Schema draft-2020-12)
-if(params.step == "Step1") {
-  WorkflowMain.initialise(workflow, params, log)
-}
+
+
+// Print NextITS logo
+def logoColors = params.monochrome_logs ? [:] : [
+    green: "\033[0;32m", purple: "\033[0;35m", cyan: "\033[0;36m", 
+    dim: "\033[2m", reset: "\033[0m"
+]
+
+def workflow_version = workflow.manifest.version ?: "unknown"
+if (workflow.commitId) { workflow_version += " (${workflow.commitId.substring(0, 7)})" }
+
+def logo = """
+${logoColors.dim}----------------------------------------------------${logoColors.reset}
+${logoColors.green}                    𝗡𝗲𝘅𝘁${logoColors.purple}𝗜𝗧𝗦 ${logoColors.cyan}${workflow_version}${logoColors.reset}
+${logoColors.green}        SSU     ${logoColors.purple}ITS1    ${logoColors.green}5.8S   ${logoColors.purple}ITS2     ${logoColors.green}LSU      ${logoColors.reset}
+${logoColors.green}     ▒▒▒▒▒▒▒▒▒${logoColors.purple}░░░░░░░░░${logoColors.green}▒▒▒▒▒${logoColors.purple}░░░░░░░░░░${logoColors.green}▒▒▒▒▒▒▒▒▒▒▒▒${logoColors.reset}
+${logoColors.dim}----------------------------------------------------${logoColors.reset}
+"""
+
+log.info logo
 
 // Include the pipeline initialisation subworkflow
 // requires newer nf-core template and schema
