@@ -26,6 +26,9 @@
 nextflow.enable.dsl = 2
 
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
+include { CLUSTERING } from '../subworkflows/clustering_subworkflow.nf'
+
+
 
 
 
@@ -717,65 +720,11 @@ workflow S2 {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
 
-    // Denoizing
-    if ( params.preclustering == "none" ) {
-      denoise_ch    = derep_ch
-      preclustuc_ch = file('NoPrecluster')
-    
-    // Denoise with UNOISE
-    } else if ( params.preclustering == "unoise" ) {
-      unoise(derep_ch)
-      denoise_ch    = unoise.out.unoise
-      preclustuc_ch = unoise.out.unoise_uc
-    
+      CLUSTERING(derep_ch)
 
-    // Precluster with SWARM
-    } else if ( params.preclustering == "swarm_d1" ){
-      precluster_swarm(derep_ch)
-      denoise_ch    = precluster_swarm.out.clust
-      preclustuc_ch = precluster_swarm.out.clust_uc
-    }
-
-
-    /*
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        Clustering
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    */
-
-
-    // Greedy clustering with VSEARCH
-    if ( params.clustering == "vsearch" ) {
-      cluster_vsearch(denoise_ch)
-      cluster_ch = cluster_vsearch.out.clust
-      clustuc_ch = cluster_vsearch.out.clust_uc
-    
-    // Clustering with SWARM
-    } else if ( params.clustering == "swarm" ) {
-      
-      // If pre-clustering was already done with the same d, just take the previous results
-      if(params.preclustering == "swarm_d1" & params.swarm_d == 1){
-        cluster_ch = precluster_swarm.out.clust
-        clustuc_ch = precluster_swarm.out.clust_uc
-        preclustuc_ch = file('NoPrecluster')
-      
-      // Otherwise, run SWARM
-      } else {
-        cluster_swarm(denoise_ch)
-        cluster_ch = cluster_swarm.out.clust
-        clustuc_ch = cluster_swarm.out.clust_uc
-      }
-
-    // Do not cluster, use zOTUs from UNOISE
-    } else if ( params.preclustering == "unoise" & params.clustering == "none" ) {
-      cluster_ch = unoise.out.unoise
-      clustuc_ch = unoise.out.unoise_uc
-      preclustuc_ch = file('NoPrecluster')
-    
-    } else if ( params.preclustering == "none" & params.clustering == "none" ){
-      println "No pre-clustering or clustering was done"
-
-      // TODO: create table based on dereplicated sequences?
+      preclustuc_ch = CLUSTERING.out.preclustuc_ch
+      cluster_ch    = CLUSTERING.out.cluster_ch
+      clustuc_ch    = CLUSTERING.out.clustuc_ch
     }
 
 
