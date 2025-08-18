@@ -39,6 +39,8 @@ if (params.helpMsg){
 
 // Enable topic channels
 // nextflow.preview.topic = true   // Nextflow < 25.04.0
+// Include custom parameter summary function
+include { paramSummary } from './modules/parameter_summary'
 
 // Include workflows
 // NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
@@ -69,6 +71,11 @@ ${logoColors.dim}----------------------------------------------------${logoColor
 """
 
 log.info logo
+
+// Print all parameters using nf-schema plugin
+// include { paramsSummaryLog } from 'plugin/nf-schema'
+// log.info paramsSummaryLog(workflow)  // will print params from Step-1 and Step-2 simultaneously
+
 
 // Include the pipeline initialisation subworkflow
 // requires newer nf-core template and schema
@@ -124,6 +131,9 @@ if( params.step == "Step1" ) {
 
 // Run the workflow
 workflow {
+
+  // Print step-specific parameter summary
+  paramSummary(workflow, params)
 
   if (params.step == "Step1") {
     S1()
