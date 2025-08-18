@@ -128,6 +128,16 @@ if( params.step == "Step1" ) {
 }  // end of Step-1 parameter validation
 
 
+// Additional parameter validation for Step-2
+if( params.step == "Step2" ) {
+
+  if (params.preclustering == "none" && params.clustering == "none"){
+    println "Pre-clustering and clustering could not be both set to 'none'"
+    exit(1)
+  }
+
+}  // end of Step-2 parameter validation
+
 
 // Run the workflow
 workflow {
