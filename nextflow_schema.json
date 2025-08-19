@@ -1,16 +1,13 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/vmikk/NextITS/main/nextflow_schema.json",
   "title": "NextITS pipeline parameters",
   "description": "Pipeline to process fungal ITS amplicons sequenced with PacBio",
   "type": "object",
-  "definitions": {
-    "input_output_options": {
-      "title": "Input/output options",
+  "$defs": {
+    "step_1_specific_parameters": {
+      "title": "Step-1-specific parameters",
       "type": "object",
-      "fa_icon": "fas fa-terminal",
-      "description": "Define where the pipeline should find input data and save output data.",
-      "required": [ ],
       "properties": {
         "input": {
           "type": "string",
@@ -25,27 +22,41 @@
           "fa_icon": "fas fa-barcode",
           "description": "Path to the file with barcodes (in FASTA format) used for demultiplexing the input data."
         },
-        "outdir": {
-          "type": "string",
-          "format": "directory-path",
-          "description": "Path to the directory where the analysis results will be saved.",
-          "fa_icon": "fas fa-folder-open",
-          "default": "results"
+        "demultiplexed": {
+          "type": "boolean",
+          "fa_icon": "fas fa-align-justify",
+          "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
         },
-        "step": {
+        "seqplatform": {
           "type": "string",
-          "enum": ["Step1", "Step2"],
-          "description": "The step of the pipeline to run.",
-          "fa_icon": "fas fa-step-forward"
-        }
-      }
-    },
-    "demultiplexing": {
-      "title": "Demultiplexing",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
+          "default": "PacBio",
+          "fa_icon": "fab fa-google-play",
+          "description": "Sequencing platform used",
+          "enum": ["PacBio", "Illumina"]
+        },
+        "qc_maxee": {
+          "type": "number",
+          "description": "Maximum expected errors allowed in a sequence. Sequences with higher error rates will be discarded.",
+          "fa_icon": "fas fa-times"
+        },
+        "qc_maxeerate": {
+          "type": "number",
+          "default": 0.01,
+          "description": "Maximum expected error rate per sequence (between 0 and 1). Sequences with higher error rates will be discarded.",
+          "fa_icon": "fas fa-times"
+        },
+        "qc_maxhomopolymerlen": {
+          "type": "integer",
+          "default": 25,
+          "description": "Threshold for a homopolymer region length in a sequence.",
+          "fa_icon": "fas fa-redo"
+        },
+        "qc_maxn": {
+          "type": "integer",
+          "default": 4,
+          "description": "Discard sequences with more than the specified number of ambiguous nucleotides (N's).",
+          "fa_icon": "fas fa-minus-square"
+        },
         "lima_barcodetype": {
           "type": "string",
           "default": "dual_symmetric",
@@ -101,56 +112,9 @@
         },
         "lima_remove_unknown": {
           "type": "boolean",
-          "default": false,
           "fa_icon": "fas fa-compress-alt",
           "description": "Remove unknown barcode combinations from the demultiplexed data (if false, unknown combinations will be named as tag IDs)."
         },
-        "demultiplexed": {
-          "type": "boolean",
-          "fa_icon": "fas fa-align-justify",
-          "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
-        }
-      },
-      "fa_icon": "fas fa-tags"
-    },
-    "quality_control": {
-      "title": "Quality Control",
-      "type": "object",
-      "description": "Sequence quality filtering",
-      "default": "",
-      "properties": {
-        "qc_maxee": {
-          "type": "number",
-          "description": "Maximum expected errors allowed in a sequence. Sequences with higher error rates will be discarded.",
-          "fa_icon": "fas fa-times"
-        },
-        "qc_maxeerate": {
-          "type": "number",
-          "default": 0.01,
-          "description": "Maximum expected error rate per sequence (between 0 and 1). Sequences with higher error rates will be discarded.",
-          "fa_icon": "fas fa-times"
-        },
-        "qc_maxhomopolymerlen": {
-          "type": "integer",
-          "default": 25,
-          "description": "Threshold for a homopolymer region length in a sequence.",
-          "fa_icon": "fas fa-redo"
-        },
-        "qc_maxn": {
-          "type": "integer",
-          "default": 4,
-          "description": "Discard sequences with more than the specified number of ambiguous nucleotides (N's).",
-          "fa_icon": "fas fa-minus-square"
-        }
-      },
-      "fa_icon": "fas fa-trash-restore"
-    },
-    "primer_trimming": {
-      "title": "Primer trimming",
-      "type": "object",
-      "description": "Removal of primer-artefacts and reorienting of reads",
-      "default": "",
-      "properties": {
         "primer_forward": {
           "type": "string",
           "fa_icon": "fas fa-arrow-right",
@@ -175,179 +139,14 @@
           "type": "integer",
           "fa_icon": "fas fa-angle-right",
           "description": "Minimum overlap for the forward primer.",
-          "default": 15
+          "default": null
         },
         "primer_roverlap": {
           "type": "integer",
           "fa_icon": "fas fa-angle-left",
           "description": "Minimum overlap for the reverse primer.",
-          "default": 15
-        }
-      },
-      "fa_icon": "fas fa-crop-alt"
-    },
-    "illumina_specific_parameters": {
-      "title": "Illumina-specific parameters",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "seqplatform": {
-          "type": "string",
-          "default": "PacBio",
-          "fa_icon": "fab fa-google-play"
+          "default": null
         },
-        "input_R1": {
-          "type": "string"
-        },
-        "input_R2": {
-          "type": "string"
-        },
-        "qc_avgphred": {
-          "type": "boolean"
-        },
-        "qc_twocolor": {
-          "type": "boolean"
-        },
-        "pe_minoverlap": {
-          "type": "integer",
-          "default": 20
-        },
-        "pe_diffperclimit": {
-          "type": "integer",
-          "default": 20
-        },
-        "pe_difflimit": {
-          "type": "integer",
-          "default": 5
-        },
-        "pe_nlimit": {
-          "type": "integer",
-          "default": 10
-        },
-        "pe_minlen": {
-          "type": "integer",
-          "default": 30
-        },
-        "illumina_keep_notmerged": {
-          "type": "boolean",
-          "default": true
-        },
-        "illumina_joinpadgap": {
-          "type": "string",
-          "default": "NNNNNNNNNN"
-        },
-        "illumina_joinpadqual": {
-          "type": "string",
-          "default": "IIIIIIIIII"
-        },
-        "barcode_errors": {
-          "type": "integer",
-          "default": 1
-        },
-        "barcode_window": {
-          "type": "integer",
-          "default": 30
-        },
-        "barcode_overlap": {
-          "type": "integer",
-          "default": 11
-        },
-        "trim_minlen": {
-          "type": "integer",
-          "default": 10
-        },
-        "qc_phredmin": {
-          "type": "integer"
-        },
-        "qc_phredperc": {
-          "type": "integer"
-        },
-        "qc_polyglen": {
-          "type": "integer"
-        }
-      }
-    },
-    "chimera_removal": {
-      "title": "Chimera removal",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "chimera_db": {
-          "type": "string",
-          "fa_icon": "fas fa-database",
-          "default": "Eukaryome_1.9.3_241222_FullITS_100-800.udb",
-          "description": "Database for refrence-based chimera removal"
-        },
-        "chimera_rescueoccurrence": {
-          "type": "integer",
-          "default": 2
-        },
-        "chimeranov_abskew": {
-          "type": "number",
-          "default": 2
-        },
-        "chimeranov_dn": {
-          "type": "number",
-          "default": 1.4
-        },
-        "chimeranov_mindiffs": {
-          "type": "number",
-          "default": 3
-        },
-        "chimeranov_mindiv": {
-          "type": "number",
-          "default": 0.8
-        },
-        "chimeranov_minh": {
-          "type": "number",
-          "default": 0.28
-        },
-        "chimeranov_xn": {
-          "type": "number",
-          "default": 8
-        }
-      },
-      "fa_icon": "fas fa-trash-alt",
-      "required": [ ]
-    },
-    "tag_jump_removal": {
-      "title": "Tag-jump removal",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
-        "tj_f": {
-          "type": "number",
-          "default": 0.01,
-          "minimum": 0,
-          "maximum": 1
-        },
-        "tj_p": {
-          "type": "number",
-          "default": 1
-        },
-        "otu_id": {
-          "type": "number",
-          "default": 0.98,
-          "minimum": 0,
-          "maximum": 1
-        },
-        "otu_iddef": {
-          "type": "integer",
-          "default": 2,
-          "minimum": 0,
-          "maximum": 4
-        }
-      }
-    },
-    "its_extraction": {
-      "title": "ITS extraction",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "properties": {
         "its_region": {
           "type": "string",
           "default": "full",
@@ -366,31 +165,50 @@
         "ITSx_tax": {
           "type": "string",
           "default": "all",
-          "fa_icon": "fas fa-user-tag"
+          "fa_icon": "fas fa-user-tag",
+          "description": "Taxonomic profile for ITS extraction",
+          "enum": [
+            "all",
+            "alveolata",
+            "bryophyta",
+            "bacillariophyta",
+            "amoebozoa",
+            "euglenozoa",
+            "fungi",
+            "chlorophyta",
+            "rhodophyta",
+            "phaeophyceae",
+            "marchantiophyta",
+            "metazoa",
+            "oomycota",
+            "haptophyceae",
+            "raphidophyceae",
+            "rhizaria",
+            "synurophyceae",
+            "tracheophyta",
+            "eustigmatophyceae",
+            "apusozoa",
+            "parabasalia"
+          ]
         },
         "ITSx_evalue": {
           "type": "number",
           "default": 0.1,
-          "fa_icon": "fas fa-check-circle"
+          "fa_icon": "fas fa-check-circle",
+          "description": "Min E-value threshold for ITSx"
         },
         "ITSx_partial": {
           "type": "integer",
           "default": 0,
-          "fa_icon": "fas fa-arrows-alt-h"
+          "fa_icon": "fas fa-arrows-alt-h",
+          "description": "Min length cutoff for partial ITS sequences to keep (0 = disabled, default)"
         },
         "ITSx_to_parquet": {
           "type": "boolean",
           "default": true,
-          "fa_icon": "fas fa-database"
-        }
-      }
-    },
-    "homopolymer_correction": {
-      "title": "Homopolymer correction",
-      "type": "object",
-      "description": "Correction of homopolymer errors",
-      "default": "",
-      "properties": {
+          "fa_icon": "fas fa-database",
+          "description": "Convert ITSx output (FASTA files) to Parquet"
+        },
         "hp": {
           "type": "boolean",
           "default": true,
@@ -407,38 +225,323 @@
           "type": "number",
           "default": 2,
           "minimum": 0,
-          "maximum": 4
+          "maximum": 4,
+          "description": "Identity definition for homopolymer compression"
+        },
+        "chimera_db": {
+          "type": "string",
+          "fa_icon": "fas fa-database",
+          "default": "Eukaryome_1.9.3_241222_FullITS_100-800.udb",
+          "description": "Database for refrence-based chimera removal"
+        },
+        "chimera_rescueoccurrence": {
+          "type": "integer",
+          "default": 2,
+          "description": "Occurrence threshold for rescuing reference-based chimeras"
+        },
+        "chimeranov_abskew": {
+          "type": "number",
+          "default": 2,
+          "description": "abskew parameter for de novo chimera removal"
+        },
+        "chimeranov_dn": {
+          "type": "number",
+          "default": 1.4,
+          "description": "dn parameter for de novo chimera removal"
+        },
+        "chimeranov_mindiffs": {
+          "type": "number",
+          "default": 3,
+          "description": "mindiffs parameter for de novo chimera removal"
+        },
+        "chimeranov_mindiv": {
+          "type": "number",
+          "default": 0.8,
+          "description": "mindiv parameter for de novo chimera removal"
+        },
+        "chimeranov_minh": {
+          "type": "number",
+          "default": 0.28,
+          "description": "minh parameter for de novo chimera removal"
+        },
+        "chimeranov_xn": {
+          "type": "number",
+          "default": 8,
+          "description": "xn parameter for de novo chimera removal"
+        },
+        "tj_f": {
+          "type": "number",
+          "default": 0.01,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "UNCROSS parameter f for tag-jump removal"
+        },
+        "tj_p": {
+          "type": "number",
+          "default": 1,
+          "description": "Parameter p for tag-jump removal"
+        },
+        "tj_id": {
+          "type": "number",
+          "default": 0.99,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Pre-clustering sequence identity for tag-jump removal"
+        },
+        "tj_iddef": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 4,
+          "description": "Sequence identity definition for pre-clustering prior tag-jump removal"
         }
-      }
+      },
+      "fa_icon": "fas fa-bullseye"
     },
-    "step_2_options": {
-      "title": "Step 2 options",
+    "step_2_specific_parameters": {
+      "title": "Step-2-specific parameters",
       "type": "object",
-      "description": "Global dereplication, denoizing, and clustering",
-      "default": "",
       "properties": {
         "data_path": {
           "type": "string",
           "format": "directory-path",
           "fa_icon": "fas fa-folder-open",
-          "description": "Path to the Step-1 results.",
+          "description": "Path to the Step-1 results",
           "default": "Step1_Results"
-        }
-      },
-      "fa_icon": "fab fa-draft2digital"
-    },
-    "generic_options": {
-      "title": "Generic options",
-      "type": "object",
-      "fa_icon": "fas fa-file-import",
-      "description": "Less common options for the pipeline, typically set in a config file.",
-      "help_text": "These options are common to all nf-core pipelines and allow you to customise some of the core preferences for how the pipeline runs.\n\nTypically these options would be set in a Nextflow config file loaded for all pipeline runs, such as `~/.nextflow/config`.",
-      "properties": {
-        "version": {
+        },
+        "merge_replicates": {
           "type": "boolean",
-          "description": "Display version and exit.",
-          "fa_icon": "fas fa-question-circle",
-          "hidden": true
+          "description": "Pool sample replicates (e.g., re-sequenced samples) in the final OTU table"
+        },
+        "ampliconlen_min": {
+          "type": "integer",
+          "description": "Minimum amplicon length for filtering"
+        },
+        "ampliconlen_max": {
+          "type": "integer",
+          "description": "Maximum amplicon length for filtering"
+        },
+        "chunking_n": {
+          "type": "integer",
+          "description": "Number of chunks to split the dataset into prior clustering"
+        },
+        "chunking_id": {
+          "type": "number",
+          "default": 0.6,
+          "description": "Minimum sequence identity for clustering"
+        },
+        "preclustering": {
+          "type": "string",
+          "default": "none",
+          "enum": ["none", "unoise", "dada2", "swarm_d1", "homopolymer"],
+          "description": "Sequence denoising or pre-clustering method"
+        },
+        "unoise_alpha": {
+          "type": "number",
+          "default": 6,
+          "description": "UNOISE alpha parameter"
+        },
+        "unoise_minsize": {
+          "type": "integer",
+          "default": 1,
+          "description": "UNOISE minimum size parameter"
+        },
+        "dada2_pooling": {
+          "type": "string",
+          "default": "byrun",
+          "enum": ["byrun", "global"],
+          "description": "DADA2 pooling strategy"
+        },
+        "dada2_nbases": {
+          "type": "number",
+          "default": 1000000,
+          "description": "DADA2 number of bases"
+        },
+        "dada2_bandsize": {
+          "type": "integer",
+          "default": 16,
+          "description": "DADA2 band size"
+        },
+        "dada2_detectsingletons": {
+          "type": "boolean",
+          "default": true,
+          "description": "DADA2 detect singletons"
+        },
+        "dada2_omegaA": {
+          "type": "number",
+          "default": 1e-20,
+          "description": "DADA2 omega A parameter"
+        },
+        "dada2_omegaC": {
+          "type": "number",
+          "default": 1e-40,
+          "description": "DADA2 omega C parameter"
+        },
+        "dada2_omegaP": {
+          "type": "number",
+          "default": 0.0001,
+          "description": "DADA2 omega P parameter"
+        },
+        "dada2_maxconsist": {
+          "type": "integer",
+          "default": 10,
+          "description": "DADA2 maximum consistency"
+        },
+        "dada2_match": {
+          "type": "integer",
+          "default": 4,
+          "description": "DADA2 match score"
+        },
+        "dada2_mismatch": {
+          "type": "integer",
+          "default": -5,
+          "description": "DADA2 mismatch penalty"
+        },
+        "dada2_gappenalty": {
+          "type": "integer",
+          "default": -8,
+          "description": "DADA2 gap penalty"
+        },
+        "clustering": {
+          "type": "string",
+          "default": "vsearch",
+          "enum": ["none", "vsearch", "swarm", "shmatching"],
+          "description": "Sequence clustering method"
+        },
+        "otu_id": {
+          "type": "number",
+          "default": 0.98,
+          "description": "Sequence similarity threshold for OTU clustering",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "otu_iddef": {
+          "type": "integer",
+          "default": 2,
+          "description": "Sequence similarity definition type for OTU clustering",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "otu_qmask": {
+          "type": "string",
+          "default": "dust",
+          "description": "Quality masking for OTU clustering"
+        },
+        "swarm_d": {
+          "type": "integer",
+          "default": 1,
+          "description": "SWARM distance parameter"
+        },
+        "swarm_fastidious": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable SWARM fastidious mode"
+        },
+        "swarm_d1boundary": {
+          "type": "integer",
+          "default": 3,
+          "description": "SWARM boundary parameter for fastidious mode"
+        },
+        "alignment_penalties": {
+          "type": "string",
+          "default": "default",
+          "enum": ["default", "UNITE"],
+          "description": "Alignment penalty configuration"
+        },
+        "vsearch_gapopen": {
+          "type": "string",
+          "default": "20I/2E",
+          "description": "VSEARCH gap opening penalties"
+        },
+        "vsearch_gapext": {
+          "type": "string",
+          "default": "2I/1E",
+          "description": "VSEARCH gap extension penalties"
+        },
+        "max_MEEP": {
+          "type": "number",
+          "default": 0.5,
+          "description": "Maximum expected error as a percentage of read length (MEEP)  threshold for singleton removal"
+        },
+        "max_ChimeraScore": {
+          "type": "number",
+          "default": 0.6,
+          "description": "Maximum de novo chimera score"
+        },
+        "recover_lowqsingletons": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow recovery of singletons"
+        },
+        "recover_denovochimeras": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow recovery of de novo chimeras"
+        },
+        "lulu": {
+          "type": "boolean",
+          "default": true,
+          "description": "Post-clustering curation using LULU algorithm"
+        },
+        "lulu_match": {
+          "type": "integer",
+          "default": 95,
+          "description": "Minimum sequence similarity threshold for LULU"
+        },
+        "lulu_ratio": {
+          "type": "integer",
+          "default": 1,
+          "description": "Minimum sequence abundance ratio for LULU"
+        },
+        "lulu_ratiotype": {
+          "type": "string",
+          "default": "min",
+          "description": "Abundance ratio type for LULU",
+          "enum": ["min", "avg"]
+        },
+        "lulu_relcooc": {
+          "type": "number",
+          "default": 0.95,
+          "description": "Relative co-occurrence threshold for LULU",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "lulu_maxhits": {
+          "type": "integer",
+          "default": 0,
+          "description": "Maximum number of hits for LULU (0 = unlimited)"
+        },
+        "sh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Species-hypothesis (SH) matching [not implemented yet]"
+        },
+        "sh_thresholds": {
+          "type": "string"
+        },
+        "sh_coveragevariation": {
+          "type": "number",
+          "default": 0.96
+        }
+      }
+    },
+    "common_parameters": {
+      "title": "Common parameters for both steps",
+      "type": "object",
+      "properties": {
+        "outdir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Path to the directory where the analysis results will be saved.",
+          "fa_icon": "fas fa-folder-open",
+          "default": "Step2_Results"
+        },
+        "step": {
+          "type": "string",
+          "enum": ["Step1", "Step2", "seqstats"],
+          "description": "The step of the pipeline to run.",
+          "fa_icon": "fas fa-step-forward",
+          "default": "Step1"
         },
         "storagemode": {
           "type": "string",
@@ -454,39 +557,6 @@
           "maximum": 9,
           "fa_icon": "fas fa-file-archive",
           "description": "Controls GZIP compression level in output files."
-        },
-        "help": {
-          "type": "boolean",
-          "description": "Display help text.",
-          "fa_icon": "fas fa-question-circle",
-          "hidden": true
-        },
-        "helpMsg": {
-          "type": "boolean",
-          "fa_icon": "far fa-question-circle"
-        },
-        "monochrome_logs": {
-          "type": "boolean",
-          "description": "Do not use coloured log outputs.",
-          "fa_icon": "fas fa-palette",
-          "hidden": true
-        },
-        "validate_params": {
-          "type": "boolean",
-          "description": "Boolean whether to validate parameters against the schema at runtime",
-          "default": true,
-          "fa_icon": "fas fa-check-square",
-          "hidden": true
-        },
-        "tracedir": {
-          "type": "string",
-          "fa_icon": "fas fa-folder-minus"
-        },
-        "show_hidden_params": {
-          "type": "boolean",
-          "description": "Show all params when using `--help`.",
-          "help_text": "By default, parameters set as _hidden_ in the schema are not shown on the command line when a user runs with `--help`. Specifying this option will tell the pipeline to show all parameters.",
-          "fa_icon": "fas fa-eye-slash"
         },
         "max_cpus": {
           "type": "integer",
@@ -513,18 +583,47 @@
           "pattern": "^(\\d+\\.?\\s*(s|m|h|day)\\s*)+$",
           "help_text": "Use to set an upper-limit for the time requirement for each process. Should be a string in the format integer-unit e.g. `--max_time '2.h'`"
         },
-        "schema_ignore_params": {
-          "type": "string"
-        }
-      }
-    },
-    "uncategorized_unused": {
-      "title": "Uncategorized/Unused",
-      "type": "object",
-      "description": "",
-      "default": "",
-      "fa_icon": "fas fa-unlink",
-      "properties": {
+        "tracedir": {
+          "type": "string",
+          "fa_icon": "fas fa-folder-minus",
+          "description": "Directory to store pipeline execution logs"
+        },
+        "version": {
+          "type": "boolean",
+          "description": "Display version and exit",
+          "fa_icon": "fas fa-question-circle",
+          "hidden": true
+        },
+        "help": {
+          "type": "boolean",
+          "description": "Display help text",
+          "fa_icon": "fas fa-question-circle",
+          "hidden": true
+        },
+        "helpMsg": {
+          "type": "boolean",
+          "fa_icon": "far fa-question-circle",
+          "description": "Custom help message"
+        },
+        "monochrome_logs": {
+          "type": "boolean",
+          "description": "Do not use coloured log outputs",
+          "fa_icon": "fas fa-palette",
+          "hidden": true
+        },
+        "validate_params": {
+          "type": "boolean",
+          "description": "Boolean whether to validate parameters against the schema at runtime",
+          "default": true,
+          "fa_icon": "fas fa-check-square",
+          "hidden": true
+        },
+        "show_hidden_params": {
+          "type": "boolean",
+          "description": "Show all params when using `--help`",
+          "help_text": "By default, parameters set as _hidden_ in the schema are not shown on the command line when a user runs with `--help`. Specifying this option will tell the pipeline to show all parameters.",
+          "fa_icon": "fas fa-eye-slash"
+        },
         "enable_conda": {
           "type": "boolean",
           "fa_icon": "fas fa-adjust",
@@ -551,46 +650,117 @@
           "description": "Send plain-text email instead of HTML.",
           "fa_icon": "fas fa-remove-format",
           "hidden": true
+        },
+        "schema_ignore_params": {
+          "type": "string"
         }
-      }
+      },
+      "required": ["step"],
+      "fa_icon": "fab fa-creative-commons-share"
+    },
+    "illumina_specific_parameters": {
+      "title": "Illumina-specific parameters",
+      "type": "object",
+      "properties": {
+        "input_R1": {
+          "type": "string",
+          "description": "File with R1 reads for Illumina"
+        },
+        "input_R2": {
+          "type": "string",
+          "description": "File with R2 reads for Illumina"
+        },
+        "qc_avgphred": {
+          "type": "boolean",
+          "description": "Average Phred score (for Illumina PE reads only)"
+        },
+        "qc_twocolor": {
+          "type": "boolean",
+          "description": "Reduced resolution Phred-scores (two-color Illumina chemistry)"
+        },
+        "pe_minoverlap": {
+          "type": "integer",
+          "default": 20,
+          "description": "Paired-end reads minimum overlap (Illumina only)"
+        },
+        "pe_diffperclimit": {
+          "type": "integer",
+          "default": 20,
+          "description": "Paired-end reads max percentage difference for the overlap (Illumina only)"
+        },
+        "pe_difflimit": {
+          "type": "integer",
+          "default": 5,
+          "description": "Paired-end reads max difference for the overlap (Illumina only)"
+        },
+        "pe_nlimit": {
+          "type": "integer",
+          "default": 10
+        },
+        "pe_minlen": {
+          "type": "integer",
+          "default": 30
+        },
+        "barcode_errors": {
+          "type": "integer",
+          "default": 1,
+          "description": "Number of allowed erros in demultiplexing (Illumina only)"
+        },
+        "illumina_keep_notmerged": {
+          "type": "boolean",
+          "default": true
+        },
+        "illumina_joinpadgap": {
+          "type": "string",
+          "default": "NNNNNNNNNN"
+        },
+        "illumina_joinpadqual": {
+          "type": "string",
+          "default": "IIIIIIIIII"
+        },
+        "barcode_window": {
+          "type": "integer",
+          "default": 30,
+          "description": "(Illumina only)"
+        },
+        "barcode_overlap": {
+          "type": "integer",
+          "default": 11,
+          "description": "(Illumina only)"
+        },
+        "trim_minlen": {
+          "type": "integer",
+          "default": 10
+        },
+        "qc_phredmin": {
+          "type": "integer",
+          "description": "Min Phred score threshold of unqualified bases (for two-color Illumina only)"
+        },
+        "qc_phredperc": {
+          "type": "integer",
+          "description": "Max percentage of unqualified bases per read (for two-color Illumina only)"
+        },
+        "qc_polyglen": {
+          "type": "integer",
+          "description": "Max poly-G length (for two-color Illumina only)"
+        }
+      },
+      "description": "EXPERIMENTAL",
+      "fa_icon": "fas fa-flask"
     }
   },
   "allOf": [
     {
-      "$ref": "#/definitions/input_output_options"
+      "$ref": "#/$defs/step_1_specific_parameters"
     },
     {
-      "$ref": "#/definitions/demultiplexing"
+      "$ref": "#/$defs/step_2_specific_parameters"
     },
     {
-      "$ref": "#/definitions/quality_control"
+      "$ref": "#/$defs/common_parameters"
     },
     {
-      "$ref": "#/definitions/primer_trimming"
-    },
-    {
-      "$ref": "#/definitions/illumina_specific_parameters"
-    },
-    {
-      "$ref": "#/definitions/chimera_removal"
-    },
-    {
-      "$ref": "#/definitions/tag_jump_removal"
-    },
-    {
-      "$ref": "#/definitions/its_extraction"
-    },
-    {
-      "$ref": "#/definitions/homopolymer_correction"
-    },
-    {
-      "$ref": "#/definitions/step_2_options"
-    },
-    {
-      "$ref": "#/definitions/generic_options"
-    },
-    {
-      "$ref": "#/definitions/uncategorized_unused"
+      "$ref": "#/$defs/illumina_specific_parameters"
     }
   ]
 }
