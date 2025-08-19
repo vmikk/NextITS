@@ -155,7 +155,7 @@ workflow {
   }
 
   if (params.step == "seqstats") {
-    quickstats()
+    seqstats()
   }
 
 }
