@@ -1838,8 +1838,8 @@ process tj_preclust {
     echo -e "Pre-clustering sequences prior to tag-jump removal\n"
     vsearch \
       --cluster_size ${input} \
-      --id    ${params.otu_id} \
-      --iddef ${params.otu_iddef} \
+      --id    ${params.tj_id} \
+      --iddef ${params.tj_iddef} \
       --sizein --sizeout \
       --qmask dust --strand both \
       --fasta_width 0 \
