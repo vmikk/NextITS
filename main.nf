@@ -42,6 +42,9 @@ if (params.helpMsg){
 // Include custom parameter summary function
 include { paramSummary } from './modules/parameter_summary'
 
+// Include color utilities
+include { getColors; colorize; colorizeMultiple; errorMsg; warningMsg; infoMsg; successMsg } from './modules/colors'
+
 // Include workflows
 // NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
 include { S1 } from './workflows/STEP1.nf'
@@ -54,10 +57,7 @@ include { seqstats } from './workflows/STEP1.nf'
 
 
 // Print NextITS logo
-def logoColors = params.monochrome_logs ? [:] : [
-    green: "\033[0;32m", purple: "\033[0;35m", cyan: "\033[0;36m", 
-    dim: "\033[2m", reset: "\033[0m"
-]
+def logoColors = getColors(params.monochrome_logs)
 
 def workflow_version = workflow.manifest.version ?: "unknown"
 if (workflow.commitId) { workflow_version += " (${workflow.commitId.substring(0, 7)})" }
@@ -93,36 +93,37 @@ if (params.helpMsg){
 if( params.step == "Step1" ) {
 
   if (params.input == false && params.seqplatform == "PacBio") {
-      println( "ERROR: Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.")
+      println( errorMsg("Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.", params.monochrome_logs))
       exit(1)
   }
   if (params.input_R1 == false && params.input_R2 == false && params.seqplatform == "Illumina") {
-      println( "ERROR: Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.")
+      println( errorMsg("Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.", params.monochrome_logs))
       exit(1)
   }
   if (params.barcodes == false && params.demultiplexed == false) {
-      println( "ERROR: Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.")
+      println( errorMsg("Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.", params.monochrome_logs))
       exit(1)
   }
   if (!params.chimera_db || !file(params.chimera_db).exists()) {
-      println( "ERROR: Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.")
+      println( errorMsg("Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.", params.monochrome_logs))
+      println( colorize("See https://Next-ITS.github.io/installation/#databases for more information.", 'red', params.monochrome_logs))
       exit(1)
   }
   if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
-      println( "ERROR: The reference database file specified with `--chimera_db` parameter must be in UDB format." )
+      println( errorMsg("The reference database file specified with `--chimera_db` parameter must be in UDB format.", params.monochrome_logs))
       exit 1
   }
   if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
-      println( "ERROR: Homopolymer compression is not implemented for Illumina non-merged reads.")
+      println( errorMsg("Homopolymer compression is not implemented for Illumina non-merged reads.", params.monochrome_logs))
       exit(1)
   }
   if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
-      println( "ERROR: Handling demultiplexed data for Illumina is not implemented yet.")
+      println( errorMsg("Handling demultiplexed data for Illumina is not implemented yet.", params.monochrome_logs))
       exit(1)
   }
 
   if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true && params.its_region != "none") {
-      println( "WARNING: Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.")
+      println( warningMsg("Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.", params.monochrome_logs))
   }
 
 }  // end of Step-1 parameter validation
@@ -132,7 +133,7 @@ if( params.step == "Step1" ) {
 if( params.step == "Step2" ) {
 
   if (params.preclustering == "none" && params.clustering == "none"){
-    println "Pre-clustering and clustering could not be both set to 'none'"
+    println errorMsg("Pre-clustering and clustering could not be both set to 'none'", params.monochrome_logs)
     exit(1)
   }
 
@@ -158,8 +159,6 @@ workflow {
   }
 
 }
-
-
 
 
 // On completion
