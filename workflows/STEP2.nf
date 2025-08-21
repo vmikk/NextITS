@@ -48,7 +48,7 @@ process aggregate_sequences {
 
     script:
     """
-    echo -e "Aggregating sequences\n"
+    echo -e "Aggregating sequences\\n"
     
     aggregate_sequences.R \
       --seqtabs       . \
@@ -91,7 +91,7 @@ process dereplication {
     pigzCPUs = Math.min(maxPigzThreads, Math.floor(totalCPUs / parallelJobs).intValue())
 
     """
-    echo -e "Dereplicating sequences\n"
+    echo -e "Dereplicating sequences\\n"
 
     vsearch \
       --derep_fulllength ${seqs} \
@@ -103,10 +103,10 @@ process dereplication {
       --sizein --sizeout \
       --uc Dereplicated.uc
 
-    echo -e "..Dereplication finished\n"
+    echo -e "..Dereplication finished\\n"
 
     ## Compress results
-    echo -e "\nCompressing results"
+    echo -e "\\nCompressing results"
     parallel -j ${parallelJobs} \
       "pigz -p ${pigzCPUs} -${params.gzip_compression} {}" \
       ::: "Dereplicated.uc" "Dereplicated.fa"
@@ -133,7 +133,7 @@ process dereplication_unite {
 
     script:
     """
-    echo -e "Dereplicating sequences\n"
+    echo -e "Dereplicating sequences\\n"
 
     ## NB. by default, UNITE uses `cluster_fast`, which sorts sequences by length
     ## Here, we use `cluster_size`, which sorts by abundance
@@ -156,7 +156,7 @@ process dereplication_unite {
     echo -e "..Dereplication finished"
 
     ## Compress results
-    echo -e "\nCompressing results"
+    echo -e "\\nCompressing results"
     parallel -j ${task.cpus} "gzip -${params.gzip_compression} {}" \
       ::: "Dereplicated.uc" "Dereplicated.fa"
 
@@ -479,14 +479,14 @@ process merge_uc {
 
     script:
     """
-    echo -e "merge_uc process\n"
+    echo -e "Merging UC files\\n"
 
     ## Parse UC files from different steps, convert to parquet format
-    echo -e "..Parsing dereplicated UC file\n"
+    echo -e "..Parsing dereplicated UC file\\n"
     ucs --input ${uc_derep} --output UC_derep.parquet
 
     if [ -f ${uc_preclust} ] && [ "${uc_preclust}" != "NoPrecluster" ]; then
-      echo -e "..Parsing pre-clustered UC file\n"
+      echo -e "..Parsing pre-clustered UC file\\n"
       ucs --input ${uc_preclust} --output UC_preclust.parquet
       UCPRECLUST="UC_preclust.parquet"
     else
@@ -494,12 +494,12 @@ process merge_uc {
     fi
 
     if [ -f ${uc_clust} ]; then
-      echo -e "..Parsing clustered UC file\n"
+      echo -e "..Parsing clustered UC file\\n"
       ucs --input ${uc_clust} --output UC_clust.parquet
     fi
 
     ## Merge UC files into a single file
-    echo -e "..Merging UC files\n"
+    echo -e "..Merging UC files\\n"
     merge_uc_files.R \
       --ucderep    UC_derep.parquet \
       --ucpreclust \${UCPRECLUST} \
@@ -532,6 +532,7 @@ process summarize {
 
     script:
     """
+    echo -e "Summarizing clustered data\\n"
 
     summarize_clustered_data.R \
       --seqtab         ${seqtab} \
@@ -566,7 +567,7 @@ process lulu {
 
     script:
     """
-    echo -e "Post-clustering curation with MUMU (C++ implementation of LULU)\n"
+    echo -e "Post-clustering curation with MUMU (C++ implementation of LULU)\\n"
 
     ## If Clustered.fa.gz used as input
     ## (but there are sequences excluded from the OTU table)
@@ -588,7 +589,7 @@ process lulu {
     echo -e "VSEARCH similarity threshold: " "\$VSID"
 
     ## Prepare match list (+ remove size annotations)
-    echo -e "Preparing match list\n"
+    echo -e "Preparing match list\\n"
     vsearch \
       --usearch_global ${sequences} \
       --db             ${sequences} \
@@ -608,10 +609,10 @@ process lulu {
     # Input match_list = tab-separated, OTU pairwise similarity scores
 
 
-    echo -e "\nUnpacking OTU table\n"
+    echo -e "\\nUnpacking OTU table\\n"
     gunzip --stdout ${otu_table} > tmp_OTU_table.txt
 
-    echo -e "\nRunning MUMU\n"
+    echo -e "\\nRunning MUMU\\n"
     mumu \
       --otu_table     tmp_OTU_table.txt \
       --match_list    LULU_match_list.txt \
@@ -623,21 +624,21 @@ process lulu {
       --minimum_ratio_type           ${params.lulu_ratiotype} \
       --minimum_relative_cooccurence ${params.lulu_relcooc}
 
-    echo -e "..Compressing LULU-curated OTU table\n"
+    echo -e "..Compressing LULU-curated OTU table\\n"
     parallel -j 1 \
       "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "OTU_table_LULU.txt" "LULU_merging_statistics.txt" "LULU_match_list.txt"
 
-    echo -e "..LULU done\n"
+    echo -e "..LULU done\\n"
 
-    echo -e "\nPreparing sequence subset\n"
+    echo -e "\\nPreparing sequence subset\\n"
 
-    echo -e "..Extracting OTU IDs\n"
+    echo -e "..Extracting OTU IDs\\n"
     zcat OTU_table_LULU.txt.gz \
       | awk 'NR > 1 {print \$1}' \
       > curated_OTU_ids.txt
 
-    echo -e "..Extracting sequences\n"
+    echo -e "..Extracting sequences\\n"
     rg -z -A 1 \
       -f curated_OTU_ids.txt \
       --context-separator "" \
@@ -648,8 +649,8 @@ process lulu {
     > OTUs_LULU.fa.gz
 
     ## Remove temporary files
-    echo -e "\nAll done!\n"
-    echo -e "Removing temporary files\n"
+    echo -e "\\nAll done!\\n"
+    echo -e "Removing temporary files\\n"
     # rm tmp_sequences.fa.gz
     rm tmp_OTU_table.txt curated_OTU_ids.txt
 
