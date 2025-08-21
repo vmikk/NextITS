@@ -384,6 +384,17 @@ workflow CLUSTERING {
       unoise(derep_ch)
       denoise_ch    = unoise.out.unoise
       preclustuc_ch = unoise.out.unoise_uc
+    
+    // Denoise with DADA2
+    } else if ( params.preclustering == "dada2" ) {
+
+      // Denoise all dereplicated sequences
+      if(params.dada2_pooling == "global"){
+        dada2(derep_ch)
+        denoise_ch    = dada2.out.dada
+        preclustuc_ch = dada2.out.dada_uc
+      }
+
     // Precluster with SWARM
     } else if ( params.preclustering == "swarm_d1" ){
       precluster_swarm(derep_ch)
@@ -432,6 +443,17 @@ workflow CLUSTERING {
       cluster_ch = unoise.out.unoise
       clustuc_ch = unoise.out.unoise_uc
       preclustuc_ch = file('NoPrecluster')
+
+    // Do not cluster, use ASVs from DADA2
+    } else if ( params.preclustering == "dada2" & params.clustering == "none" ){
+      
+      if(params.dada2_pooling == "global"){
+        cluster_ch = dada2.out.dada
+        clustuc_ch = dada2.out.dada_uc
+      } 
+    
+      preclustuc_ch = file('NoPrecluster')
+    
     } else if ( params.preclustering == "none" & params.clustering == "none" ){
       println "No pre-clustering or clustering was done"
 
