@@ -22,13 +22,13 @@ process homopolymer {
 
     echo -e "Running homopolymer correction"
 
-    echo -e "\nCompressing repeats"
+    echo -e "\\nCompressing repeats"
     zcat ${input} \
       | homopolymer_compression.sh \
       | gzip -2 \
       > homo_compressed.fa.gz
 
-    echo -e "\nAdditional dereplication"
+    echo -e "\\nAdditional dereplication"
     vsearch \
       --derep_fulllength homo_compressed.fa.gz \
       --output - \
@@ -41,7 +41,7 @@ process homopolymer {
 
     ## Substitute homopolymer-comressed sequences with uncompressed ones
     ## (update size annotaions)
-    echo -e "\nExtracting representative sequences"
+    echo -e "\\nExtracting representative sequences"
 
     seqkit fx2tab ${input} > inp_tab.txt
     seqkit fx2tab homo_compressed_dereplicated.fa > clust_tab.txt
@@ -70,14 +70,14 @@ process homopolymer {
 
     #### combine_derep_and_hpcorrection.R
 
-    echo -e "\nHomopolymer correction finished\n"
+    echo -e "\\nHomopolymer correction finished\\n"
 
     ## Compress results
-    echo -e "\nCompressing results"
+    echo -e "\\nCompressing results"
     gzip -${params.gzip_compression} HomopolymerCompressed.uc
     
     ## Remove temporary files
-    echo -e "\nRemoving temporary files"
+    echo -e "\\nRemoving temporary files"
     rm homo_compressed.fa.gz
     rm homo_compressed_dereplicated.fa
     rm HomopolymerCompressed_tmp.fa
@@ -105,7 +105,7 @@ process unoise {
 
     script:
     """
-    echo -e "Denoizing sequences with UNOISE\n"
+    echo -e "Denoizing sequences with UNOISE\\n"
 
     vsearch \
       --cluster_unoise ${input} \
@@ -121,10 +121,10 @@ process unoise {
       --centroids UNOISE.fa \
       --uc UNOISE.uc
 
-    echo -e "..UNOISE done\n"
+    echo -e "..UNOISE done\\n"
 
     ## Compress results
-    echo -e "\nCompressing UNOISE results"
+    echo -e "\\nCompressing UNOISE results"
     parallel -j 1 \
       "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "UNOISE.fa" "UNOISE.uc"
@@ -155,8 +155,8 @@ process precluster_swarm {
 
     script:
     """
-    echo -e "Pre-clustering sequences with SWARM d=1\n"
-    echo -e "Note: sequences with ambiguous nucleotides will be excluded!\n"
+    echo -e "Pre-clustering sequences with SWARM d=1\\n"
+    echo -e "Note: sequences with ambiguous nucleotides will be excluded!\\n"
 
     ## Remove sequences with ambiguities
     zcat ${input} \
@@ -173,15 +173,15 @@ process precluster_swarm {
       --seeds              SWARM_representatives.fa \
       > SWARM.swarms
 
-    echo -e "\n..Swarm pre-clustering finished\n"
+    echo -e "\\n..Swarm pre-clustering finished\\n"
 
     ## Compress results
-    echo -e "..Compressing results\n"
+    echo -e "\\n..Compressing results\\n"
     parallel -j 1 \
       "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "SWARM_representatives.fa" "SWARM.uc" "SWARM.swarms" "SWARM.struct" "SWARM.stats"
 
-    echo -e "..Done\n"
+    echo -e "..Done\\n"
     """
 }
 
@@ -205,7 +205,7 @@ process cluster_vsearch {
 
     script:
     """
-    echo -e "Clustering sequences with VSEARCH\n"
+    echo -e "Clustering sequences with VSEARCH\\n"
 
     vsearch \
       --cluster_size ${input} \
@@ -225,7 +225,7 @@ process cluster_vsearch {
     echo -e "..Done"
 
     ## Compress UC file
-    echo -e "\nCompressing UC file"
+    echo -e "\\nCompressing UC file"
     pigz -p ${task.cpus} -${params.gzip_compression} Clustered.uc
 
     """
@@ -259,8 +259,8 @@ process cluster_swarm {
 
     script:
     """
-    echo -e "Clustering sequences with SWARM\n"
-    echo -e "Note: sequences with ambiguous nucleotides will be excluded!\n"
+    echo -e "Clustering sequences with SWARM\\n"
+    echo -e "Note: sequences with ambiguous nucleotides will be excluded!\\n"
 
     ## Swarm works with ACGTU alphabet only
     ## 1. So check if there are any sequences with ambiguities
@@ -287,15 +287,15 @@ process cluster_swarm {
     # --output-file SWARM.swarms  # to avoid buffering, it's better to stream data into a file (with >)
     # -r, --mothur                # output using mothur-like format
 
-    echo -e "\n..Swarm clustering finished\n"
+    echo -e "\\n..Swarm clustering finished\\n"
 
     ## Compress results
-    echo -e "..Compressing results\n"
+    echo -e "..Compressing results\\n"
     parallel -j 1 \
       "pigz -p ${task.cpus} -${params.gzip_compression} {}" \
       ::: "SWARM_representatives.fa" "SWARM.uc" "SWARM.swarms" "SWARM.struct" "SWARM.stats"
 
-    echo -e "..Done\n"
+    echo -e "..Done\\n"
     """
 }
 
