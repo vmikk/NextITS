@@ -2676,7 +2676,13 @@ workflow S1 {
   disambiguate()
 
 
-  // Demultiplex data
+  /*
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      Demultiplex data
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  */
+
+  // Run demultiplexing
   if( params.demultiplexed == false ){
     
     // Input file with barcodes (FASTA)
@@ -2845,323 +2851,54 @@ workflow S1 {
   }  // end of pre-demultiplexed branch
 
 
+  /*
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      ITS extraction or primer trimming
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  */
 
-    // Extract ITS
-    if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
+  // Extract ITS
+  if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
 
-      // Run ITSx
-      itsx(primer_check.out.fq_primer_checked)
+    // Run ITSx
+    itsx(primer_check.out.fq_primer_checked)
 
-      // Merge tables with sequence qualities
-      seq_qual(itsx.out.hashes.collect())
-    }
+    // Merge tables with sequence qualities
+    seq_qual(itsx.out.hashes.collect())
+  }
 
-    // Trim the primers (instead of ITS extraction)
-    if(params.its_region == "none"){
+  // Trim the primers (instead of ITS extraction)
+  if(params.its_region == "none"){
       
-      // Trim primers with cutadapt
-      trim_primers(primer_check.out.fq_primer_checked)
+    // Trim primers with cutadapt
+    trim_primers(primer_check.out.fq_primer_checked)
 
-      // Merge tables with sequence qualities
-      seq_qual(trim_primers.out.hashes.collect())
-    }
+    // Merge tables with sequence qualities
+    seq_qual(trim_primers.out.hashes.collect())
+  }
 
-    // Trim the primers, run ITSx, and assemble near-full-length ITS
-    if(params.its_region == "ITS1_5.8S_ITS2"){
+  // Trim the primers, run ITSx, and assemble near-full-length ITS
+  if(params.its_region == "ITS1_5.8S_ITS2"){
 
-      // Run ITSx
-      itsx(primer_check.out.fq_primer_checked)
+    // Run ITSx
+    itsx(primer_check.out.fq_primer_checked)
 
-      // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
-      if (params.ITSx_partial == 0) {
-        assemble_its(
-          itsx.out.itsx_its1,
-          itsx.out.itsx_58s,
-          itsx.out.itsx_its2)
-      } else {
-        assemble_its(
-          itsx.out.itsx_its1_part,
-          itsx.out.itsx_58s,
-          itsx.out.itsx_its2_part)
-      }
-
-      // Merge tables with sequence qualities
-      seq_qual(itsx.out.hashes.collect())
-    }
-
-
-    // Homopolymer compression
-    if(params.hp == true){
-
-        // --Full-length ITS sequences
-        if(params.its_region == "full"){
-          homopolymer(itsx.out.itsx_full)
-        }
-        // --ITS1 sequences
-        if(params.its_region == "ITS1"){
-          if (params.ITSx_partial == 0) {
-            homopolymer(itsx.out.itsx_its1)
-          } else {
-            homopolymer(itsx.out.itsx_its1_part)
-          }
-        }
-        // --ITS2 sequences
-        if(params.its_region == "ITS2"){
-          if (params.ITSx_partial == 0) {
-            homopolymer(itsx.out.itsx_its2)
-          } else {
-            homopolymer(itsx.out.itsx_its2_part)
-          }
-        }
-        // --SSU sequences
-        if(params.its_region == "SSU"){
-          if (params.ITSx_partial == 0) {
-            homopolymer(itsx.out.itsx_ssu)
-          } else {
-            homopolymer(itsx.out.itsx_ssu_part)
-          }
-        }
-        // --LSU sequences
-        if(params.its_region == "LSU"){
-          if (params.ITSx_partial == 0) {
-            homopolymer(itsx.out.itsx_lsu)
-          } else {
-            homopolymer(itsx.out.itsx_lsu_part)
-          }
-        }
-
-        // --Primer-trimmed sequences
-        if(params.its_region == "none"){
-          homopolymer(trim_primers.out.primertrimmed_fa)
-        }
-        // Near-full-length ITS
-        if(params.its_region == "ITS1_5.8S_ITS2"){
-          homopolymer(assemble_its.out.itsnf)
-        }
-    
-        // Reference-based chimera removal
-        ch_chimerabd = Channel.value(params.chimera_db)
-        chimera_ref(homopolymer.out.hc, ch_chimerabd)
-    
-        // De novo chimera search
-        chimera_denovo(homopolymer.out.hc)
-
+    // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
+    if (params.ITSx_partial == 0) {
+      assemble_its(
+        itsx.out.itsx_its1,
+        itsx.out.itsx_58s,
+        itsx.out.itsx_its2)
     } else {
-      // No homopolymer comression is required,
-      // Just dereplicate the data
+      assemble_its(
+        itsx.out.itsx_its1_part,
+        itsx.out.itsx_58s,
+        itsx.out.itsx_its2_part)
+    }
 
-      if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
-        
-        // --Full-length ITS sequences
-        if(params.its_region == "full"){
-          just_derep(itsx.out.itsx_full)
-        }
-        // --ITS1 sequences
-        if(params.its_region == "ITS1"){
-          if (params.ITSx_partial == 0) {
-            just_derep(itsx.out.itsx_its1)
-          } else {
-            just_derep(itsx.out.itsx_its1_part)
-          }
-        }
-        // --ITS2 sequences
-        if(params.its_region == "ITS2"){
-          if (params.ITSx_partial == 0) {
-            just_derep(itsx.out.itsx_its2)
-          } else {
-            just_derep(itsx.out.itsx_its2_part)
-          }
-        }
-        // --SSU sequences
-        if(params.its_region == "SSU"){
-          if (params.ITSx_partial == 0) {
-            just_derep(itsx.out.itsx_ssu)
-          } else {
-            just_derep(itsx.out.itsx_ssu_part)
-          }
-        }
-        // --LSU sequences
-        if(params.its_region == "LSU"){
-          if (params.ITSx_partial == 0) {
-            just_derep(itsx.out.itsx_lsu)
-          } else {
-            just_derep(itsx.out.itsx_lsu_part)
-          }
-        }
-
-        // Reference-based chimera removal
-        ch_chimerabd = Channel.value(params.chimera_db)
-        chimera_ref(just_derep.out.nhc, ch_chimerabd)
-
-        // De novo chimera search
-        chimera_denovo(just_derep.out.nhc)
-
-      }  // end of ITS
-
-      // --Primer-trimmed sequences are already dereplicated
-      if(params.its_region == "none"){
-          
-        // just_derep(trim_primers.out.primertrimmed_fa)
-
-        // Reference-based chimera removal
-        ch_chimerabd = Channel.value(params.chimera_db)
-        chimera_ref(trim_primers.out.primertrimmed_fa, ch_chimerabd)
-
-        // De novo chimera search
-        chimera_denovo(trim_primers.out.primertrimmed_fa)
-      }
-
-      // Assembled ITS is also primer trimmed and dereplicated
-      if(params.its_region == "ITS1_5.8S_ITS2"){
-
-        // Reference-based chimera removal
-        ch_chimerabd = Channel.value(params.chimera_db)
-        chimera_ref(assemble_its.out.itsnf, ch_chimerabd)
-
-        // De novo chimera search
-        chimera_denovo(assemble_its.out.itsnf)
-      }
-
-    } // end of homopolymer correction condition
-
-    // Chimera rescue
-    ch_chimerafiles = chimera_ref.out.chimeric.collect()
-    chimera_rescue(ch_chimerafiles)
-
-    // Aggregate de novo chimeras into a single file
-    chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
-
-    // Create channel with filtered reads
-    ch_filteredseqs = chimera_ref.out.nonchimeric
-      .concat(chimera_rescue.out.rescuedchimeric)
-      .collect()
-
-    // Global dereplication
-    glob_derep(ch_filteredseqs)
-
-    // Pool sequences (for a final sequence table)
-    pool_seqs(ch_filteredseqs)
-
-    // Pre-clustering prior to tag-jump removal
-    tj_preclust(pool_seqs.out.seqsnf)
-
-    // Tag-jump removal
-    tj(
-      pool_seqs.out.seqtabnf,
-      tj_preclust.out.preclust_uc_parquet)
-
-    // Check optional channel with de novo chimera scores
-    ch_denovoscores = chimera_denovo_agg.out.alldenovochim.ifEmpty(file('DeNovo_Chimera.txt'))
-
-    // Create sequence table
-    prep_seqtab(
-      tj.out.seqtabtj,       // tag-jump-filtered sequence table (long format)
-      pool_seqs.out.seqsnf,  // Sequences in FASTA format
-      ch_denovoscores,       // de novo chimera scores
-      seq_qual.out.quals     // sequence qualities
-      )
-
-    
-    //// Read count summary
-    
-      // Initial data - Per-sample input channels
-      if( params.demultiplexed == false ){
-
-        if(params.seqplatform == "PacBio"){
-          ch_all_demux = demux.out.samples_demux.flatten().collect()
-        }
-
-        if(params.seqplatform == "Illumina"){
-          ch_all_demux = demux_illumina.out.samples_demux.flatten().collect()
-        }
-
-      } else {
-        ch_all_demux = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
-      }
-        
-      // Primer-checked and multiprimer sequences
-      ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
-      ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
-      
-      // ITSx and primer trimming channel
-      if(params.its_region == "full"){
-        ch_all_trim = itsx.out.itsx_full.flatten().collect().ifEmpty(file("no_itsx"))
-      }
-      if(params.its_region == "ITS1"){
-        if (params.ITSx_partial == 0) {
-          ch_all_trim = itsx.out.itsx_its1.flatten().collect().ifEmpty(file("no_itsx"))
-        } else {
-          ch_all_trim = itsx.out.itsx_its1_part.flatten().collect().ifEmpty(file("no_itsx"))
-        }
-      }
-      if(params.its_region == "ITS2"){
-        if (params.ITSx_partial == 0) {
-          ch_all_trim = itsx.out.itsx_its2.flatten().collect().ifEmpty(file("no_itsx"))
-        } else {
-          ch_all_trim = itsx.out.itsx_its2_part.flatten().collect().ifEmpty(file("no_itsx"))
-        }
-      }
-      if(params.its_region == "SSU"){
-        if (params.ITSx_partial == 0) {
-          ch_all_trim = itsx.out.itsx_ssu.flatten().collect().ifEmpty(file("no_itsx"))
-        } else {
-          ch_all_trim = itsx.out.itsx_ssu_part.flatten().collect().ifEmpty(file("no_itsx"))
-        }
-      }
-      if(params.its_region == "LSU"){
-        if (params.ITSx_partial == 0) {
-          ch_all_trim = itsx.out.itsx_lsu.flatten().collect().ifEmpty(file("no_itsx"))
-        } else {
-          ch_all_trim = itsx.out.itsx_lsu_part.flatten().collect().ifEmpty(file("no_itsx"))
-        }
-      }
-      if(params.its_region == "ITS1_5.8S_ITS2"){
-        ch_all_trim = assemble_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
-      }
-      if(params.its_region == "none"){
-        ch_all_trim = trim_primers.out.primertrimmed_fq.flatten().collect().ifEmpty(file("no_primertrim"))
-      }
-
-      // Homopolymer-correction channel
-      if(params.hp == true){
-        ch_homopolymers = homopolymer.out.uch.flatten().collect().ifEmpty(file("no_homopolymer"))
-      } else {
-        ch_homopolymers = file("no_homopolymer")
-      }
-
-      // Chimeric channels
-      ch_chimref     = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
-      ch_chimdenovo  = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
-      ch_chimrescued = chimera_rescue.out.rescuedchimeric.flatten().collect().ifEmpty(file("no_chimrescued"))
-
-      // Tag-jump filtering channel
-      ch_tj = tj.out.tjs
-
-
-      // Count reads and prepare summary stats for the run
-      // Currently, implemented only for PacBio
-      // For Illumina, need replace:
-      //   `ch_input` -> `ch_inputR1` & `ch_inputR2`
-      //   `qc_se`    -> `qc_pe`
-
-      if(params.seqplatform == "PacBio"){
-
-      read_counts(
-          ch_input,                // input data
-          qc_se.out.filtered,      // data that passed QC
-          ch_all_demux,            // demultiplexed sequences per sample
-          ch_all_primerchecked,    // primer-cheched sequences
-          ch_all_primerartefacts,  // multiprimer artefacts
-          ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
-          ch_homopolymers,         // Homopolymer stats
-          ch_chimref,              // Reference-based chimeras
-          ch_chimdenovo,           // De novo chimeras
-          ch_chimrescued,          // Rescued chimeras
-          ch_tj,                   // Tag-jump filtering stats
-          prep_seqtab.out.seq_pq   // Final table with sequences (in Parquet format)
-          )
-
-      } // end of read_counts for PacBio
+    // Merge tables with sequence qualities
+    seq_qual(itsx.out.hashes.collect())
+  }
 
 
   // Collect ITSx-extracted sequences
@@ -3195,8 +2932,303 @@ workflow S1 {
       ch_cc_lsu_part
       )
 
-  }
+  } // end of ITSx-extracted sequences
   
+
+  /*
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      Homopolymer compression & chimera removal
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  */
+
+  // Homopolymer compression
+  if(params.hp == true){
+
+    // --Full-length ITS sequences
+    if(params.its_region == "full"){
+      homopolymer(itsx.out.itsx_full)
+    }
+    // --ITS1 sequences
+    if(params.its_region == "ITS1"){
+      if (params.ITSx_partial == 0) {
+        homopolymer(itsx.out.itsx_its1)
+      } else {
+        homopolymer(itsx.out.itsx_its1_part)
+      }
+    }
+    // --ITS2 sequences
+    if(params.its_region == "ITS2"){
+      if (params.ITSx_partial == 0) {
+        homopolymer(itsx.out.itsx_its2)
+      } else {
+        homopolymer(itsx.out.itsx_its2_part)
+      }
+    }
+    // --SSU sequences
+    if(params.its_region == "SSU"){
+      if (params.ITSx_partial == 0) {
+        homopolymer(itsx.out.itsx_ssu)
+      } else {
+        homopolymer(itsx.out.itsx_ssu_part)
+      }
+    }
+    // --LSU sequences
+    if(params.its_region == "LSU"){
+      if (params.ITSx_partial == 0) {
+        homopolymer(itsx.out.itsx_lsu)
+      } else {
+        homopolymer(itsx.out.itsx_lsu_part)
+      }
+    }
+
+    // --Primer-trimmed sequences
+    if(params.its_region == "none"){
+      homopolymer(trim_primers.out.primertrimmed_fa)
+    }
+    // Near-full-length ITS
+    if(params.its_region == "ITS1_5.8S_ITS2"){
+      homopolymer(assemble_its.out.itsnf)
+    }
+    
+    // Reference-based chimera removal
+    ch_chimerabd = Channel.value(params.chimera_db)
+    chimera_ref(homopolymer.out.hc, ch_chimerabd)
+
+    // De novo chimera search
+    chimera_denovo(homopolymer.out.hc)
+
+
+  } else {
+  // No homopolymer comression is required,
+  // Just dereplicate the data
+
+    if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
+      
+      // --Full-length ITS sequences
+      if(params.its_region == "full"){
+        just_derep(itsx.out.itsx_full)
+      }
+      // --ITS1 sequences
+      if(params.its_region == "ITS1"){
+        if (params.ITSx_partial == 0) {
+          just_derep(itsx.out.itsx_its1)
+        } else {
+          just_derep(itsx.out.itsx_its1_part)
+        }
+      }
+      // --ITS2 sequences
+      if(params.its_region == "ITS2"){
+        if (params.ITSx_partial == 0) {
+          just_derep(itsx.out.itsx_its2)
+        } else {
+          just_derep(itsx.out.itsx_its2_part)
+        }
+      }
+      // --SSU sequences
+      if(params.its_region == "SSU"){
+        if (params.ITSx_partial == 0) {
+          just_derep(itsx.out.itsx_ssu)
+        } else {
+          just_derep(itsx.out.itsx_ssu_part)
+        }
+      }
+      // --LSU sequences
+      if(params.its_region == "LSU"){
+        if (params.ITSx_partial == 0) {
+          just_derep(itsx.out.itsx_lsu)
+        } else {
+          just_derep(itsx.out.itsx_lsu_part)
+        }
+      }
+    
+      // Reference-based chimera removal
+      ch_chimerabd = Channel.value(params.chimera_db)
+      chimera_ref(just_derep.out.nhc, ch_chimerabd)
+
+      // De novo chimera search
+      chimera_denovo(just_derep.out.nhc)
+
+    }  // end of ITS
+
+    // --Primer-trimmed sequences are already dereplicated
+    if(params.its_region == "none"){
+          
+      // just_derep(trim_primers.out.primertrimmed_fa)
+
+      // Reference-based chimera removal
+      ch_chimerabd = Channel.value(params.chimera_db)
+      chimera_ref(trim_primers.out.primertrimmed_fa, ch_chimerabd)
+
+      // De novo chimera search
+      chimera_denovo(trim_primers.out.primertrimmed_fa)
+    }
+
+    // Assembled ITS is also primer trimmed and dereplicated
+    if(params.its_region == "ITS1_5.8S_ITS2"){
+
+      // Reference-based chimera removal
+      ch_chimerabd = Channel.value(params.chimera_db)
+      chimera_ref(assemble_its.out.itsnf, ch_chimerabd)
+
+      // De novo chimera search
+      chimera_denovo(assemble_its.out.itsnf)
+    }
+
+  } // end of homopolymer correction condition
+
+
+
+  /*
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      Data aggregation
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  */
+
+  // Chimera rescue
+  ch_chimerafiles = chimera_ref.out.chimeric.collect()
+  chimera_rescue(ch_chimerafiles)
+
+  // Aggregate de novo chimeras into a single file
+  chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
+
+  // Create channel with filtered reads
+  ch_filteredseqs = chimera_ref.out.nonchimeric
+    .concat(chimera_rescue.out.rescuedchimeric)
+    .collect()
+
+  // Global dereplication
+  glob_derep(ch_filteredseqs)
+
+  // Pool sequences (for a final sequence table)
+  pool_seqs(ch_filteredseqs)
+
+  // Pre-clustering prior to tag-jump removal
+  tj_preclust(pool_seqs.out.seqsnf)
+
+  // Tag-jump removal
+  tj(
+    pool_seqs.out.seqtabnf,
+    tj_preclust.out.preclust_uc_parquet)
+
+  // Check optional channel with de novo chimera scores
+  ch_denovoscores = chimera_denovo_agg.out.alldenovochim.ifEmpty(file('DeNovo_Chimera.txt'))
+
+  // Create sequence table
+  prep_seqtab(
+    tj.out.seqtabtj,       // tag-jump-filtered sequence table (long format)
+    pool_seqs.out.seqsnf,  // Sequences in FASTA format
+    ch_denovoscores,       // de novo chimera scores
+    seq_qual.out.quals     // sequence qualities
+    )
+
+
+
+  /*
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      Read count summary
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  */
+ 
+  // Initial data - Per-sample input channels
+  if( params.demultiplexed == false ){
+
+    if(params.seqplatform == "PacBio"){
+      ch_all_demux = demux.out.samples_demux.flatten().collect()
+    }
+
+    if(params.seqplatform == "Illumina"){
+      ch_all_demux = demux_illumina.out.samples_demux.flatten().collect()
+    }
+
+  } else {
+    ch_all_demux = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
+  }
+        
+  // Primer-checked and multiprimer sequences
+  ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
+  ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
+      
+  // ITSx and primer trimming channel
+  if(params.its_region == "full"){
+    ch_all_trim = itsx.out.itsx_full.flatten().collect().ifEmpty(file("no_itsx"))
+  }
+  if(params.its_region == "ITS1"){
+    if (params.ITSx_partial == 0) {
+      ch_all_trim = itsx.out.itsx_its1.flatten().collect().ifEmpty(file("no_itsx"))
+    } else {
+      ch_all_trim = itsx.out.itsx_its1_part.flatten().collect().ifEmpty(file("no_itsx"))
+    }
+  }
+  if(params.its_region == "ITS2"){
+    if (params.ITSx_partial == 0) {
+      ch_all_trim = itsx.out.itsx_its2.flatten().collect().ifEmpty(file("no_itsx"))
+    } else {
+      ch_all_trim = itsx.out.itsx_its2_part.flatten().collect().ifEmpty(file("no_itsx"))
+    }
+  }
+  if(params.its_region == "SSU"){
+    if (params.ITSx_partial == 0) {
+      ch_all_trim = itsx.out.itsx_ssu.flatten().collect().ifEmpty(file("no_itsx"))
+    } else {
+      ch_all_trim = itsx.out.itsx_ssu_part.flatten().collect().ifEmpty(file("no_itsx"))
+    }
+  }
+  if(params.its_region == "LSU"){
+    if (params.ITSx_partial == 0) {
+      ch_all_trim = itsx.out.itsx_lsu.flatten().collect().ifEmpty(file("no_itsx"))
+    } else {
+      ch_all_trim = itsx.out.itsx_lsu_part.flatten().collect().ifEmpty(file("no_itsx"))
+    }
+  }
+  if(params.its_region == "ITS1_5.8S_ITS2"){
+    ch_all_trim = assemble_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
+  }
+  if(params.its_region == "none"){
+    ch_all_trim = trim_primers.out.primertrimmed_fq.flatten().collect().ifEmpty(file("no_primertrim"))
+  }
+
+  // Homopolymer-correction channel
+  if(params.hp == true){
+    ch_homopolymers = homopolymer.out.uch.flatten().collect().ifEmpty(file("no_homopolymer"))
+  } else {
+    ch_homopolymers = file("no_homopolymer")
+  }
+
+  // Chimeric channels
+  ch_chimref     = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
+  ch_chimdenovo  = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
+  ch_chimrescued = chimera_rescue.out.rescuedchimeric.flatten().collect().ifEmpty(file("no_chimrescued"))
+
+  // Tag-jump filtering channel
+  ch_tj = tj.out.tjs
+
+
+  // Count reads and prepare summary stats for the run
+  // Currently, implemented only for PacBio
+  // For Illumina, need replace:
+  //   `ch_input` -> `ch_inputR1` & `ch_inputR2`
+  //   `qc_se`    -> `qc_pe`
+
+  if(params.seqplatform == "PacBio"){
+
+    read_counts(
+      ch_input,                // input data
+      qc_se.out.filtered,      // data that passed QC
+      ch_all_demux,            // demultiplexed sequences per sample
+      ch_all_primerchecked,    // primer-cheched sequences
+      ch_all_primerartefacts,  // multiprimer artefacts
+      ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
+      ch_homopolymers,         // Homopolymer stats
+      ch_chimref,              // Reference-based chimeras
+      ch_chimdenovo,           // De novo chimeras
+      ch_chimrescued,          // Rescued chimeras
+      ch_tj,                   // Tag-jump filtering stats
+      prep_seqtab.out.seq_pq   // Final table with sequences (in Parquet format)
+      )
+
+  } // end of read_counts for PacBio
+
+
   
   // Dump the software versions to a file
   software_versions_to_yaml(Channel.topic('versions'))
