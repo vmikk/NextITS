@@ -134,6 +134,66 @@ process unoise {
 
 
 
+// Denoize sequences with DADA2
+process dada2 {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/02.DADA2", mode: 'symlink'
+    // cpus 8
+
+    input:
+      path input
+
+    output:
+      path "DADA2_denoised.fa.gz",        emit: dada
+      path "DADA2_denoised.uc.gz",        emit: dada_uc
+      path "DADA2_UC.RData",              emit: dada_ucr
+      path "DADA2_denoising_summary.txt", emit: dada_summary
+      // path "DADA2_ErrorRates_noqualErrfun.RData"
+      // path "DADA2_InferedSeqs_noqualErrfun.RData"
+
+    script:
+    """
+    echo -e "Denoizing sequences with DADA2\\n"
+
+    ## DADA2 works with ACGT alphabet only
+    ## 1. So check if there are any sequences with ambiguities
+    ## 2. If any, remove them
+    ## 3. Sort by sequence abundance
+    ## 4. Convert FASTA to pseudo-FASTQ
+    ## 5. Denoise
+
+    ## Remove sequences with ambiguities
+    echo -e "..Preparing sequences\\n"
+    zcat ${input} \
+      | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+      | vsearch --sortbysize - --output - --fasta_width 0 \
+      | awk 'BEGIN {RS = ">" ; FS = "\\n"} NR > 1 {print "@"\$1"\\n"\$2"\\n+"\$1"\\n"gensub(/./, "I", "g", \$2)}' \
+      | gzip -${params.gzip_compression} > no_ambigs.fq.gz
+
+    echo -e "\\n\\n..Running DADA2\\n"
+    dada2_no_quals.R \
+      --input            no_ambigs.fq.gz \
+      --nbases           ${params.dada2_nbases} \
+      --bandsize         ${params.dada2_bandsize} \
+      --detectsingletons ${params.dada2_detectsingletons} \
+      --omegaA           ${params.dada2_omegaA} \
+      --omegaC           ${params.dada2_omegaC} \
+      --omegaP           ${params.dada2_omegaP} \
+      --maxconsist       ${params.dada2_maxconsist} \
+      --match            ${params.dada2_match} \
+      --mismatch         ${params.dada2_mismatch} \
+      --gappenalty       ${params.dada2_gappenalty} \
+      --threads          ${task.cpus}
+
+    echo -e "..Denoizing with DADA2 finished\\n"
+    """
+}
+
+
+
+
 // Preclustering with SWARM and d1
 process precluster_swarm {
 
