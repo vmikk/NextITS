@@ -65,11 +65,11 @@ def parameterSummary(workflow, params) {
     if(workflow.commitId) {
         summary += "  ${colors.green}NextITS revision${colors.reset}        : ${colors.cyan}${workflow.commitId.substring(0, 7)}${colors.reset}\n"
     }
-    summary += "  ${colors.green}profile${colors.reset}          : ${colors.cyan}${workflow.profile}${colors.reset}\n"
-    summary += "  ${colors.green}containerEngine${colors.reset}  : ${colors.cyan}${workflow.containerEngine ?: 'none'}${colors.reset}\n"
+    summary += "  ${colors.green}Profile${colors.reset}          : ${colors.cyan}${workflow.profile}${colors.reset}\n"
+    summary += "  ${colors.green}Container engine${colors.reset} : ${colors.cyan}${workflow.containerEngine ?: 'none'}${colors.reset}\n"
     
     if (workflow.container) {
-        summary += "  ${colors.green}container${colors.reset}        : ${colors.cyan}${workflow.container}${colors.reset}\n"
+        summary += "  ${colors.green}Container${colors.reset}        : ${colors.cyan}${workflow.container}${colors.reset}\n"
     }
     
     return summary
