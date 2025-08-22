@@ -654,15 +654,24 @@ workflow S2 {
 
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        Pre-clustering / denoising
+        Clustering / pre-clustering / denoising   with optional chunking
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
+
+    // No chunking (process all sequences at once)
+    if(params.chunking_n == null || params.chunking_n < 2){
 
       CLUSTERING(derep_ch)
 
       preclustuc_ch = CLUSTERING.out.preclustuc_ch
       cluster_ch    = CLUSTERING.out.cluster_ch
       clustuc_ch    = CLUSTERING.out.clustuc_ch
+
+    } else {
+    // Chunking (process sequences in N chunks)
+
+      // Groupd sequences into clusters
+      linclust(derep_ch)
     }
 
 
