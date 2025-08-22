@@ -57,14 +57,14 @@ RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
 ## Install conda
 RUN mkdir -p /opt/software \
   && cd /opt/software \
-  && curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-  && bash Miniconda3-latest-Linux-x86_64.sh -u -b -p ${CONDA_PREFIX} \
-  && rm Miniconda3-latest-Linux-x86_64.sh \
-  && ${CONDA_PREFIX}/bin/conda config --add channels defaults \
-  && ${CONDA_PREFIX}/bin/conda config --add channels conda-forge \
+  && curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" \
+  && bash Miniforge3-Linux-x86_64.sh -u -b -p ${CONDA_PREFIX} \
+  && rm Miniforge3-Linux-x86_64.sh \
   && ${CONDA_PREFIX}/bin/conda config --add channels bioconda \
-  && ${CONDA_PREFIX}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
-  && ${CONDA_PREFIX}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r \
+  && ${CONDA_PREFIX}/bin/mamba update -y --all \
+  && ${CONDA_PREFIX}/bin/mamba clean --all --yes
+
+  # conda config --show channels
 
 ## Create conda environment and install software
 RUN ${CONDA_PREFIX}/bin/mamba install -y \
