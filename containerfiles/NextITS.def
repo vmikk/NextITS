@@ -94,7 +94,8 @@ Stage: final
   ${conda_prefix}/bin/conda config --add channels defaults
   ${conda_prefix}/bin/conda config --add channels conda-forge
   ${conda_prefix}/bin/conda config --add channels bioconda
-  ${conda_prefix}/bin/conda install --quiet --yes mamba "python=3.12"
+  ${conda_prefix}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+  ${conda_prefix}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
   export MAMBA_ROOT_PREFIX=${conda_prefix}
 
   ## Conda initialization script by Antoine Prouvost
