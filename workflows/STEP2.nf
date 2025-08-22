@@ -257,6 +257,103 @@ process merge_buckets {
 
     label "main_container"
 
+    // Conditional publishing to match non-chunked directory structure
+    // (only enabled when chunking is used)
+    
+    // Pre-clustering results (if any)
+    publishDir "${params.outdir}/02.Homopolymer", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "homopolymer",
+               pattern: "PreClustered.uc.gz",
+               saveAs: { filename -> filename == "PreClustered.uc.gz" ? "HomopolymerCompressed.uc.gz" : null }
+    
+    publishDir "${params.outdir}/02.UNOISE", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "unoise",
+               pattern: "PreClustered.uc.gz",
+               saveAs: { filename -> filename == "PreClustered.uc.gz" ? "UNOISE.uc.gz" : null }
+               
+    publishDir "${params.outdir}/02.DADA2", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "dada2",
+               pattern: "PreClustered.uc.gz",
+               saveAs: { filename -> filename == "PreClustered.uc.gz" ? "DADA2_denoised.uc.gz" : null }
+               
+    publishDir "${params.outdir}/02.Preclustered_SWARM_d1", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "swarm_d1",
+               pattern: "PreClustered.uc.gz",
+               saveAs: { filename -> filename == "PreClustered.uc.gz" ? "SWARM.uc.gz" : null }
+    
+    // Final clustering results - publish to clustering directory if clustering != "none"
+    publishDir "${params.outdir}/03.Clustered_VSEARCH", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "vsearch",
+               pattern: "Clustered.{fa,uc}.gz"
+               // No saveAs needed - files already have correct names for VSEARCH
+               
+    publishDir "${params.outdir}/03.Clustered_SWARM", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "swarm",
+               pattern: "Clustered.{fa,uc}.gz",
+               saveAs: { filename -> 
+                   switch(filename) {
+                       case "Clustered.fa.gz": return "SWARM_representatives.fa.gz"
+                       case "Clustered.uc.gz": return "SWARM.uc.gz"
+                       default: return null
+                   }
+               }
+    
+    // Final results when no clustering is done (clustering == "none") - publish to preclustering directory
+    publishDir "${params.outdir}/02.Homopolymer", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "homopolymer",
+               pattern: "Clustered.{fa,uc}.gz",
+               saveAs: { filename -> 
+                   switch(filename) {
+                       case "Clustered.fa.gz": return "HomopolymerCompressed.fa.gz"
+                       case "Clustered.uc.gz": return "HomopolymerCompressed.uc.gz"
+                       default: return null
+                   }
+               }
+               
+    publishDir "${params.outdir}/02.UNOISE", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "unoise",
+               pattern: "Clustered.{fa,uc}.gz",
+               saveAs: { filename -> 
+                   switch(filename) {
+                       case "Clustered.fa.gz": return "UNOISE.fa.gz"
+                       case "Clustered.uc.gz": return "UNOISE.uc.gz"
+                       default: return null
+                   }
+               }
+               
+    publishDir "${params.outdir}/02.DADA2", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "dada2",
+               pattern: "Clustered.{fa,uc}.gz",
+               saveAs: { filename -> 
+                   switch(filename) {
+                       case "Clustered.fa.gz": return "DADA2_denoised.fa.gz"
+                       case "Clustered.uc.gz": return "DADA2_denoised.uc.gz"
+                       default: return null
+                   }
+               }
+               
+    publishDir "${params.outdir}/02.Preclustered_SWARM_d1", 
+               mode: 'symlink',
+               enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "swarm_d1",
+               pattern: "Clustered.{fa,uc}.gz",
+               saveAs: { filename -> 
+                   switch(filename) {
+                       case "Clustered.fa.gz": return "SWARM_representatives.fa.gz"
+                       case "Clustered.uc.gz": return "SWARM.uc.gz"
+                       default: return null
+                   }
+               }
+
+
     // Since there are name collisions, we need to stage files with unique names
     input:
       path(preclustuc_chunks, stageAs: "pre/?/*")  // UC files for pre-clustering (optional)
