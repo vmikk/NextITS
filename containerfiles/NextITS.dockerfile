@@ -63,7 +63,8 @@ RUN mkdir -p /opt/software \
   && ${CONDA_PREFIX}/bin/conda config --add channels defaults \
   && ${CONDA_PREFIX}/bin/conda config --add channels conda-forge \
   && ${CONDA_PREFIX}/bin/conda config --add channels bioconda \
-  && ${CONDA_PREFIX}/bin/conda install --quiet --yes mamba "python=3.12"
+  && ${CONDA_PREFIX}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+  && ${CONDA_PREFIX}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r \
 
 ## Create conda environment and install software
 RUN ${CONDA_PREFIX}/bin/mamba install -y \
