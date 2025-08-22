@@ -64,7 +64,7 @@ if (workflow.commitId) { workflow_version += " (${workflow.commitId.substring(0,
 
 def logo = """
 ${logoColors.dim}----------------------------------------------------${logoColors.reset}
-${logoColors.green}                    𝗡𝗲𝘅𝘁${logoColors.purple}𝗜𝗧𝗦 ${logoColors.cyan}${workflow_version}${logoColors.reset}
+                    ${colorizeMultiple("Next", ['green', 'bold'], params.monochrome_logs)}${colorizeMultiple("ITS", ['purple', 'bold'], params.monochrome_logs)} ${logoColors.cyan}${workflow_version}${logoColors.reset}
 ${logoColors.green}        SSU     ${logoColors.purple}ITS1    ${logoColors.green}5.8S   ${logoColors.purple}ITS2     ${logoColors.green}LSU      ${logoColors.reset}
 ${logoColors.green}     ▒▒▒▒▒▒▒▒▒${logoColors.purple}░░░░░░░░░${logoColors.green}▒▒▒▒▒${logoColors.purple}░░░░░░░░░░${logoColors.green}▒▒▒▒▒▒▒▒▒▒▒▒${logoColors.reset}
 ${logoColors.dim}----------------------------------------------------${logoColors.reset}
