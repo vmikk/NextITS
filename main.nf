@@ -141,6 +141,14 @@ if( params.step == "Step2" ) {
     exit(1)
   }
 
+  if (params.preclustering == "dada2" && params.dada2_pooling == "byrun" && 
+      (params.chunking_n > 1 || params.chunking_n != null)){
+    println errorMsg("By-sequencing-run pooling in DADA2 is not compatible with chunking.", params.monochrome_logs)
+    println( colorize("Set `--chunking_n` to 1 to disable chunking OR use `--dada2_pooling global`.", 'red', params.monochrome_logs))
+    exit(1)
+  }
+
+
 }  // end of Step-2 parameter validation
 
 
