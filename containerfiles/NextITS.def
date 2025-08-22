@@ -87,16 +87,11 @@ Stage: final
 
   mkdir -p /opt/software
   cd /opt/software
-  curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-  bash ./Miniconda3-latest-Linux-x86_64.sh -u -b -p ${conda_prefix}
-  rm Miniconda3-latest-Linux-x86_64.sh
-
-  ${conda_prefix}/bin/conda config --add channels defaults
-  ${conda_prefix}/bin/conda config --add channels conda-forge
+  curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh"
+  bash Miniforge3-Linux-x86_64.sh -u -b -p ${conda_prefix}
+  rm Miniforge3-Linux-x86_64.sh
   ${conda_prefix}/bin/conda config --add channels bioconda
-  ${conda_prefix}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
-  ${conda_prefix}/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
-  export MAMBA_ROOT_PREFIX=${conda_prefix}
+  ${conda_prefix}/bin/mamba update -y --all
 
   ## Conda initialization script by Antoine Prouvost
   # https://github.com/ds4dm/singularity-conda/blob/main/conda.def
