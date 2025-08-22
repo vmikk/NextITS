@@ -90,7 +90,7 @@ if (params.helpMsg){
 
 
 // Additional parameter validation for Step-1
-if( params.step == "Step1" ) {
+if( params.step == "Step1" || params.step == "seqstats" ) {
 
   if (params.input == false && params.seqplatform == "PacBio") {
       println( errorMsg("Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.", params.monochrome_logs))
@@ -104,6 +104,10 @@ if( params.step == "Step1" ) {
       println( errorMsg("Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.", params.monochrome_logs))
       exit(1)
   }
+}
+
+if( params.step == "Step1" ) {
+
   if (!params.chimera_db || !file(params.chimera_db).exists()) {
       println( errorMsg("Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.", params.monochrome_logs))
       println( colorize("See https://Next-ITS.github.io/installation/#databases for more information.", 'red', params.monochrome_logs))
