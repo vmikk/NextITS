@@ -6,11 +6,11 @@
 # docker build --tag nextits --file NextITS.dockerfile .
 
 ## Build stage 1 (Rust and Cargo)
-FROM rust:1.84.1 AS rust
+FROM rust:1.89.0-slim AS rust
 RUN cargo install runiq sd
 
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.4.2 AS main
+FROM rocker/r-ver:4.5.1 AS main
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
@@ -18,7 +18,7 @@ ENV SHELL=/bin/bash
 ENV CONDA_PREFIX="/opt/software/conda"
 ENV PATH=${PATH}:"/opt/software/conda/bin/"
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
-LABEL org.opencontainers.image.version="0.8.2"
+LABEL org.opencontainers.image.version="1.1.0"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
@@ -68,32 +68,36 @@ RUN mkdir -p /opt/software \
 
 ## Create conda environment and install software
 RUN ${CONDA_PREFIX}/bin/mamba install -y \
-    -c conda-forge -c bioconda \
-    "lima>=2.12.0" \
-    "pbtk>=3.4.0" \
-    "vsearch>=2.29.4" \
+    "lima>=2.13.0" \
+    "pbtk>=3.5.0" \
+    "vsearch>=2.30.0" \
     "swarm>=3.1.5" \
-    "seqkit>=2.9.0" \
+    "seqkit>=2.10.1" \
     "seqfu>=1.22.3" \
-    "fastp>=0.24.0" \
-    "blast>=2.16.0" \
+    "fastp>=1.0.1" \
+    "blast>=2.17.0" \
     "bioawk" \
     "miller>=6.13.0" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20241122" \
+    "parallel>=20250622" \
     "csvtk>=0.31.0" \
+    "cutadapt>=5.1" \
     "itsx>=1.1.3" \
-    "cutadapt>=5.0" \
-    "bbmap>=39.15" \
+    "bbmap>=39.33" \
     "ripgrep>=14.1.1" \
     "fd-find>=10.2.0" \
     "mmseqs2" \
   && ${CONDA_PREFIX}/bin/mamba clean --all --yes
 
+
+## Install cutadapt (with dependencies) from pip - it fails with conda (Python 3.13 confilict)
+# RUN ${CONDA_PREFIX}/bin/pip install --no-cache-dir \
+#   "dnaio>=1.2.3" "xopen>=2.0.2" "cutadapt>=5.1"
+  
 ## Add new tools (seqhasher, phredsort, ucs)
 RUN cd /opt/software \
-    && wget https://github.com/vmikk/seqhasher/releases/download/1.1.1/seqhasher \
+    && wget https://github.com/vmikk/seqhasher/releases/download/1.1.2/seqhasher \
     && chmod +x seqhasher \
     && mv seqhasher ${CONDA_PREFIX}/bin/ \
     && wget https://github.com/vmikk/phredsort/releases/download/1.3.0/phredsort \
@@ -112,7 +116,7 @@ RUN git clone --depth 1 https://github.com/indraniel/fqgrep \
   && rm -r fqgrep
 
 ## rush
-RUN wget https://github.com/shenwei356/rush/releases/download/v0.5.4/rush_linux_amd64.tar.gz \
+RUN wget https://github.com/shenwei356/rush/releases/download/v0.7.0/rush_linux_amd64.tar.gz \
   && tar -xzf rush_linux_amd64.tar.gz \
   && mv rush ${CONDA_PREFIX}/bin/ \
   && rm rush_linux_amd64.tar.gz
@@ -120,7 +124,7 @@ RUN wget https://github.com/shenwei356/rush/releases/download/v0.5.4/rush_linux_
 ## brename
 RUN wget https://github.com/shenwei356/brename/releases/download/v2.14.0/brename_linux_amd64.tar.gz \
   && tar -xzf brename_linux_amd64.tar.gz \
-  && mv brename ${conda_prefix}/bin/ \
+  && mv brename ${CONDA_PREFIX}/bin/ \
   && rm brename_linux_amd64.tar.gz
 
 ## MUMU
@@ -147,7 +151,7 @@ RUN cd /opt/software \
 
 ## Install DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.2.0/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.3.2/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d ${CONDA_PREFIX}/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
