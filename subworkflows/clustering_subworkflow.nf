@@ -6,7 +6,12 @@ process homopolymer {
 
     label "main_container"
 
-    publishDir "${params.outdir}/02.Homopolymer", mode: "${params.storagemode}"
+    publishDir(
+      "${params.outdir}/02.Homopolymer",
+      mode: "${params.storagemode}", 
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
     // cpus 1
 
     input:
@@ -92,7 +97,12 @@ process unoise {
 
     label "main_container"
 
-    publishDir "${params.outdir}/02.UNOISE", mode: 'symlink'
+    publishDir(
+      "${params.outdir}/02.UNOISE",
+      mode: 'symlink',
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
     // cpus 8
 
     input:
@@ -139,7 +149,12 @@ process dada2 {
 
     label "main_container"
 
-    publishDir "${params.outdir}/02.DADA2", mode: 'symlink'
+    publishDir(
+      "${params.outdir}/02.DADA2",
+      mode: 'symlink',
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
     // cpus 8
 
     input:
@@ -199,7 +214,12 @@ process precluster_swarm {
 
     label "main_container"
 
-    publishDir "${params.outdir}/02.Preclustered_SWARM_d1", mode: 'symlink'
+    publishDir(
+      "${params.outdir}/02.Preclustered_SWARM_d1",
+      mode: 'symlink',
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
     // cpus 8
 
     input:
@@ -252,7 +272,12 @@ process cluster_vsearch {
 
     label "main_container"
 
-    publishDir "${params.outdir}/03.Clustered_VSEARCH", mode: 'symlink'
+    publishDir(
+      "${params.outdir}/03.Clustered_VSEARCH",
+      mode: 'symlink',
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
     // cpus 8
 
     input:
@@ -298,7 +323,12 @@ process cluster_swarm {
 
     label "main_container"
 
-    publishDir "${params.outdir}/03.Clustered_SWARM", mode: 'symlink'
+    publishDir(
+      "${params.outdir}/03.Clustered_SWARM",
+      mode: 'symlink',
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
     // cpus 8
 
     input:
