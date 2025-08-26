@@ -182,3 +182,20 @@ saveRDS(object = errors,
   compress = "xz")
 
 
+## Plot observed and estimated error rates
+# plotErrors(errors)
+
+
+## Run sample inference with DADA2
+dadares <- dada(
+  derep = derep,
+  err   = errors,
+  errorEstimationFunction = noqualErrfun,
+  selfConsist = FALSE,
+  verbose     = 1,
+  multithread = CPUTHREADS)
+saveRDS(object = dadares,
+  file = "DADA2_InferedSeqs_noqualErrfun.RData",
+  compress = "xz")
+
+
