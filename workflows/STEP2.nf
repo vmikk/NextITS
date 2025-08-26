@@ -672,6 +672,11 @@ workflow S2 {
 
       // Groupd sequences into clusters
       linclust(derep_ch)
+
+      // Bucketize sequence clusters into chunks
+      bucketize(derep_ch, linclust.out.db_clu)
+      buckets_ch = bucketize.out.buckets.flatten()
+
     }
 
 
