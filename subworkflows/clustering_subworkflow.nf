@@ -344,8 +344,8 @@ process cluster_swarm {
 
     exec:
       fastidious = (params.swarm_fastidious.toBoolean() == true & params.swarm_d.toInteger() == 1) ? "--fastidious --boundary ${params.swarm_d1boundary}" : ""
-      println("swarm_fastidious: ${params.swarm_fastidious}, swarm_d: ${params.swarm_d}")
-      println("fastid option:  ${fastidious}")
+      // println("swarm_fastidious: ${params.swarm_fastidious}, swarm_d: ${params.swarm_d}")
+      // println("fastid option:  ${fastidious}")
 
     script:
     """
