@@ -681,6 +681,9 @@ workflow S2 {
       bucketize(derep_ch, linclust.out.db_clu)
       buckets_ch = bucketize.out.buckets.flatten()
 
+      // Run clustering/pre-clustering/denoising subworkflow
+      CLUSTERING(buckets_ch)
+
     }
 
 
