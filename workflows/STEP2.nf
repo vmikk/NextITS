@@ -201,7 +201,11 @@ process linclust {
       --cluster-mode 0 \
       --similarity-type 2 \
       -c 0.7 --cov-mode 0 \
-      --kmer-per-seq 80 \
+      -k 15 \
+      --kmer-per-seq 100 \
+      --kmer-per-seq-scale 0.3 \
+      --spaced-kmer-mode 0 \
+      --mask 0 \
       --split-memory-limit 100G \
       --remove-tmp-files 1 \
       --threads ${task.cpus}
