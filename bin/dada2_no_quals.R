@@ -199,3 +199,29 @@ saveRDS(object = dadares,
   compress = "xz")
 
 
+res <- data.table(
+  Sequence  = dadares$sequence,
+  Abundance = dadares$denoised)
+
+## Add sequence IDs
+res[ , SeqNumID := .I ]
+res <- merge(
+  x = res,
+  y = sq[, .(SeqID, Sequence)],
+  by = "Sequence", all.x = TRUE)
+
+## Sort by abundance
+setorder(res, -Abundance, SeqID, na.last = TRUE)
+
+## Export denoised sequences
+ASVS <- DNAStringSet(x = res$Sequence)
+names(ASVS) <- paste0(res$SeqID, ";size=", res$Abundance)
+
+writeXStringSet(
+  x = ASVS,
+  filepath = "DADA2_denoised.fa.gz",
+  compress = TRUE,
+  format   = "fasta",
+  width    = 20000)
+
+
