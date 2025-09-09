@@ -225,3 +225,23 @@ writeXStringSet(
   width    = 20000)
 
 
+UC <- data.table(
+  DerepSeqID  = derep$SeqID,
+  SeqNumID    = dadares$map,
+  Abundance   = derep$uniques)
+
+UC <- merge(
+  x = UC,
+  y = res[ , .(SeqNumID, SeqID) ],
+  by = "SeqNumID", all.x = TRUE)
+
+setorder(UC, SeqNumID, na.last = TRUE)
+setnames(x = UC, old = "SeqID", new = "ASV")
+
+## Export pre-UC file
+saveRDS(
+  object = UC,
+  file = "DADA2_UC.RData",
+  compress = "xz")
+
+
