@@ -29,6 +29,8 @@ if (params.version) {
   exit(0)
 }
 
+// Note: nf-schema plugin handles --help automatically via configuration in nextflow.config
+
 // Show a custom help message and exit
 if (params.helpMsg){
   include { helpMsg } from './modules/help_message.nf'
@@ -39,6 +41,12 @@ if (params.helpMsg){
 
 // Enable topic channels
 // nextflow.preview.topic = true   // Nextflow < 25.04.0
+
+
+
+// nf-schema functions for parameter validation
+include { validateParameters } from 'plugin/nf-schema'
+
 // Include custom parameter summary function
 include { paramSummary } from './modules/parameter_summary'
 
@@ -77,17 +85,9 @@ log.info logo
 // log.info paramsSummaryLog(workflow)  // will print params from Step-1 and Step-2 simultaneously
 
 
-// Include the pipeline initialisation subworkflow
-// requires newer nf-core template and schema
-// include { PIPELINE_INITIALISATION } from './subworkflows/local/utils_nfcore_NextITS_pipeline'
-
-
-// Show help msg
-if (params.helpMsg){
-    helpMsg()
-    exit(0)
-}
-
+// Additional runtime parameter validation 
+// These checks are performed after schema validation and handle 
+// conditional logic and file existence checks that cannot be expressed in JSON Schema
 
 // Additional parameter validation for Step-1
 if( params.step == "Step1" || params.step == "seqstats" ) {
@@ -157,6 +157,7 @@ workflow {
 
   // Print step-specific parameter summary
   paramSummary(workflow, params)
+  validateParameters()
 
   if (params.step == "Step1") {
     S1()
