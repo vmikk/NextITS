@@ -124,9 +124,11 @@ setDadaOpt(
 
 
 ## Load FASTQ file
+cat("\nLoading input data\n")
 fq <- readFastq(dirPath = INPUT, qualityType = "FastqQuality")
 
 ## Extract sequence headers
+cat("Processing sequences\n")
 sq <- as.data.table(fq@id)
 setnames(x = sq, new = "SeqName")
 sq[ , c("SeqID", "Abundance") := tstrsplit(x = SeqName, split = ";size=", keep = 1:2) ]
@@ -134,6 +136,7 @@ sq[ , Abundance := as.numeric(Abundance) ]
 sq[ , Sequence := as.character(sread(fq))]
 
 ## Extract sequence qualities
+cat("Processing sequence quality scores\n")
 seq_quals <- as(quality(fq), "matrix")
 # dada2:::qtables2(fq)
 
@@ -143,12 +146,25 @@ num_singl <- nrow(sq[ Abundance < 2 ])
 num_reads <- sum(sq$Abundance, na.rm = TRUE)
 perc_nonsingleton <- (num_seqs - num_singl) / num_seqs * 100
 
+cat("\n")
+cat("Number of unique sequences detected: ", num_seqs,  "\n")
+cat("Number of singleton sequences: ",       num_singl, "\n")
+cat("Total abundance of sequences: ",        num_reads, "\n")
+cat("Percentage of non-singleton sequences: ", round(perc_nonsingleton, 2), "\n")
+
+## Test the rule of thumb,  https://github.com/benjjneb/dada2/issues/1663#issuecomment-1359905397
+if(perc_nonsingleton < 10){
+  cat("WARNING: <10% of reads are duplicates of other reads,\n")
+  cat("         meaning that DADA2 might not be the right algorithmic choice\n")
+}
+
 
 ## Manually create a derep-class object
 ##   See also https://github.com/benjjneb/dada2/blob/004ce26909268e1318a2f68e0ea26807412c7a2d/R/sequenceIO.R#L240-L242
 #             https://github.com/benjjneb/dada2/blob/004ce26909268e1318a2f68e0ea26807412c7a2d/R/sequenceIO.R#L45
 
 ## Prepare derep-class object
+cat("\nPreparing derep-class object\n")
 uniques <- sq$Abundance
 names(uniques) <- as.character(sread(fq))   # names = full amplicon sequence
 rownames(seq_quals) <- names(uniques)
@@ -162,8 +178,13 @@ derep <- list(
 
 derep <- as(derep, "derep")
 
+## Clean up
+rm(uniques, seq_quals)
+
+
 
 ## Estimate error rates for each type of transition while ignoring quality scores
+cat("\nEstimating error rates\n")
 errors <- try(
   learnErrors(
     fls    = derep,
@@ -177,6 +198,7 @@ errors <- try(
 
 
 ## Export results
+cat("\nExporting error rates\n")
 saveRDS(object = errors,
   file = "DADA2_ErrorRates_noqualErrfun.RData",
   compress = "xz")
@@ -187,6 +209,7 @@ saveRDS(object = errors,
 
 
 ## Run sample inference with DADA2
+cat("\nRunning sample inference\n")
 dadares <- dada(
   derep = derep,
   err   = errors,
@@ -194,11 +217,15 @@ dadares <- dada(
   selfConsist = FALSE,
   verbose     = 1,
   multithread = CPUTHREADS)
+
+cat("\nExporting DADA2 object\n")
 saveRDS(object = dadares,
   file = "DADA2_InferedSeqs_noqualErrfun.RData",
   compress = "xz")
 
 
+## Prepare resulting data
+cat("Preparing resulting table\n")
 res <- data.table(
   Sequence  = dadares$sequence,
   Abundance = dadares$denoised)
@@ -214,6 +241,7 @@ res <- merge(
 setorder(res, -Abundance, SeqID, na.last = TRUE)
 
 ## Export denoised sequences
+cat("Exporting denoised sequences\n")
 ASVS <- DNAStringSet(x = res$Sequence)
 names(ASVS) <- paste0(res$SeqID, ";size=", res$Abundance)
 
@@ -239,6 +267,7 @@ setorder(UC, SeqNumID, na.last = TRUE)
 setnames(x = UC, old = "SeqID", new = "ASV")
 
 ## Export pre-UC file
+cat("Exporting pre-UC file\n")
 ## Summary stats
 num_asvs      <- nrow(res) 
 num_asvreads  <- sum(res$Abundance, na.rm = T)
@@ -258,6 +287,7 @@ cat("Number of reads of discarded sequences (%): ", num_dscreads, "(", perc_dscr
 
 
 ## Write summary
+cat("Exporting run statistics\n")
 smr <- rbind(
   data.table(Param = "Number of unique sequences (prior denoising)",    Value = num_seqs),
   data.table(Param = "Number of singleton sequences (prior denoising)", Value = num_singl),
@@ -278,3 +308,19 @@ fwrite(x = smr,
   quote = FALSE, sep = "\t")
 
 
+
+cat("\nAll done.\n")
+
+
+##################### Session info
+
+## Check time
+end_time <- Sys.time()
+
+tmm <- as.numeric(difftime(end_time, start_time, units = "min"))
+cat("\nElapsed time: ", tmm, " minutes\n")
+
+cat("\n")
+cat("Session info:\n")
+sessionInfo()
+cat("\n")
