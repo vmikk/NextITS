@@ -4,6 +4,7 @@
 
 // Include functions
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
+include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 
 // Define output paths for different steps
 out_0_bam    = params.outdir + "/00_BAM2FASTQ"
@@ -3239,8 +3240,14 @@ workflow S1 {
           newLine:  true
       )
 
-  // TODO - Auto documentation of analysis procedures
-  // document_analysis_step1
+  // Dump the parameters to a file
+  ch_params_tsv = dumpParamsTsv()
+    .collectFile(
+        storeDir: "${params.tracedir}",
+        name:     "pipeline_params.tsv",
+        sort:     true,
+        newLine:  true
+    )
 }
 
 
