@@ -43,7 +43,8 @@ RUN install2.r --error --skipinstalled --ncpus -1 \
     dplyr \
     ggplot2 \
     doFuture \
-    openxlsx
+    openxlsx \
+    yaml
 
 RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("ShortRead", ask = FALSE)' \
