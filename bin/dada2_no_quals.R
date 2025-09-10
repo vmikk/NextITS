@@ -239,9 +239,42 @@ setorder(UC, SeqNumID, na.last = TRUE)
 setnames(x = UC, old = "SeqID", new = "ASV")
 
 ## Export pre-UC file
-saveRDS(
-  object = UC,
-  file = "DADA2_UC.RData",
-  compress = "xz")
+## Summary stats
+num_asvs      <- nrow(res) 
+num_asvreads  <- sum(res$Abundance, na.rm = T)
+num_merged    <- nrow(UC[ !is.na(SeqNumID) & DerepSeqID != ASV ])  # excluding representative seqs
+num_dsc       <- nrow(UC[ is.na(SeqNumID) ])
+num_dscreads  <- sum(UC[ is.na(SeqNumID) ]$Abundance)
+perc_dsc      <- round(num_dsc / num_seqs * 100, 2)
+perc_dscreads <- round(num_dscreads / num_reads * 100, 2)
+
+cat("\nRun summary:\n")
+cat("Number of ASVs infered: ",       num_asvs,      "\n")
+cat("Number of reads in ASV table: ", num_asvreads , "\n")
+cat("Number of sequences merged into ASVs: ", num_merged, "\n")
+cat("Number of discarded sequences (%): ", num_dsc, "(", perc_dsc, "% )\n")
+cat("Number of reads of discarded sequences (%): ", num_dscreads, "(", perc_dscreads, "% )\n")
+
+
+
+## Write summary
+smr <- rbind(
+  data.table(Param = "Number of unique sequences (prior denoising)",    Value = num_seqs),
+  data.table(Param = "Number of singleton sequences (prior denoising)", Value = num_singl),
+  data.table(Param = "Total abundance of sequences (prior denoising)",  Value = num_reads),
+  data.table(Param = "Percentage of non-singleton sequences (prior denoising)", Value = perc_nonsingleton),
+  
+  data.table(Param = "Number of ASVs infered",       Value = num_asvs),
+  data.table(Param = "Number of reads in ASV table", Value = num_asvreads),
+  data.table(Param = "Number of sequences merged into ASVs (excluding representative seqs)", Value = num_merged),
+  data.table(Param = "Number of discarded sequences",              Value = num_dsc),
+  data.table(Param = "Percentage of discarded sequences",          Value = perc_dsc),
+  data.table(Param = "Number of reads of discarded sequences",     Value = num_dscreads),
+  data.table(Param = "Percentage of reads of discarded sequences", Value = perc_dscreads)
+  )
+
+fwrite(x = smr,
+  file = "DADA2_denoising_summary.txt",
+  quote = FALSE, sep = "\t")
 
 
