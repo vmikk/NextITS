@@ -3262,7 +3262,7 @@ workflow S1 {
 
   
   // Dump the software versions to a file
-  software_versions_to_yaml(Channel.topic('versions'))
+  ch_versions_yml = software_versions_to_yaml(Channel.topic('versions'))
       .collectFile(
           storeDir: "${params.tracedir}",
           name:     'software_versions.yml',
@@ -3278,6 +3278,12 @@ workflow S1 {
         sort:     true,
         newLine:  true
     )
+
+  // Document the analysis procedures
+  document_analysis_s1(
+    ch_versions_yml,
+    ch_params_tsv)
+
 }
 
 
