@@ -1,6 +1,28 @@
 #!/usr/bin/env Rscript
 
 ## Script to document the Step-1 workflow of the NextITS pipeline.
+
+## Function to load packages
+load_pckg <- function(pkg = "data.table"){
+  suppressPackageStartupMessages( library(package = pkg, character.only = TRUE) )
+  cat(paste(pkg, packageVersion(pkg), "\n"))
+}
+
+load_pckg("glue")
+load_pckg("data.table")
+load_pckg("yaml")
+
+## Parse arguments
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) < 2) {
+  cat("Usage: document_s1.R <software_versions.yml> <params_table.csv/tsv> [output_path]\n")
+  stop()
+}
+
+versions_path <- args[[1]]
+params_path   <- args[[2]]
+output_path   <- ifelse(length(args) >= 3, args[[3]], "README_Step1_Methods.txt")
+
 ## Citation registry
 citation_db <- list(
   nextits   = "Mikryukov V, Anslan S, Tedersoo L (2025) NextITS - A pipeline for metabarcoding fungi and other eukaryotes with full-length ITS sequenced with PacBio. DOI:10.5281/zenodo.15074882",
@@ -25,4 +47,13 @@ citation_db <- list(
   biostrings= "Pagès H, Aboyoun P, Gentleman R, DebRoy S (2025) Biostrings: Efficient manipulation of biological strings. DOI:10.18129/B9.bioc.Biostrings",
   datatable = "Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B, Krylov I (2025) data.table: Extension of data.frame. URL: <https://r-datatable.com>"
 )
+
+
+## Load inputs
+cat("Loading versions YAML...\n")
+versions <- yaml::read_yaml(versions_path)
+
+cat("Loading params table...\n")
+params <- data.table::fread(params_path, sep = "\t", header = TRUE, na.strings = c("", "NA"))
+setnames(params, new = c("name", "value"))
 
