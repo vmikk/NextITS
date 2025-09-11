@@ -2668,6 +2668,36 @@ process quick_stats {
     """
 }
 
+// Auto documentation of analysis procedures
+// (generate narrative description of methods with references)
+process document_analysis_s1 {
+
+    label "main_container"
+
+    publishDir "${params.tracedir}", mode: 'symlink'
+    // cpus 1
+
+    input:
+      path versions       // "software_versions.yml"
+      path params         // "pipeline_params.tsv"
+
+    output:
+      path "README_Step1_Methods.txt",  emit: docs
+
+
+    script:
+    """
+    echo -e "Descriptive summary generation\n"
+
+    document_s1.R \
+      {versions} \
+      {params} \
+      README_Step1_Methods.txt
+
+    """
+}
+
+
 
 
 //  The default workflow - Step-1
