@@ -21,6 +21,7 @@ out_6_tj     = params.outdir + "/06_TagJumpFiltration"
 out_7_seq    = params.outdir + "/07_SeqTable"
 out_8_smr    = params.outdir + "/08_RunSummary"
 out_9_db     = params.outdir + "/09_DB"
+out_tracedir = params.tracedir
 
 // Sub-workflow-specific outputs
 out_3_quickstats = params.outdir + "/03_Stats"
@@ -2674,7 +2675,7 @@ process document_analysis_s1 {
 
     label "main_container"
 
-    publishDir "${params.tracedir}", mode: 'symlink'
+    publishDir "${out_tracedir}", mode: 'copy', overwrite: true
     // cpus 1
 
     input:
