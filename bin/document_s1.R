@@ -49,6 +49,58 @@ citation_db <- list(
 )
 
 
+##################################
+################################## Helpers
+##################################
+
+## Get version number
+getv <- function(v, process, tool){
+  # v       = list (from YAML file)
+  # process = process name
+  # tool    = tool name
+
+  if(is.null(v[[process]]) || is.null(v[[process]][[tool]])){ return(NA_character_) }
+  as.character( v[[process]][[tool]] )
+}
+# E.g., getv(versions, "demux", "lima")
+
+
+## Get parameter
+getp <- function(p, name, default = NA){
+  # p       =  table with parameters (two columns: name and value)
+  # name    = parameter name
+  # default = default value if parameter is not found
+
+  if(is.null(p[[name]]) || is.na(p[[name]])){ return(default) }
+  p[[name]]
+}
+# E.g., getp(params, "lima_minscore", 93)
+
+##################################
+################################## Body builders
+##################################
+
+
+emit_demux_pacbio <- function(p, v) {
+  ms <- getp(p, "lima_minscore", 93)
+  mb <- getp(p, "lima_barcodetype", "dual_symmetric")
+  vs <- getv(v, "demux", "lima")
+  switch(mb,
+    "single"          = {barcode_type <- "single-end barcodes"},
+    "dual_symmetric"  = {barcode_type <- "symmetric dual-end barcodes"},
+    "dual_asymmetric" = {barcode_type <- "asymmetric dual-end barcodes"},
+    "dual"            = {barcode_type <- "combination of symmetric and asymmetric dual-end barcodes"})
+
+  glue("Demultiplexed PacBio reads using LIMA v.{vs} (Pacific Biosciences) with min score {ms} and {barcode_type}.")
+}
+
+
+
+##################################
+################################## Assemble body and citations
+##################################
+
+
 ## Load inputs
 cat("Loading versions YAML...\n")
 versions <- yaml::read_yaml(versions_path)
