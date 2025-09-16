@@ -73,6 +73,7 @@ Stage: final
     ggplot2 \
     doFuture \
     openxlsx \
+    yaml \
     && R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("ShortRead", ask = FALSE)' \
     && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
