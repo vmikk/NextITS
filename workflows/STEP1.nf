@@ -2691,8 +2691,8 @@ process document_analysis_s1 {
     echo -e "Descriptive summary generation\n"
 
     document_s1.R \
-      {versions} \
-      {params} \
+      ${versions} \
+      ${params} \
       README_Step1_Methods.txt
 
     """
