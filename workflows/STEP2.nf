@@ -13,12 +13,12 @@
 
 // Step-2 workflow:
 // - Dereplicate sequences
-// - (optionally) Denoize with UNOISE
-// - Cluster:
+// - (optionally) Denoize with UNOISE or DADA2
+// - (optionally) Cluster:
 //   * SWARM
 //   * VSEARCH
 // - LULU (via MUMU implementation)
-// - Prepare OTU table (wide, aggregate sequence abundance by OTU/Swarm cluster)
+// - Prepare OTU table (wide, aggregate sequence abundance by ASV/OTU/Swarm cluster)
 
 
 
