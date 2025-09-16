@@ -87,7 +87,7 @@ RUN ${CONDA_PREFIX}/bin/mamba install -y \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
     "parallel>=20250622" \
-    "csvtk>=0.31.0" \
+    "csvtk>=0.34.0" \
     "cutadapt>=5.1" \
     "itsx>=1.1.3" \
     "bbmap>=39.33" \
