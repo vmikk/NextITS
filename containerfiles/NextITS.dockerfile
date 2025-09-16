@@ -52,9 +52,12 @@ RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("dada2",      ask = FALSE)' \
     && R -e 'BiocManager::install("phyloseq",   ask = FALSE)' \
     && rm -rf /tmp/downloaded_packages
-  
-RUN    R -e 'remotes::install_github("vmikk/metagMisc")' \
-    && R -e 'remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2")' \
+
+RUN    install2.r --error --skipinstalled geodist phytools \
+    && R -e 'ok <- tryCatch({ remotes::install_github("vmikk/metagMisc"); TRUE }, error=function(e){ message(e); FALSE }); \
+          if (!ok || !requireNamespace("metagMisc", quietly=TRUE)) quit(status=1)' \
+    && R -e 'ok <- tryCatch({ remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2"); TRUE }, error=function(e){ message(e); FALSE }); \
+          if (!ok || !requireNamespace("qs", quietly=TRUE)) quit(status=1)' \
     && rm -rf /tmp/downloaded_packages
 
 ## Install conda
