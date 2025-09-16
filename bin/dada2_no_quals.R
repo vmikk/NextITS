@@ -271,6 +271,9 @@ writeXStringSet(
   width    = 20000)
 
 
+
+## Create UC file
+cat("Preparing pseudo-UC file\n")
 UC <- data.table(
   DerepSeqID  = derep$SeqID,
   SeqNumID    = dadares$map,
@@ -286,6 +289,13 @@ setnames(x = UC, old = "SeqID", new = "ASV")
 
 ## Export pre-UC file
 cat("Exporting pre-UC file\n")
+# saveRDS(
+#   object = UC,
+#   file = "DADA2_UC.RData",
+#   compress = "xz")
+qs::qsave(x = UC, file = "DADA2_UC.qs",
+  preset = "custom", algorithm = "zstd", compress_level = 15L, nthreads = CPUTHREADS)
+
 ## Summary stats
 num_asvs      <- nrow(res) 
 num_asvreads  <- sum(res$Abundance, na.rm = T)
@@ -353,6 +363,11 @@ smr <- rbind(
 fwrite(x = smr,
   file = "DADA2_denoising_summary.txt",
   quote = FALSE, sep = "\t")
+
+
+
+## Construct sequence table (rows = samples, cols = ASVs)
+# makeSequenceTable(dadares, orderBy = "abundance")
 
 
 

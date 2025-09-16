@@ -163,7 +163,7 @@ process dada2 {
     output:
       path "DADA2_denoised.fa.gz",        emit: dada
       path "DADA2_denoised.uc.gz",        emit: dada_uc
-      path "DADA2_UC.RData",              emit: dada_ucr
+      path "DADA2_UC.qs",                 emit: dada_ucr
       path "DADA2_denoising_summary.txt", emit: dada_summary
       // path "DADA2_ErrorRates_noqualErrfun.RData"
       // path "DADA2_InferedSeqs_noqualErrfun.RData"
