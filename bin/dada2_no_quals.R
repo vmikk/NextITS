@@ -196,6 +196,24 @@ errors <- try(
     )
   )
 
+## Retry if multithreading failed
+if("try-error" %in% class(errors) & CPUTHREADS > 1){
+  cat("..Multi-threaded error rate estimation failed\n")
+  cat("..Trying to resume with a single CPU thread\n")
+
+  errors <- learnErrors(
+    fls    = derep,
+    nbases = NBASES,
+    errorEstimationFunction = noqualErrfun,
+    qualityType = "FastqQuality",
+    verbose     = 1,
+    multithread = 1
+    )
+}
+if("try-error" %in% class(errors) & CPUTHREADS == 1){
+  stop("..Error rate estimation failed\n")
+}
+
 
 ## Export results
 cat("\nExporting error rates\n")
