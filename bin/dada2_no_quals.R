@@ -2,6 +2,39 @@
 
 ## Perform sequence denoising with DADA2
 
+### Notes:
+## - `USE_QUALS = FALSE` will be deprecated
+##    https://github.com/benjjneb/dada2/issues/816#issuecomment-521836313
+##    therefore, use `noqualErrfun`
+## - 
+
+## TO DO:
+## - Benchmark params (especially BAND_SIZE, DETECT_SINGLETONS, and OMEGA_A)
+
+
+## Usage example:
+# dada2_no_quals.R \
+#  --input            input.fq.gz \
+#  --nbases           1e6 \
+#  --bandsize         16 \
+#  --detectsingletons TRUE \
+#  --omegaA           1e-20 \
+#  --omegaC           1e-40 \
+#  --omegaP           1e-4 \
+#  --maxconsist       10 \
+#  --match            4 \
+#  --mismatch         -5 \
+#  --gappenalty       -8 \
+#  --threads          8
+
+## Outputs:
+# - DADA2_ErrorRates_noqualErrfun.RData
+# - DADA2_denoised.fa.gz
+# - DADA2_denoised.uc.gz
+# - DADA2_UC.qs
+# - DADA2_denoising_summary.txt
+
+
 ############################################## Parse input parameters
 
 ## Check time
