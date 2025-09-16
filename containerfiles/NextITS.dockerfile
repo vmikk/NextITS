@@ -47,13 +47,15 @@ RUN install2.r --error --skipinstalled --ncpus -1 \
     yaml
 
 RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
-    && R -e 'BiocManager::install("ShortRead", ask = FALSE)' \
-    && R -e 'BiocManager::install("DECIPHER", ask = FALSE)' \
-    && R -e 'BiocManager::install("dada2", ask = FALSE)' \
-    && R -e 'BiocManager::install("phyloseq", ask = FALSE)' \
-    && R -e 'remotes::install_github("vmikk/metagMisc")' \
+    && R -e 'BiocManager::install("ShortRead",  ask = FALSE)' \
+    && R -e 'BiocManager::install("DECIPHER",   ask = FALSE)' \
+    && R -e 'BiocManager::install("dada2",      ask = FALSE)' \
+    && R -e 'BiocManager::install("phyloseq",   ask = FALSE)' \
+    && rm -rf /tmp/downloaded_packages
+  
+RUN    R -e 'remotes::install_github("vmikk/metagMisc")' \
     && R -e 'remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2")' \
-    && rm -rf /tmp/downloaded_packages/
+    && rm -rf /tmp/downloaded_packages
 
 ## Install conda
 RUN mkdir -p /opt/software \
