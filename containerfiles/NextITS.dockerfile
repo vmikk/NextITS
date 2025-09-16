@@ -159,3 +159,56 @@ RUN cd /opt/software \
     && rm duckdb_cli-linux-amd64.zip
 
 WORKDIR /opt/software
+
+## Test stage - run with: docker build --target test
+FROM main AS test
+
+# Set environment variable for R version testing
+ENV R_VERSION=4.5.1
+
+RUN echo "=== Testing R installation and packages ===" \
+  && R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')" \
+  && echo "Testing R package installations..." \
+  && printf '%s\n' \
+    'required_packages <- c("optparse", "data.table", "arrow", "duckdb",' \
+    '                      "plyr", "dplyr", "ggplot2", "openxlsx",' \
+    '                      "Biostrings", "DECIPHER", "dada2", "phyloseq",' \
+    '                      "metagMisc", "qs")' \
+    '' \
+    'for(pkg in required_packages) {' \
+    '  cat("Testing package:", pkg, "... ")' \
+    '  tryCatch({' \
+    '    suppressPackageStartupMessages(' \
+    '      library(pkg, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)' \
+    '    )' \
+    '    cat("OK\n")' \
+    '  }, error = function(e) {' \
+    '    cat("FAILED\n")' \
+    '    stop("Package ", pkg, " failed to load: ", e$message)' \
+    '  })' \
+    '}' \
+    'cat("All R packages loaded successfully!\n")' \
+    > test_packages.R \
+  && Rscript test_packages.R \
+  && rm test_packages.R \
+  && echo "=== Testing conda/mamba installed tools ===" \
+  && tools_conda="lima bam2fastq vsearch swarm seqkit seqfu fastp blastn bioawk mlr xsv bedtools parallel csvtk ITSx cutadapt bbduk.sh rg fd mmseqs" \
+  && for tool in $tools_conda; do \
+       echo -n "Testing $tool... " \
+       && if command -v $tool >/dev/null 2>&1; then \
+            echo "OK"; \
+          else \
+            echo "FAILED - $tool not found in PATH" && exit 1; \
+          fi; \
+     done \
+  && echo "=== Testing manually installed tools ===" \
+  && tools_manual="seqhasher phredsort ucs fqgrep rush brename mumu duckdb runiq sd" \
+  && for tool in $tools_manual; do \
+       echo -n "Testing $tool... " \
+       && if command -v $tool >/dev/null 2>&1; then \
+            echo "OK"; \
+          else \
+            echo "FAILED - $tool not found in PATH" && exit 1; \
+          fi; \
+     done \
+  && echo "=== All tests passed! Container looks ready for use ==="
