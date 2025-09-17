@@ -37,8 +37,13 @@ Stage: final
   exec Rscript "${@}"
 
 %environment
-  export PATH=$PATH:"/opt/software/conda/bin/"
-  echo 'source' "'/opt/software/conda/init.bash'" | bash
+  export PATH="/opt/software/conda/bin:$PATH"
+  export CONDA_PREFIX="/opt/software/conda"
+  
+  # Source conda initialization if available (for interactive sessions)
+  if [ -f "/opt/software/conda/init.bash" ]; then
+    source "/opt/software/conda/init.bash"
+  fi
 
 ## Install the required dependencies
 %post
@@ -219,6 +224,11 @@ Stage: final
   ## Activate environment
   # source ${conda_prefix}/bin/activate ${conda_prefix}
 
+  ## Ensure software is accessible to any user (NB! avoid slow recursive operations)
+  chmod 755 /opt/software
+  chmod a+rX /opt/software/conda/bin
+  chmod a+rX /opt/software/conda/lib
+  
   ## Use bash to properly activate the conda environment
   echo 'source' "'${conda_prefix}/init.bash'" | bash
 
