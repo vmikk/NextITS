@@ -242,4 +242,58 @@ Stage: final
 
 
 %test
+  echo "=== Testing R installation and packages ==="
   R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')"
+  
+  echo "Testing R package installations..."
+  R --quiet -e "
+    required_packages <- c('optparse', 'R.utils', 'data.table', 'arrow', 'duckdb', 
+                          'plyr', 'dplyr', 'ggplot2', 'doFuture', 'openxlsx', 'yaml',
+                          'Biostrings', 'ShortRead', 'DECIPHER', 'dada2', 'phyloseq', 
+                          'metagMisc', 'qs')
+    
+    for(pkg in required_packages) {
+      cat('Testing package:', pkg, '... ')
+      tryCatch({
+        suppressPackageStartupMessages(
+          library(pkg, character.only = TRUE, quietly = TRUE, warn.conflicts = FALSE)
+        )
+        cat('OK\n')
+      }, error = function(e) {
+        cat('FAILED\n')
+        stop('Package ', pkg, ' failed to load: ', e$message)
+      })
+    }
+    cat('All R packages loaded successfully!\n')
+  "
+  
+  echo "=== Testing conda/mamba installed tools ==="
+  ## Source conda environment
+  source /opt/software/conda/init.bash
+  
+  ## Test conda/mamba tools
+  tools_conda="lima bam2fastq vsearch swarm seqkit seqfu fastp blastn bioawk mlr xsv bedtools parallel csvtk ITSx cutadapt bbduk.sh rg fd mmseqs"
+  for tool in $tools_conda; do
+    echo -n "Testing $tool... "
+    if command -v $tool >/dev/null 2>&1; then
+      echo "OK"
+    else
+      echo "FAILED - $tool not found in PATH"
+      exit 1
+    fi
+  done
+  
+  echo "=== Testing manually installed tools ==="
+  ## Test manually installed tools
+  tools_manual="seqhasher phredsort ucs fqgrep rush brename mumu duckdb runiq sd"
+  for tool in $tools_manual; do
+    echo -n "Testing $tool... "
+    if command -v $tool >/dev/null 2>&1; then
+      echo "OK"
+    else
+      echo "FAILED - $tool not found in PATH"
+      exit 1
+    fi
+  done
+  
+  echo "=== All tests passed! Container looks ready for use ==="
