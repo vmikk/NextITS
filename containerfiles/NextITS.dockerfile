@@ -176,6 +176,21 @@ RUN cd /opt/software \
 ## Set up environment for both Docker and Singularity compatibility
 ENV PATH="/opt/software/conda/bin:${PATH}"
 
+## Create non-privileged user  
+RUN groupadd -g 1000 nextits \
+    && useradd -u 1000 -g 1000 -m -s /bin/bash nextits \
+    && mkdir -p /home/nextits \
+    && chown -R nextits:nextits /home/nextits \
+    && mkdir -p /tmp/nextits \
+    && chmod 1777 /tmp/nextits
+
+## Set software directory permissions 
+## (NB! avoid recursive operations on large conda env)
+RUN chmod 755 /opt/software \
+    && chmod 755 /opt/software/conda \
+    && chmod a+rX /opt/software/conda/bin \
+    && chmod a+rX /opt/software/conda/lib
+
 ## Create entrypoint script that initializes conda properly
 RUN echo '#!/bin/bash' > /opt/software/entrypoint.sh \
     && echo 'set -e' >> /opt/software/entrypoint.sh \
@@ -186,6 +201,10 @@ RUN echo '#!/bin/bash' > /opt/software/entrypoint.sh \
     && echo 'exec "$@"' >> /opt/software/entrypoint.sh \
     && chmod +x /opt/software/entrypoint.sh
 
+## Switch to non-privileged user
+USER nextits
+## Change working directory (for compatiblity with Singularity)
+WORKDIR /tmp/nextits
 ENTRYPOINT ["/opt/software/entrypoint.sh"]
 
 ## Test stage - run with: docker build --target test
