@@ -78,6 +78,7 @@ process dereplication {
     output:
       path "Dereplicated.fa.gz", emit: derep
       path "Dereplicated.uc.gz", emit: derep_uc
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     def minlen = params.ampliconlen_min ? "--minseqlength ${params.ampliconlen_min}" : ""
@@ -421,6 +422,9 @@ process merge_uc {
 
     output:
       path "UC_Pooled.parquet", emit: uc
+      tuple val("${task.process}"), val('ucs'), eval('ucs --version | sed "s/ucs //"'), topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('duckdb'), eval('Rscript -e "cat(as.character(packageVersion(\'duckdb\')))"'),  topic: versions
 
     script:
     """
@@ -474,6 +478,10 @@ process summarize {
       path "OTU_table_wide.RData",  emit: otutabwider
       path "OTU_table_long.RData",  emit: otutablongr
       path "OTUs.fa.gz",            emit: seqs
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
+      tuple val("${task.process}"), val('arrow'), eval('Rscript -e "cat(as.character(packageVersion(\'arrow\')))"'),  topic: versions
+      tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'),  topic: versions
 
     script:
     """
