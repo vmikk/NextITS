@@ -15,8 +15,6 @@ FROM rocker/r-ver:4.5.1 AS main
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV SHELL=/bin/bash
-ENV CONDA_PREFIX="/opt/software/conda"
-ENV PATH=${PATH}:"/opt/software/conda/bin/"
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
 LABEL org.opencontainers.image.version="1.1.0"
 
@@ -64,16 +62,30 @@ RUN    install2.r --error --skipinstalled geodist phytools \
 RUN mkdir -p /opt/software \
   && cd /opt/software \
   && curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" \
-  && bash Miniforge3-Linux-x86_64.sh -u -b -p ${CONDA_PREFIX} \
+  && bash Miniforge3-Linux-x86_64.sh -u -b -p /opt/software/conda \
   && rm Miniforge3-Linux-x86_64.sh \
-  && ${CONDA_PREFIX}/bin/conda config --add channels bioconda \
-  && ${CONDA_PREFIX}/bin/mamba update -y --all \
-  && ${CONDA_PREFIX}/bin/mamba clean --all --yes
+  && /opt/software/conda/bin/conda config --add channels bioconda \
+  && /opt/software/conda/bin/mamba update -y --all \
+  && /opt/software/conda/bin/mamba clean --all --yes
 
-  # conda config --show channels
+## Create conda initialization script (for Singularity compatibility)
+RUN cd /opt/software \
+  && { \
+      echo 'eval "$(' '"/opt/software/conda/bin/conda" "shell.bash" "hook" 2> /dev/null' ')"'; \
+      echo 'if [ $? -eq 0 ]; then'; \
+      echo '  eval "$__conda_setup"'; \
+      echo 'else'; \
+      echo '  if [ -f "/opt/software/conda/etc/profile.d/conda.sh" ]; then'; \
+      echo '    . "/opt/software/conda/etc/profile.d/conda.sh"'; \
+      echo '  else'; \
+      echo '    export PATH="/opt/software/conda/bin:$PATH"'; \
+      echo '  fi'; \
+      echo 'fi'; \
+      echo 'unset __conda_setup'; \
+    } > /opt/software/conda/init.bash
 
 ## Create conda environment and install software
-RUN ${CONDA_PREFIX}/bin/mamba install -y \
+RUN /opt/software/conda/bin/mamba install -y \
     "lima>=2.13.0" \
     "pbtk>=3.5.0" \
     "vsearch>=2.30.0" \
@@ -94,50 +106,50 @@ RUN ${CONDA_PREFIX}/bin/mamba install -y \
     "ripgrep>=14.1.1" \
     "fd-find>=10.2.0" \
     "mmseqs2" \
-  && ${CONDA_PREFIX}/bin/mamba clean --all --yes
+  && /opt/software/conda/bin/mamba clean --all --yes
 
 
 ## Install cutadapt (with dependencies) from pip - it fails with conda (Python 3.13 confilict)
-# RUN ${CONDA_PREFIX}/bin/pip install --no-cache-dir \
+# RUN /opt/software/conda/bin/pip install --no-cache-dir \
 #   "dnaio>=1.2.3" "xopen>=2.0.2" "cutadapt>=5.1"
   
 ## Add new tools (seqhasher, phredsort, ucs)
 RUN cd /opt/software \
     && wget https://github.com/vmikk/seqhasher/releases/download/1.1.2/seqhasher \
     && chmod +x seqhasher \
-    && mv seqhasher ${CONDA_PREFIX}/bin/ \
+    && mv seqhasher /opt/software/conda/bin/ \
     && wget https://github.com/vmikk/phredsort/releases/download/1.3.0/phredsort \
     && chmod +x phredsort \
-    && mv phredsort ${CONDA_PREFIX}/bin/ \
+    && mv phredsort /opt/software/conda/bin/ \
     && wget https://github.com/vmikk/ucs/releases/download/0.8.0/ucs \
     && chmod +x ucs \
-    && mv ucs ${CONDA_PREFIX}/bin/
+    && mv ucs /opt/software/conda/bin/
 
 ## fqgrep
 RUN git clone --depth 1 https://github.com/indraniel/fqgrep \
   && cd fqgrep \
   && make \
-  && mv fqgrep ${CONDA_PREFIX}/bin/ \
+  && mv fqgrep /opt/software/conda/bin/ \
   && cd .. \
   && rm -r fqgrep
 
 ## rush
 RUN wget https://github.com/shenwei356/rush/releases/download/v0.7.0/rush_linux_amd64.tar.gz \
   && tar -xzf rush_linux_amd64.tar.gz \
-  && mv rush ${CONDA_PREFIX}/bin/ \
+  && mv rush /opt/software/conda/bin/ \
   && rm rush_linux_amd64.tar.gz
 
 ## brename
 RUN wget https://github.com/shenwei356/brename/releases/download/v2.14.0/brename_linux_amd64.tar.gz \
   && tar -xzf brename_linux_amd64.tar.gz \
-  && mv brename ${CONDA_PREFIX}/bin/ \
+  && mv brename /opt/software/conda/bin/ \
   && rm brename_linux_amd64.tar.gz
 
 ## MUMU
 RUN git clone --depth 1 https://github.com/frederic-mahe/mumu.git \
     && cd ./mumu/ \
     && make && make check && make install \
-  && mv mumu ${CONDA_PREFIX}/bin/ \
+  && mv mumu /opt/software/conda/bin/ \
   && cd .. \
   && rm -r mumu
 
@@ -149,19 +161,32 @@ COPY --from=rust /usr/local/cargo/bin/sd    /opt/software/conda/bin/sd
 RUN cd /opt/software \
     && git clone --depth 1 https://github.com/USDA-ARS-GBRU/ITS_HMMs/ \
     && find ITS_HMMs/ITSx_db/HMMs/ -name "*.hmm" | grep -v "N.hmm" \
-       | ${CONDA_PREFIX}/bin/parallel -j1 "${CONDA_PREFIX}/bin/hmmpress {}" \
-    && rm ${CONDA_PREFIX}/bin/ITSx_db/HMMs/* \
-    && mv ITS_HMMs/ITSx_db/HMMs/* ${CONDA_PREFIX}/bin/ITSx_db/HMMs/ \
+       | /opt/software/conda/bin/parallel -j1 "/opt/software/conda/bin/hmmpress {}" \
+    && rm /opt/software/conda/bin/ITSx_db/HMMs/* \
+    && mv ITS_HMMs/ITSx_db/HMMs/* /opt/software/conda/bin/ITSx_db/HMMs/ \
     && rm -r ITS_HMMs \
-    && sed -i '/#push(@profileSet,"Y")/s/#//' ${CONDA_PREFIX}/bin/ITSx
+    && sed -i '/#push(@profileSet,"Y")/s/#//' /opt/software/conda/bin/ITSx
 
 ## Install DuckDB
 RUN cd /opt/software \
     && curl -L https://github.com/duckdb/duckdb/releases/download/v1.3.2/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
-    && unzip duckdb_cli-linux-amd64.zip -d ${CONDA_PREFIX}/bin/ \
+    && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
-WORKDIR /opt/software
+## Set up environment for both Docker and Singularity compatibility
+ENV PATH="/opt/software/conda/bin:${PATH}"
+
+## Create entrypoint script that initializes conda properly
+RUN echo '#!/bin/bash' > /opt/software/entrypoint.sh \
+    && echo 'set -e' >> /opt/software/entrypoint.sh \
+    && echo '# Try to source conda initialization if available' >> /opt/software/entrypoint.sh \
+    && echo 'if [ -f "/opt/software/conda/init.bash" ]; then' >> /opt/software/entrypoint.sh \
+    && echo '    source /opt/software/conda/init.bash' >> /opt/software/entrypoint.sh \
+    && echo 'fi' >> /opt/software/entrypoint.sh \
+    && echo 'exec "$@"' >> /opt/software/entrypoint.sh \
+    && chmod +x /opt/software/entrypoint.sh
+
+ENTRYPOINT ["/opt/software/entrypoint.sh"]
 
 ## Test stage - run with: docker build --target test
 FROM main AS test
