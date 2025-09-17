@@ -836,7 +836,7 @@ process itsx {
       tuple val("${task.process}"), val('seqhasher'), eval('seqhasher -v | sed "s/SeqHasher //"'), topic: versions
       tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
       tuple val("${task.process}"), val('brename'), eval('brename --help | head -n 4 | tail -1 | sed "s/Version: //"'), topic: versions
-      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | sed "s/^v//"'), topic: versions
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
 
     script:
     
@@ -1326,7 +1326,7 @@ process seq_qual {
 
     output:
       path "SeqQualities.parquet", emit: quals
-      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | sed "s/^v//"'), topic: versions
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1  | sed "s/^v//"'), topic: versions
 
     script:
     def memoryArg = task.memory ? "-m ${task.memory.toMega()}.MB" : ""
