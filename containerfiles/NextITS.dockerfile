@@ -4,6 +4,9 @@
 
 ## To build the image, run:
 # docker build --tag nextits --file NextITS.dockerfile .
+#
+## To run tests during build:
+# docker build --target test --tag nextits-test --file NextITS.dockerfile .
 
 ## Build stage 1 (Rust and Cargo)
 FROM rust:1.89.0-slim AS rust
@@ -218,7 +221,7 @@ RUN echo "=== Testing R installation and packages ===" \
   && echo "Testing R package installations..." \
   && printf '%s\n' \
     'required_packages <- c("optparse", "data.table", "arrow", "duckdb",' \
-    '                      "plyr", "dplyr", "ggplot2", "openxlsx",' \
+    '                      "plyr", "dplyr", "ggplot2", "openxlsx", "yaml",' \
     '                      "Biostrings", "DECIPHER", "dada2", "phyloseq",' \
     '                      "metagMisc", "qs")' \
     '' \
