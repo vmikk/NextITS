@@ -699,6 +699,21 @@ workflow S2 {
       // Run clustering/pre-clustering/denoising subworkflow
       CLUSTERING(buckets_ch)
 
+      // collect UC and FASTA files from all chunks
+      preclustuc_chunks = CLUSTERING.out.preclustuc_ch.collect()
+      cluster_chunks    = CLUSTERING.out.cluster_ch.collect()
+      clustuc_chunks    = CLUSTERING.out.clustuc_ch.collect()
+
+      // Merge buckets into a single file
+      merge_buckets(
+        preclustuc_chunks,
+        cluster_chunks,
+        clustuc_chunks)
+
+      cluster_ch    = merge_buckets.out.cluster_ch
+      clustuc_ch    = merge_buckets.out.clustuc_ch
+      preclustuc_ch = merge_buckets.out.preclustuc_ch.ifEmpty(file('NoPrecluster'))
+
     }
 
 
