@@ -128,7 +128,6 @@ build_docs <- function(versions, params){
 ################################## Assemble body and citations
 ##################################
 
-
 ## Load inputs
 cat("Loading versions YAML...\n")
 versions <- yaml::read_yaml(versions_path)
@@ -137,3 +136,20 @@ cat("Loading params table...\n")
 params <- data.table::fread(params_path, sep = "\t", header = TRUE, na.strings = c("", "NA"))
 setnames(params, new = c("name", "value"))
 
+## Build body and citations
+res <- build_docs(versions, params)
+
+## Write output
+con <- file(output_path, open = "wt")
+
+writeLines("Methods:", con)
+writeLines(res$body, con)
+
+writeLines("", con)
+
+writeLines("References:", con)
+writeLines(paste0("- ", res$citations), con)
+
+close(con)
+
+cat("All done.\n")
