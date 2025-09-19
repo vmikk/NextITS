@@ -517,6 +517,9 @@ process lulu {
       path "LULU_match_list.txt.gz",         emit: matches
       path "LULU_merging_statistics.txt.gz", emit: stats
       path "OTUs_LULU.fa.gz",                emit: fasta
+      tuple val("${task.process}"), val('mumu'), eval('mumu --version | head -n 1 | sed "s/mumu //"'), topic: versions
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
+      tuple val("${task.process}"), val('ripgrep'), eval('rg --version | head -1 | sed "s/ripgrep //"'), topic: versions
 
     script:
     """
@@ -732,6 +735,15 @@ workflow S2 {
     // Run statistics
     // run_summary()
 
+
+  // Dump the software versions to a file
+  software_versions_to_yaml(Channel.topic('versions'))
+      .collectFile(
+          storeDir: "${params.tracedir}",
+          name:     'software_versions.yml',
+          sort:     true,
+          newLine:  true
+      )
 
   // Auto documentation of analysis procedures
   // document_analysis_step2
