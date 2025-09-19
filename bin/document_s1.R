@@ -76,6 +76,12 @@ getp <- function(p, name, default = NA){
 }
 # E.g., getp(params, "lima_minscore", 93)
 
+
+## Remove NAs and empty strings (to curate the citations)
+trim_na <- function(x){
+  x[ !is.na(x) & nzchar(x) ]
+}
+
 ##################################
 ################################## Body builders
 ##################################
@@ -94,6 +100,28 @@ emit_demux_pacbio <- function(p, v) {
   glue("Demultiplexed PacBio reads using LIMA v.{vs} (Pacific Biosciences) with min score {ms} and {barcode_type}.")
 }
 
+
+##################################
+################################## Workflow-dependent method descriptions
+##################################
+
+## Function to assembly the workflow description and references
+build_docs <- function(versions, params){
+  body <- character()
+  tools_used <- character()
+
+      body <- c(body, emit_demux_pacbio(params, versions))
+      tools_used <- c(tools_used, c("lima"))
+  tools_used <- unique(tools_used)
+  citations <- trim_na( unlist(citation_db[tools_used]) )
+  citations <- sort(unique(citations))
+
+  res <- list(
+    body = body,
+    citations = citations)
+  
+  return(res)
+}
 
 
 ##################################
