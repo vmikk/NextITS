@@ -7,6 +7,19 @@ For version numbering, we use the following convention: `MAJOR.MINOR.PATCH`.
 Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).  
 
 
+## [1.1.0] - 2025-xx-xx
+
+- Fixed issue with handling unknown barcode combinations (in `dual asymmetric` mode), thanks to Alice Retter for reporting the issue  
+- Refactored and optimized tag-jump removal step  
+- Implemented chunking option for splitting the dataset into smaller parts prior clustering in Step-2 (pre-clustering, clustering, and denoising moved to a separate sub-workflow), using MMseqs2  
+- New parameters added:  
+    - `lima_remove_unknown` (default, `false`; if `true`, unknown barcode combinations will be removed from demultiplexed data)  
+    - `chunking_n` (number of chunks to split the dataset into prior clustering)  
+    - `chunking_id` (minimum sequence identity for splitting the dataset into chunks)  
+- Added DADA2 denoising (`--preclustering dada2`, works also with `--clustering none`)
+- Refactored parameter validation (using `nf-schema` plugin)  
+- Refactored runtime parameter summary and help message  
+
 ## [1.0.0] - 2025-03-24
 
 - Added support of asymmetric barcoding scheme for demultiplexing of PacBio data  
