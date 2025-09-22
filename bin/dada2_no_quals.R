@@ -177,7 +177,7 @@ seq_quals <- as(quality(fq), "matrix")
 num_seqs  <- nrow(sq)
 num_singl <- nrow(sq[ Abundance < 2 ])
 num_reads <- sum(sq$Abundance, na.rm = TRUE)
-perc_nonsingleton <- (num_seqs - num_singl) / num_seqs * 100
+perc_nonsingleton <- round((num_seqs - num_singl) / num_seqs * 100, 2)
 
 cat("\n")
 cat("Number of unique sequences detected: ", num_seqs,  "\n")
