@@ -47,7 +47,7 @@ option_list <- list(
   make_option("--chimrecovn", action="store", default=NA, type='character', help="Number of resued reads for de novo chimeras (false positives)"),
   make_option("--chimrecovu", action="store", default=NA, type='character', help="Number of resued unique sequences detected as de novo chimeras (false positives)"),
   make_option("--tj",         action="store", default=NA, type='character', help="Tag jump removal data"),
-  make_option("--seqtab",     action="store", default=NA, type='character', help="Final seq table"),
+  make_option("--seqtab",     action="store", default=NA, type='character', help="Final seq table (Parquet format)"),
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -118,8 +118,8 @@ cat("\n")
 # CHIMDENOVO  <- "Counts_7.ChimDenov.txt"
 # CHIMRECOVN  <- "Counts_8.ChimRecov_reads.txt"
 # CHIMRECOVU  <- "Counts_8.ChimRecov_uniqs.txt"
-# TJ          <- "Seqs.RData"
-# SEQTAB      <- "TagJump_OTUs.RData"
+# TJ          <- "TagJump_OTUs.RData"
+# SEQTAB      <- "Seqs.parquet"
 # CPUTHREADS  <- 6
 
 
@@ -134,6 +134,7 @@ load_pckg <- function(pkg = "data.table"){
 
 load_pckg("data.table")
 load_pckg("plyr")
+load_pckg("arrow")
 load_pckg("metagMisc")
 load_pckg("openxlsx")
 
