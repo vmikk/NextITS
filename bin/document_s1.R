@@ -86,6 +86,17 @@ trim_na <- function(x){
 ################################## Body builders
 ##################################
 
+emit_nextits <- function(v) {
+  nextits_v <- if(!is.null(v$NextITS$version)){ as.character(v$NextITS$version) } else { "" }
+  glue("Bioinformatic processing was performed using the \\
+    NextITS pipeline v.{nextits_v} (Mikryukov et al., 2025).")
+}
+
+emit_nextflow <- function(v) {
+  nextflow_v <- if(!is.null(v$Nextflow$version)){ as.character(v$Nextflow$version) } else { "" }
+  glue("Workflow management was performed using \\
+    Nextflow v.{nextflow_v} (Di Tommaso et al., 2017).")
+}
 
 emit_demux_pacbio <- function(p, v) {
   ms <- getp(p, "lima_minscore", 93)
@@ -109,6 +120,12 @@ emit_demux_pacbio <- function(p, v) {
 build_docs <- function(versions, params){
   body <- character()
   tools_used <- character()
+
+  body <- c(body, emit_nextits(versions))
+  tools_used <- c(tools_used, "nextits")
+
+  body <- c(body, emit_nextflow(versions))
+  tools_used <- c(tools_used, "nextflow")
 
       body <- c(body, emit_demux_pacbio(params, versions))
       tools_used <- c(tools_used, c("lima"))
