@@ -23,6 +23,28 @@ versions_path <- args[[1]]
 params_path   <- args[[2]]
 output_path   <- ifelse(length(args) >= 3, args[[3]], "README_Step1_Methods.txt")
 
+
+## Validation
+if(is.null(versions_path) || versions_path == ""){
+  stop("Versions YAML not specified")
+}
+if(is.null(params_path) || params_path == ""){
+  stop("Params table not specified")
+}
+
+if(!file.exists(versions_path)){
+  stop(glue("Versions YAML not found: {versions_path}"))
+}
+if(!file.exists(params_path)){
+  stop(glue("Params table not found: {params_path}"))
+}
+
+
+
+##################################
+################################## References
+##################################
+
 ## Citation registry
 citation_db <- list(
   nextits   = "Mikryukov V, Anslan S, Tedersoo L (2025) NextITS - A pipeline for metabarcoding fungi and other eukaryotes with full-length ITS sequenced with PacBio. DOI:10.5281/zenodo.15074882",
