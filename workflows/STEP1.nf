@@ -167,6 +167,8 @@ process tag_validation {
     label "main_container"
     // cpus 1
 
+    publishDir "${out_1_demux}", pattern: "tag_names_renamed.tsv", mode: "${params.storagemode}"
+
     input:
       path barcodes
 
@@ -176,6 +178,7 @@ process tag_validation {
       path "biosamples_sym.csv",       emit: biosamples_sym,  optional: true
       path "file_renaming.tsv",        emit: file_renaming,   optional: true
       path "unknown_combinations.tsv", emit: unknown_combinations, optional: true
+      path "tag_names_renamed.tsv",    emit: tag_names_renamed, optional: true
 
     script:
     """
