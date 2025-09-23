@@ -135,6 +135,10 @@ if(nrow(renamed) > 0){
   print(
     renamed[, .(OriginalName, NewName)],
     nrows = nrow(renamed), trunc.cols = FALSE)
+
+  cat("...Exporting renamed tag names\n")
+  fwrite(x = renamed[ , .(OriginalName, NewName)],
+    file = "tag_names_renamed.tsv", quote = FALSE, sep = "\t", col.names = FALSE)
 }
 
 names(TAGS) <- newnames
