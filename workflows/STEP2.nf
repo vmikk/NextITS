@@ -238,7 +238,7 @@ process bucketize {
 
     output:
       path "bucket_*.fa.gz", emit: buckets
-      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
       tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
       tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'),  topic: versions
 
@@ -423,7 +423,7 @@ process merge_uc {
     output:
       path "UC_Pooled.parquet", emit: uc
       tuple val("${task.process}"), val('ucs'), eval('ucs --version | sed "s/ucs //"'), topic: versions
-      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
       tuple val("${task.process}"), val('duckdb'), eval('Rscript -e "cat(as.character(packageVersion(\'duckdb\')))"'),  topic: versions
 
     script:
@@ -478,7 +478,7 @@ process summarize {
       path "OTU_table_wide.RData",  emit: otutabwider
       path "OTU_table_long.RData",  emit: otutablongr
       path "OTUs.fa.gz",            emit: seqs
-      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //"'),  topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
       tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
       tuple val("${task.process}"), val('arrow'), eval('Rscript -e "cat(as.character(packageVersion(\'arrow\')))"'),  topic: versions
       tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'),  topic: versions
