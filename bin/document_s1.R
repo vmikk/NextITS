@@ -133,6 +133,78 @@ emit_demux_pacbio <- function(p, v) {
   glue("Demultiplexed PacBio reads using LIMA v.{vs} (Pacific Biosciences) with min score {ms} and {barcode_type}.")
 }
 
+emit_qc_pacbio <- function(p, v) {
+  glue("Quality control was performed using \\
+    VSEARCH v.{getv(v,'qc_se','vsearch')} (Rognes et al., 2016) and \\
+    seqkit v.{getv(v,'qc_se','seqkit')} (Shen et al., 2024). \\
+    Reads with the number of ambiguous bases >= {getp(p,'qc_maxn',4)}, \\
+    expected error rate >= {getp(p,'qc_maxeerate',0.01)}, \\
+    or homopolymer stretches longer than {getp(p,'qc_maxhomopolymerlen',25)} nt were removed.")
+}
+
+# emit_demux_illumina <- function(p, v) {
+#   c(
+#     glue("- Illumina PE QC and merging; demultiplexed merged reads with cutadapt v.{getv(v,'primer_check','cutadapt')} using barcode window {getp(p,'barcode_window',30)}, max errors {getp(p,'barcode_errors',1)}, min overlap {getp(p,'barcode_overlap',11)}."),
+#     glue("- Non-merged reads optionally retained (join padding '{getp(p,'illumina_joinpadgap','NNNNNNNNNN')}').")
+#   )
+# }
+
+emit_primer_check <- function(p, v) {
+  glue("Primers were trimmed using \\
+    cutadapt v.{getv(v, 'primer_check', 'cutadapt')} (Martin, 2011) \\
+    with <= {getp(p, 'primer_mismatches', 2)} mismatches. \\
+    Reads without both primers were discarded.")
+}
+
+emit_itsx <- function(p, v) {
+  switch(getp(p,'its_region','full'),
+    "full"            = {its_region <- "full-length ITS"},
+    "SSU"             = {its_region <- "SSU"},
+    "ITS1"            = {its_region <- "ITS1"},
+    # "5_8S"            = {its_region <- "5.8S"},   # not-yet-implemented
+    "ITS2"            = {its_region <- "ITS2"},
+    "LSU"             = {its_region <- "LSU"},
+    "ITS1_5.8S_ITS2"  = {its_region <- "near-full-length ITS"})
+
+
+  glue("Extraction of rRNA regions ({its_region}) was performed using \\
+    ITSx v.{getv(v,'itsx','ITSx')} (Bengtsson-Palme et al., 2013).")
+}
+
+
+emit_hp_and_chimeras <- function(p, v, did_hp) {
+  res <- character()
+  if(isTRUE(did_hp)){
+    res <- c(res, glue(
+      "Homopolymer correction of sequences was performed using an algorithm implemented in NextITS \\
+      with support of VSEARCH v.{getv(v,'homopolymer','vsearch')} and seqkit v.{getv(v,'homopolymer','seqkit')}.") )
+  } else {
+    res <- c(res, "Homopolymer correction of sequences was not performed.")
+  }
+  res <- c(res,
+    glue(
+      "Two-step chimera detection was done using VSEARCH v.{getv(v,'chimera_denovo','vsearch')}: 
+       - de novo using UCHIME2 algorithm (Edgar, 2016) with max score {getp(p,'max_ChimeraScore',0.6)} (Nilsson et al., 2015), 
+       - then reference-based against the EUKARYOME database (Tedersoo et al., 2024).")
+  )
+  res <- paste0(res, collapse = "\n")
+  return(res)
+}
+
+emit_tj <- function(p, v) {
+  glue("Tag-jump detection and removal was performed using \\
+    UNCROSS2 algorithm (Edgar, 2018) with the parameter f = {getp(p,'tj_f',0.01)}.")
+}
+
+emit_seqtab <- function(p, v) {
+  glue("Sequence counts table was generated using \\
+    R v.{getv(v,'prep_seqtab','R')} (R Core Team, 2025), \\
+    data.table v.{getv(v,'prep_seqtab','data.table')} (Barrett et al., 2025), \\
+    and Apache Arrow v.{getv(v,'prep_seqtab','arrow')} (Richardson et al., 2025) \\
+    packages.")
+}
+
+
 
 ##################################
 ################################## Workflow-dependent method descriptions
