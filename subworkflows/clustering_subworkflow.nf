@@ -167,6 +167,9 @@ process dada2 {
       path "DADA2_denoising_summary.txt", emit: dada_summary
       // path "DADA2_ErrorRates_noqualErrfun.RData"
       // path "DADA2_InferedSeqs_noqualErrfun.RData"
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
+      tuple val("${task.process}"), val('dada2'), eval('Rscript -e "cat(as.character(packageVersion(\'dada2\')))"'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
 
     script:
     """
