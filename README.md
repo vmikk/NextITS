@@ -4,7 +4,7 @@
 [![Nextflow](https://img.shields.io/badge/Nextflow%20DSL2-%E2%89%A525.04-23aa62.svg)](https://www.nextflow.io/)
 [![GitHub license](https://img.shields.io/github/license/vmikk/NextITS)](https://github.com/vmikk/NextITS/blob/main/LICENSE)  
 
-[![Runs with singularity](https://img.shields.io/badge/Runs%20with-Singularity-blue?style=flat&logo=singularity)](https://sylabs.io/docs/)
+[![Runs with singularity](https://img.shields.io/badge/Runs%20with-Singularity-blue?style=flat&logo=singularity)](https://cloud.sylabs.io/library/vmiks/nextits/nextits)
 [![Runs with Docker](https://img.shields.io/badge/Runs%20with-Docker-blue?style=flat&logo=docker)](https://hub.docker.com/r/vmikk/nextits/tags)  
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15074881.svg)](https://doi.org/10.5281/zenodo.15074881)
