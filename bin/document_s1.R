@@ -2,6 +2,18 @@
 
 ## Script to document the Step-1 workflow of the NextITS pipeline.
 
+## Usage:
+##   Rscript document_s1.R <software_versions.yml> <params.csv_or_tsv> [output_path]
+
+## Input:
+##  - software_versions.yml
+##  - params_table.tsv
+
+## Output:
+##  - README_Step1_Methods.txt
+##    with two sections: methods and references
+
+
 ## Function to load packages
 load_pckg <- function(pkg = "data.table"){
   suppressPackageStartupMessages( library(package = pkg, character.only = TRUE) )
