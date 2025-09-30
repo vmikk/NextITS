@@ -221,8 +221,53 @@ build_docs <- function(versions, params){
   body <- c(body, emit_nextflow(versions))
   tools_used <- c(tools_used, "nextflow")
 
+  demuxed <- tolower(as.character(getp(params, "demultiplexed", FALSE))) %in% c("true", "t", "1")
+  platform <- getp(params, "seqplatform", "PacBio")
+
+  if(!demuxed){
+    if(platform %in% "PacBio"){
+  
       body <- c(body, emit_demux_pacbio(params, versions))
       tools_used <- c(tools_used, c("lima"))
+
+      body <- c(body, emit_qc_pacbio(params, versions))
+      tools_used <- c(tools_used, c("vsearch", "seqkit"))
+
+    } else {
+      body <- c(body, emit_demux_illumina(params, versions))
+      tools_used <- c(tools_used, c("cutadapt"))
+    }
+  } else {
+    if(platform %in% "PacBio"){
+      body <- c(body, emit_qc_pacbio(params, versions))
+      tools_used <- c(tools_used, c("vsearch", "seqkit"))
+    } else {
+      ## TODO
+    }
+  }
+
+  its_region <- getp(params, "its_region", "full")
+  if(its_region %in% c("full", "ITS1", "ITS2", "SSU", "LSU")){
+    body <- c(body, emit_itsx(params, versions))
+    tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
+  } else if (its_region %in% "none") {
+    body <- c(body, emit_trim_primers(params, versions))
+    tools_used <- c(tools_used, c("cutadapt"))
+  } else if (its_region %in% "ITS1_5.8S_ITS2") {
+    body <- c(body, emit_itsx(params, versions), emit_assemble_its(params, versions))
+    tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
+  }
+
+  did_hp <- tolower(as.character(getp(params, "hp", TRUE))) %in% c("true", "t", "1")
+  body <- c(body, emit_hp_and_chimeras(params, versions, did_hp))
+  tools_used <- c(tools_used, c("vsearch", "uchime2", "eukaryome"))
+
+  body <- c(body, emit_tj(params, versions))
+  tools_used <- c(tools_used, c("uncross2"))
+
+  body <- c(body, emit_seqtab(params, versions))
+  tools_used <- c(tools_used, c("arrow", "datatable", "R"))
+
   tools_used <- unique(tools_used)
   citations <- trim_na( unlist(citation_db[tools_used]) )
   citations <- sort(unique(citations))
