@@ -752,13 +752,22 @@ workflow S2 {
 
 
   // Dump the software versions to a file
-  software_versions_to_yaml(Channel.topic('versions'))
+  ch_versions_yml = software_versions_to_yaml(Channel.topic('versions'))
       .collectFile(
           storeDir: "${params.tracedir}",
           name:     'software_versions.yml',
           sort:     true,
           newLine:  true
       )
+
+  // Dump the parameters to a file
+  ch_params_tsv = dumpParamsTsv()
+    .collectFile(
+        storeDir: "${params.tracedir}",
+        name:     "pipeline_params.tsv",
+        sort:     true,
+        newLine:  true
+    )
 
   // Auto documentation of analysis procedures
   // document_analysis_step2
