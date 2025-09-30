@@ -81,20 +81,21 @@ getv <- function(v, process, tool){
   # process = process name
   # tool    = tool name
 
-  if(is.null(v[[process]]) || is.null(v[[process]][[tool]])){ return(NA_character_) }
+  if(is.null(v[[process]]) || is.null(v[[process]][[tool]])){ return("") }
   as.character( v[[process]][[tool]] )
 }
 # E.g., getv(versions, "demux", "lima")
 
 
 ## Get parameter
-getp <- function(p, name, default = NA){
+getp <- function(p, pname, default = NA){
   # p       =  table with parameters (two columns: name and value)
-  # name    = parameter name
+  # pname   = parameter name
   # default = default value if parameter is not found
 
-  if(is.null(p[[name]]) || is.na(p[[name]])){ return(default) }
-  p[[name]]
+  pp <- p[ name == pname ]$value
+  if(is.null(pp) || is.na(pp)){ return(default) }
+  return(pp)
 }
 # E.g., getp(params, "lima_minscore", 93)
 
