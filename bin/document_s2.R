@@ -63,3 +63,39 @@ citation_db <- list(
   datatable = "Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B, Krylov I (2025) data.table: Extension of data.frame. URL: <https://r-datatable.com>"
 )
 
+
+##################################
+################################## Helpers
+##################################
+
+## Get version number
+getv <- function(v, process, tool){
+  # v       = list (from YAML file)
+  # process = process name
+  # tool    = tool name
+
+  if(is.null(v[[process]]) || is.null(v[[process]][[tool]])){ return("") }
+  as.character( v[[process]][[tool]] )
+}
+# E.g., getv(versions, "dereplication", "vsearch")
+
+
+## Get parameter
+getp <- function(p, pname, default = NA){
+  # p       =  table with parameters (two columns: name and value)
+  # pname   = parameter name
+  # default = default value if parameter is not found
+
+  pp <- p[ name == pname ]$value
+  if(is.null(pp) || is.na(pp)){ return(default) }
+  return(pp)
+}
+# E.g., getp(params, "otu_id", 0.98)
+
+
+## Remove NAs and empty strings (to curate the citations)
+trim_na <- function(x){
+  x[ !is.na(x) & nzchar(x) ]
+}
+
+
