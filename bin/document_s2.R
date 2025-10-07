@@ -98,4 +98,43 @@ trim_na <- function(x){
   x[ !is.na(x) & nzchar(x) ]
 }
 
+##################################
+################################## Body builders
+##################################
+
+emit_nextits <- function(v) {
+  nextits_v <- if(!is.null(v$NextITS$version)){ as.character(v$NextITS$version) } else { "" }
+  glue("Bioinformatic processing was performed using the \\
+    NextITS pipeline v.{nextits_v} (Mikryukov et al., 2025).")
+}
+
+emit_nextflow <- function(v) {
+  nextflow_v <- if(!is.null(v$Nextflow$version)){ as.character(v$Nextflow$version) } else { "" }
+  glue("Workflow management was performed using \\
+    Nextflow v.{nextflow_v} (Di Tommaso et al., 2017).")
+}
+
+emit_aggregation <- function(p, v) {
+  glue("Sequences from all sequencing runs were aggregated and \\
+    de novo chimeric sequences with chimera score >= {getp(p,'max_ChimeraScore',0.6)} were removed.")
+}
+
+emit_dereplication <- function(p, v) {
+  minlen <- getp(p, "ampliconlen_min", NA)
+  maxlen <- getp(p, "ampliconlen_max", NA)
+  
+  length_filter <- ""
+  if(!is.na(minlen) && !is.na(maxlen)){
+    length_filter <- glue(" Sequences shorter than {minlen} nt or longer than {maxlen} nt were excluded.")
+  } else if(!is.na(minlen)){
+    length_filter <- glue(" Sequences shorter than {minlen} nt were excluded.")
+  } else if(!is.na(maxlen)){
+    length_filter <- glue(" Sequences longer than {maxlen} nt were excluded.")
+  }
+  
+  glue("Global sequence dereplication was performed using \\
+    VSEARCH v.{getv(v,'dereplication','vsearch')} (Rognes et al., 2016).\\
+    {length_filter}")
+}
+
 
