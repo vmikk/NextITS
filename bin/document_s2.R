@@ -138,3 +138,42 @@ emit_dereplication <- function(p, v) {
 }
 
 
+##################################
+################################## Workflow-dependent method descriptions
+##################################
+
+## Function to assembly the workflow description and references
+build_docs <- function(versions, params){
+  body <- character()
+  tools_used <- character()
+
+  ## Pipeline version
+  body <- c(body, emit_nextits(versions))
+  tools_used <- c(tools_used, "nextits")
+
+  ## Nextflow version
+  body <- c(body, emit_nextflow(versions))
+  tools_used <- c(tools_used, "nextflow")
+
+  ## Sequence aggregation
+  body <- c(body, emit_aggregation(params, versions))
+
+  ## Sequence dereplication and amplicon length filtering
+  body <- c(body, emit_dereplication(params, versions))
+  tools_used <- c(tools_used, "vsearch")
+
+
+  ## Generate citations
+  tools_used <- unique(tools_used)
+  citations <- trim_na( unlist(citation_db[tools_used]) )
+  citations <- sort(unique(citations))
+
+  res <- list(
+    body = body,
+    citations = citations)
+  
+  return(res)
+}
+
+
+
