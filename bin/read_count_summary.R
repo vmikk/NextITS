@@ -135,6 +135,7 @@ load_pckg <- function(pkg = "data.table"){
 load_pckg("data.table")
 load_pckg("plyr")
 load_pckg("arrow")
+# load_pckg("dplyr")
 load_pckg("metagMisc")
 load_pckg("openxlsx")
 
@@ -190,11 +191,8 @@ cat("..Loading rescued ref-based chimera counts\n")
 CUSTOMCOUNTS$CHIMRECOVN <- fread(CHIMRECOVN)
 SEQKITCOUNTS$CHIMRECOVU <- fread(CHIMRECOVU)
 
-# cat("..Loading tag-jump filtration data\n")
-# TJ
-
-# cat("..Loading sequence table\n")
-# SEQTAB
+cat("..Loading sequence table\n")
+SEQTAB <- arrow::open_dataset(SEQTAB)
 
 
 ## Remove NULL-files
@@ -333,6 +331,25 @@ PER_SAMPLE_COUNTS_merged <- merge(
   x = PER_SAMPLE_COUNTS_merged, 
   y = HOMOPOLY_counts,
   by.x = "file", by.y = "SampleID", all.x = TRUE)
+
+
+## Number of reads and unique sequences in the sequence table (per sample)
+## Excluding putative de novo chimeras (with score >= MAXCHIM)
+cat("Adding sequence table stats\n")
+seqtab_stats <- SEQTAB |>
+  dplyr::filter(DeNovo_Chimera_Score < MAXCHIM | is.na(DeNovo_Chimera_Score) ) |>
+  dplyr::group_by(SampleID) |>
+  dplyr::summarize(
+    SeqTable_NumReads    = sum(Abundance, na.rm = TRUE),
+    SeqTable_NumUniqSeqs = n()) |>
+  dplyr::collect() |>
+  setDT()
+
+PER_SAMPLE_COUNTS_merged <- merge(
+  x = PER_SAMPLE_COUNTS_merged,
+  y = seqtab_stats,
+  by.x = "file", by.y = "SampleID", all.x = TRUE)
+
 
 
 
