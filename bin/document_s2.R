@@ -137,6 +137,37 @@ emit_dereplication <- function(p, v) {
     {length_filter}")
 }
 
+emit_preclustering <- function(p, v) {
+  preclustering_method <- getp(p, "preclustering", "none")
+  
+  res <- switch(preclustering_method,
+    
+    "none" = "", # No pre-clustering or denoising was performed
+    
+    "homopolymer" = glue(
+        "Global homopolymer correction was performed using an algorithm implemented in NextITS \\
+        with support of VSEARCH v.{getv(v,'homopolymer','vsearch')} (Rognes et al., 2016)."),
+
+    "unoise" = glue(
+        "Sequence denoising was performed using the UNOISE3 algorithm (Edgar, 2016) \\
+        implemented in VSEARCH v.{getv(v,'unoise','vsearch')} (Rognes et al., 2016) \\
+        with alpha parameter {getp(p,'unoise_alpha',6.0)} and minimum size {getp(p,'unoise_minsize',1)}."),
+
+    "dada2" = glue(
+        "Sequence denoising was performed using \\
+        DADA2 v.{getv(v,'dada2','dada2')} (Callahan et al., 2016)"),
+        # using {getp(p,'dada2_pooling','global')} pooling strategy."
+
+    "swarm_d1" = glue(
+        "Pre-clustering was performed using \\
+        SWARM v.{getv(v,'precluster_swarm','swarm')} (Mahé et al., 2021) \\
+        with d=1 and fastidious option enabled.")
+    )
+    
+  return(res)
+}
+
+
 
 ##################################
 ################################## Workflow-dependent method descriptions
@@ -161,6 +192,27 @@ build_docs <- function(versions, params){
   ## Sequence dereplication and amplicon length filtering
   body <- c(body, emit_dereplication(params, versions))
   tools_used <- c(tools_used, "vsearch")
+
+  ## Conditional: pre-clustering/denoising
+  preclustering_method <- getp(params, "preclustering", "none")
+  if(preclustering_method != "none" && !is.na(preclustering_method)){
+    body <- c(body, emit_preclustering(params, versions))
+    
+    switch(preclustering_method,
+      "homopolymer" = {
+        tools_used <- c(tools_used, "vsearch")
+      },
+      "unoise" = {
+        tools_used <- c(tools_used, c("vsearch", "unoise"))
+      },
+      "dada2" = {
+        tools_used <- c(tools_used, "dada2")
+      },
+      "swarm_d1" = {
+        tools_used <- c(tools_used, "swarm")
+      }
+    )
+  }
 
 
   ## Generate citations
