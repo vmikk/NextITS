@@ -771,7 +771,8 @@ workflow S2 {
     )
 
   // Auto documentation of analysis procedures
-  // document_analysis_step2
-
+  document_analysis_s2(
+    ch_versions_yml,
+    ch_params_tsv)
 
 }
