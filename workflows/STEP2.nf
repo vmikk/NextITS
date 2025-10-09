@@ -635,6 +635,38 @@ process lulu {
 // 18. `status` - status: 'accepted' or 'rejected'
 //     The potential parent OTU is either accepted as a parent, or rejected
 
+// Auto documentation of analysis procedures
+// (generate narrative description of methods)
+process document_analysis_s2 {
+
+    label "main_container"
+
+    publishDir "${out_tracedir}", mode: 'copy', overwrite: true
+    // cpus 1
+
+    input:
+      path versions       // "software_versions.yml"
+      path params         // "pipeline_params.tsv"
+
+    output:
+      path "README_Step2_Methods.txt",  emit: docs
+
+
+    script:
+    """
+    echo -e "Descriptive summary generation\n"
+
+    document_s2.R \
+      ${versions} \
+      ${params} \
+      README_Step2_Methods.txt
+
+    """
+}
+
+
+
+
 // Step-2 workflow
 workflow S2 {
 
