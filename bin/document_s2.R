@@ -167,6 +167,35 @@ emit_preclustering <- function(p, v) {
   return(res)
 }
 
+emit_clustering <- function(p, v) {
+  clustering_method    <- getp(p, "clustering", "vsearch")
+  preclustering_method <- getp(p, "preclustering", "none")
+  
+  ## Handle special case where SWARM pre-clustering = SWARM clustering with same d
+  # if(preclustering_method == "swarm_d1" && clustering_method == "swarm" && getp(p, "swarm_d", 1) == 1){
+  #   return("No additional clustering was performed (SWARM pre-clustering with d=1 was used as final clustering).")
+  # }
+  
+  cls <- switch(clustering_method,
+
+    "vsearch" = glue(
+        "VSEARCH v.{getv(v,'cluster_vsearch','vsearch')} (Rognes et al., 2016) \\
+        with { as.numeric(getp(p,'otu_id',0.98))*100}% similarity threshold."),
+
+    "swarm" = {
+      fastidious_text <- if(getp(p, "swarm_fastidious", TRUE) && getp(p, "swarm_d", 1) == 1) {
+        " with fastidious option enabled"
+      } else {
+        ""
+      }
+      glue("SWARM v.{getv(v,'cluster_swarm','swarm')} (Mahé et al., 2021) \\
+        with parameter d={getp(p,'swarm_d',1)}{fastidious_text}.")
+    })
+
+  res <- glue("OTU clustering was performed using {cls}")
+  return(res)
+}
+
 
 
 ##################################
@@ -212,6 +241,24 @@ build_docs <- function(versions, params){
         tools_used <- c(tools_used, "swarm")
       }
     )
+  }
+
+  ## Conditional: clustering
+  clustering_method <- getp(params, "clustering", "vsearch")
+  if(clustering_method != "none" && !is.na(clustering_method)){
+    ## Skip clustering description if it's redundant with pre-clustering
+    if(!(preclustering_method == "swarm_d1" && clustering_method == "swarm" && getp(params, "swarm_d", 1) == 1)){
+      body <- c(body, emit_clustering(params, versions))
+      
+      switch(clustering_method,
+        "vsearch" = {
+          tools_used <- c(tools_used, "vsearch")
+        },
+        "swarm" = {
+          tools_used <- c(tools_used, "swarm")
+        }
+      )
+    }
   }
 
 
