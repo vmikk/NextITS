@@ -920,7 +920,7 @@ process itsx {
     echo -e "\nITSx extraction"
     ITSx \
       -i derep.fasta \
-      --complement T \
+      --complement ${params.ITSx_complement} \
       --save_regions all \
       --graphical F \
       --detailed_results T \
