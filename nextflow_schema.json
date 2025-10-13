@@ -197,6 +197,16 @@
           "fa_icon": "fas fa-check-circle",
           "description": "Min E-value threshold for ITSx"
         },
+        "ITSx_complement": {
+          "type": "string",
+          "default": "F",
+          "fa_icon": "fas fa-check-circle",
+          "description": "Check single strand (F, default) or both DNA strands (T) for matches to HMM-profiles",
+          "enum": [
+            "F",
+            "T"
+          ]
+        },
         "ITSx_partial": {
           "type": "integer",
           "default": 0,
