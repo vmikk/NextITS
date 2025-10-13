@@ -15,7 +15,7 @@
 #   --chimdenovo   Counts_7.ChimDenov.txt \
 #   --chimrecovn   Counts_8.ChimRecov_reads.txt \
 #   --chimrecovu   Counts_8.ChimRecov_uniqs.txt \
-#   --tj           TagJump_OTUs.RData \
+#   --tj           TagJump_scores.qs \
 #   --seqtab       Seqs.parquet \
 #   --threads      4
 
@@ -46,7 +46,7 @@ option_list <- list(
   make_option("--chimdenovo", action="store", default=NA, type='character', help="Number of de novo chimeras"),
   make_option("--chimrecovn", action="store", default=NA, type='character', help="Number of resued reads for de novo chimeras (false positives)"),
   make_option("--chimrecovu", action="store", default=NA, type='character', help="Number of resued unique sequences detected as de novo chimeras (false positives)"),
-  make_option("--tj",         action="store", default=NA, type='character', help="Tag jump removal data"),
+  make_option("--tj",         action="store", default=NA, type='character', help="Tag jump removal data (serialized in qs format)"),
   make_option("--seqtab",     action="store", default=NA, type='character', help="Final seq table (Parquet format)"),
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
 )
@@ -118,7 +118,7 @@ cat("\n")
 # CHIMDENOVO  <- "Counts_7.ChimDenov.txt"
 # CHIMRECOVN  <- "Counts_8.ChimRecov_reads.txt"
 # CHIMRECOVU  <- "Counts_8.ChimRecov_uniqs.txt"
-# TJ          <- "TagJump_OTUs.RData"
+# TJ          <- "TagJump_scores.qs"
 # SEQTAB      <- "Seqs.parquet"
 # CPUTHREADS  <- 6
 
@@ -190,6 +190,11 @@ CHIMDENOVO <- fread(CHIMDENOVO)                 # incorporate to the main table
 cat("..Loading rescued ref-based chimera counts\n")
 CUSTOMCOUNTS$CHIMRECOVN <- fread(CHIMRECOVN)
 SEQKITCOUNTS$CHIMRECOVU <- fread(CHIMRECOVU)
+
+if(!is.na(TJ)){
+  cat("..Loading tag-jump filtration data\n")
+  TJ <- qs::qread(TJ)
+}
 
 cat("..Loading sequence table\n")
 SEQTAB <- arrow::open_dataset(SEQTAB)
@@ -324,6 +329,24 @@ PER_SAMPLE_COUNTS_merged[ ,
   PrimerArtefacts_Reads / (PrimerChecked_Reads + PrimerArtefacts_Reads) * 100,
   2)
  ]
+
+## Estimate tag-jump stats
+cat("Estimating tag-jump removal yields\n")
+TJ_stats <- TJ[ TagJump == TRUE, .(
+    TagJump_Events = .N,
+    TagJump_Reads  = sum(Abundance, na.rm = TRUE)),
+  by = "SampleID" ]
+
+if(nrow(TJ_stats) > 0){
+  PER_SAMPLE_COUNTS_merged <- merge(
+    x = PER_SAMPLE_COUNTS_merged,
+    y = TJ_stats,
+    by.x = "file", by.y = "SampleID", all.x = TRUE)
+} else {
+  PER_SAMPLE_COUNTS_merged[ , TagJump_Events := 0 ]
+  PER_SAMPLE_COUNTS_merged[ , TagJump_Reads  := 0 ]
+}
+
 
 ## Add homopolymer stats
 cat("Adding homopolymer stats\n")
