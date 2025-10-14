@@ -45,7 +45,7 @@ process bam2fastq {
 
     script:
     """
-    echo -e "Converting BAM to FASTQ\n"
+    echo -e "Converting BAM to FASTQ\\n"
     echo -e "Input file: " ${input}
     echo -e "BAM index: "  ${bam_index}
 
@@ -54,7 +54,7 @@ process bam2fastq {
       --num-threads ${task.cpus} \
       ${input}
 
-    echo -e "\nConvertion finished"
+    echo -e "\\nConvertion finished"
     """
 }
 
@@ -81,7 +81,7 @@ process qc_se {
     filter_maxee      = params.qc_maxee      ? "--fastq_maxee ${params.qc_maxee}"          : ""
     filter_maxeerate  = params.qc_maxeerate  ? "--fastq_maxee_rate ${params.qc_maxeerate}" : ""
     """
-    echo -e "QC"
+    echo -e "QC\\n"
     echo -e "Input file: " ${input}
 
     ## We do not need to change the file name (output name should be the same as input)
@@ -105,7 +105,7 @@ process qc_se {
     ## qc_maxhomopolymerlen
     # e.g. "(A{26,}|C{26,}|T{26,}|G{26,})"
 
-    echo -e "\nQC finished"
+    echo -e "\\nQC finished"
     """
 }
 
@@ -131,7 +131,7 @@ process qc_pe {
     filter_phredperc = params.qc_phredperc ? "--unqualified_percent_limit ${params.qc_phredperc}"   : ""
     filter_polyglen  = params.qc_polyglen  ? "--trim_poly_g --poly_g_min_len ${params.qc_polyglen}" : ""
     """
-    echo -e "QC"
+    echo -e "QC\\n"
     echo -e "Input R1: " ${input_R1}
     echo -e "Input R2: " ${input_R2}
 
@@ -155,7 +155,7 @@ process qc_pe {
       --out1 QC_R1.fq.gz \
       --out2 QC_R2.fq.gz
 
-    echo -e "\nQC finished"
+    echo -e "\\nQC finished"
     """
 }
 
@@ -182,7 +182,7 @@ process tag_validation {
 
     script:
     """
-    echo -e "Valdidating demultiplexing tags\n"
+    echo -e "Valdidating demultiplexing tags\\n"
     echo -e "Input file: " ${barcodes}
 
     ## Convert Windows-style line endings (CRLF) to Unix-style (LF)
@@ -193,7 +193,7 @@ process tag_validation {
       --tags   ${barcodes} \
       --output barcodes_validated.fasta
 
-    echo -e "Tag validation finished"
+    echo -e "\\nTag validation finished"
     """
 }
 
@@ -237,8 +237,8 @@ process demux {
     ## (if `biosamples_sym` does not exists, it means that it is a dummy file)
     ## (if exists, it means that tags were split into sym and asym at the tag validation step)
     if [[ ${params.lima_barcodetype} = "dual_symmetric" ]] && [ -e ${biosamples_sym} ] ; then
-        echo -e "\nERROR: Symmetric tags are provided in '...' format.\n"
-        echo -e "In the FASTA file, please include only one tag per sample, since these tags are identical.\n"
+        echo -e "\\nERROR: Symmetric tags are provided in '...' format.\\n"
+        echo -e "In the FASTA file, please include only one tag per sample, since these tags are identical.\\n"
         exit 1
     fi
 
@@ -247,8 +247,8 @@ process demux {
 
       if [ ! -e ${biosamples_asym} ]; then
         
-        echo -e "\nERROR: Tags are specified in wrong format"
-        echo -e "Use the '...' format in FASTA file.\n"
+        echo -e "\\nERROR: Tags are specified in wrong format"
+        echo -e "Use the '...' format in FASTA file.\\n"
         exit 1
       
       else
@@ -261,12 +261,12 @@ process demux {
         ## Check the presence of dual barcode combinations
         ## If line count is less than 2, it means there are no samples specified
         if [[ ${params.lima_barcodetype} == "dual_asymmetric" ]] && [[ \$line_count_asym -lt 2 ]]; then
-          echo -e "\nERROR: No asymmetric barcodes detected for demultiplexing.\n"
+          echo -e "\\nERROR: No asymmetric barcodes detected for demultiplexing.\\n"
           return 1
         fi
 
         if [[ ${params.lima_barcodetype} == "dual" ]] && [[ \$line_count_asym -lt 2 ]]; then
-          echo -e "\nWARNING: No asymmetric barcodes detected, consider using '--lima_barcodetype dual_symmetric'.\n"
+          echo -e "\\nWARNING: No asymmetric barcodes detected, consider using '--lima_barcodetype dual_symmetric'.\\n"
         fi
 
       fi  # end of missing asym biosamples
@@ -294,7 +294,7 @@ process demux {
     case ${params.lima_barcodetype} in
 
       "single")
-        echo -e "\nDemultiplexing with LIMA (single barcode)"
+        echo -e "\\nDemultiplexing with LIMA (single barcode)"
         lima --same --single-side \
           --log-file LIMA/_log.txt \
           \$common_args \
@@ -302,7 +302,7 @@ process demux {
         ;;
 
       "dual_symmetric")
-        echo -e "\nDemultiplexing with LIMA (dual symmetric barcodes)"
+        echo -e "\\nDemultiplexing with LIMA (dual symmetric barcodes)"
         lima --same \
           --min-end-score       ${params.lima_minendscore} \
           --min-scoring-regions ${params.lima_minscoringregions} \
@@ -312,7 +312,7 @@ process demux {
         ;;
 
       "dual_asymmetric")
-        echo -e "\nDemultiplexing with LIMA (dual asymmetric barcodes)"
+        echo -e "\\nDemultiplexing with LIMA (dual asymmetric barcodes)"
         lima --different \
           --min-end-score       ${params.lima_minendscore} \
           --min-scoring-regions ${params.lima_minscoringregions} \
@@ -326,7 +326,7 @@ process demux {
         mkdir -p LIMAs LIMAd
 
         if [[ \$line_count_sym -ge 2 ]]; then
-        echo -e "\nDemultiplexing with LIMA (dual symmetric barcodes)"
+        echo -e "\\nDemultiplexing with LIMA (dual symmetric barcodes)"
         lima --same \
           --min-end-score       ${params.lima_minendscore} \
           --min-scoring-regions ${params.lima_minscoringregions} \
@@ -337,7 +337,7 @@ process demux {
         fi
 
         if [[ \$line_count_asym -ge 2 ]]; then
-        echo -e "\nDemultiplexing with LIMA (dual asymmetric barcodes)"
+        echo -e "\\nDemultiplexing with LIMA (dual asymmetric barcodes)"
         lima --different \
           --min-end-score       ${params.lima_minendscore} \
           --min-scoring-regions ${params.lima_minscoringregions} \
@@ -353,7 +353,7 @@ process demux {
     ## Combining symmetric and asymmetric files
     if [ ${params.lima_barcodetype} = "dual" ]; then
 
-      echo -e "\nPooling of symmetric and asymmetric barcodes"
+      echo -e "\\nPooling of symmetric and asymmetric barcodes"
       cd LIMA
       find ../LIMAd -name "*.fq.gz" | parallel -j1 "ln -s {} ."
       find ../LIMAs -name "*.fq.gz" | parallel -j1 "ln -s {} ."
@@ -366,35 +366,35 @@ process demux {
     ## Only user-provided combinations whould be kept (based on `lima --biosample-csv`)
     if [[ ${params.lima_barcodetype} == "dual_asymmetric" ]] || [[ ${params.lima_barcodetype} == "dual" ]]; then
 
-      echo -e "\n..Renaming files from tag IDs to sample names"
+      echo -e "\\n..Renaming files from tag IDs to sample names"
       brename -p "(.+)" -r "{kv}" -k ${file_renaming} LIMA/
 
-      echo -e "\n..Checking for unknown tag combinations"
-      echo -e "\n...Number of unknowns detected:"
+      echo -e "\\n..Checking for unknown tag combinations"
+      echo -e "\\n...Number of unknowns detected:"
       find LIMA -name "lima.*.fq.gz" | wc -l
       
       if [[ ${params.lima_remove_unknown} == "false" ]]; then
 
         if [ -s ${unknown_combinations} ]; then
-          echo -e "\n...Renaming unknown combinations"
+          echo -e "\\n...Renaming unknown combinations"
           brename -p "(.+)" -r "{kv}" -k ${unknown_combinations} LIMA/
         else
-          echo -e "\n...No unknown combinations require renaming"
+          echo -e "\\n...No unknown combinations require renaming"
         fi
 
-        echo -e "\n...Number of unknowns remained:"
+        echo -e "\\n...Number of unknowns remained:"
         find LIMA -name "lima.*.fq.gz" | wc -l
 
       fi
 
-      echo -e "\n...Removing unknowns:"
+      echo -e "\\n...Removing unknowns:"
       find LIMA -name "lima.*.fq.gz" | parallel -j1 "echo {} && rm {}"
 
     fi  # end of dual/asym renaming
 
     if [[ ${params.lima_barcodetype} == "dual_symmetric" ]] || [[ ${params.lima_barcodetype} == "single" ]]; then
 
-      echo -e "\n..Renaming demultiplexed files"
+      echo -e "\\n..Renaming demultiplexed files"
       rename --filename \
         's/^lima.//g; s/--.*\$/.fq.gz/' \
         \$(find LIMA -name "*.fq.gz")
@@ -405,27 +405,27 @@ process demux {
     ## Combine summary stats for dual barcodes (two LIMA runs)
     if [[ ${params.lima_barcodetype} == "dual" ]]; then
 
-      echo -e "\n..Combining dual-barcode log files"
+      echo -e "\\n..Combining dual-barcode log files"
 
       if [ -f "LIMAd/lima.lima.summary" ]; then
-        echo -e "Asymmetric barcodes summary\n\n" >> LIMA/lima.lima.summary
+        echo -e "Asymmetric barcodes summary\\n\\n" >> LIMA/lima.lima.summary
         cat LIMAd/lima.lima.summary >> LIMA/lima.lima.summary
 
-        echo -e "Asymmetric barcodes counts\n\n" >> LIMA/lima.lima.counts
+        echo -e "Asymmetric barcodes counts\\n\\n" >> LIMA/lima.lima.counts
         cat LIMAd/lima.lima.counts >> LIMA/lima.lima.counts
 
-        echo -e "Asymmetric barcodes report\n\n" >> LIMA/lima.lima.report
+        echo -e "Asymmetric barcodes report\\n\\n" >> LIMA/lima.lima.report
         cat LIMAd/lima.lima.report >> LIMA/lima.lima.report
       fi
 
       if [ -f "LIMAs/lima.lima.summary" ]; then
-        echo -e "\n\nSymmetric barcodes summary\n\n" >> LIMA/lima.lima.summary
+        echo -e "\\n\\nSymmetric barcodes summary\\n\\n" >> LIMA/lima.lima.summary
         cat LIMAs/lima.lima.summary >> LIMA/lima.lima.summary
 
-        echo -e "\n\nSymmetric barcodes counts\n\n" >> LIMA/lima.lima.counts
+        echo -e "\\n\\nSymmetric barcodes counts\\n\\n" >> LIMA/lima.lima.counts
         cat LIMAs/lima.lima.counts >> LIMA/lima.lima.counts
 
-        echo -e "\n\nSymmetric barcodes report\n\n" >> LIMA/lima.lima.report
+        echo -e "\\n\\nSymmetric barcodes report\\n\\n" >> LIMA/lima.lima.report
         cat LIMAs/lima.lima.report >> LIMA/lima.lima.report
       fi
 
@@ -441,7 +441,7 @@ process demux {
     # SYMMETRIC  : --ccs --min-score 0 --min-end-score 80 --min-ref-span 0.75 --same --single-end
     # ASYMMETRIC : --ccs --min-score 80 --min-end-score 50 --min-ref-span 0.75 --different --min-scoring-regions 2
 
-    echo -e "\nDemultiplexing finished"
+    echo -e "\\nDemultiplexing finished"
     """
 }
 
@@ -464,7 +464,7 @@ process merge_pe {
 
     script:
     """
-    echo -e "Merging Illumina pair-end reads"
+    echo -e "Merging Illumina pair-end reads\\n"
 
     ## By default, fastp modifies sequences header
     ## e.g., `merged_150_15` means that 150bp are from read1, and 15bp are from read2
@@ -571,14 +571,14 @@ process demux_illumina {
       ${input_fastq} \
       > cutadapt.log
 
-    echo -e "\n..done"
+    echo -e "\\n..done"
 
     ## Remove empty files (no sequences)
-    echo -e "\nRemoving empty files"
+    echo -e "\\nRemoving empty files"
     find . -type f -name "*.fq.gz" -size -29c -print -delete
     echo -e "..Done"
 
-    echo -e "\nDemultiplexing finished"
+    echo -e "\\nDemultiplexing finished"
     """
 }
 
@@ -609,13 +609,13 @@ process disambiguate {
       primer_F.fasta
 
     ## Disambiguate reverse primer
-    echo -e "\nDisambiguating reverse primer"
+    echo -e "\\nDisambiguating reverse primer"
     disambiguate_primers.R \
       ${params.primer_reverse} \
       primer_R.fasta
 
     ## Reverse-complement primers
-    echo -e "\nReverse-complementing primers"
+    echo -e "\\nReverse-complementing primers"
     seqkit seq -r -p --seq-type dna primer_F.fasta > primer_Fr.fasta
     seqkit seq -r -p --seq-type dna primer_R.fasta > primer_Rr.fasta
 
@@ -680,7 +680,7 @@ process primer_check {
       | bedtools merge -i stdin
     }
 
-    echo -e "\nCounting primers"
+    echo -e "\\nCounting primers"
     echo -e "..forward primer"
     count_primers ${primer_F}  >  PF.txt
 
@@ -695,7 +695,7 @@ process primer_check {
 
     ## Sort by seqID and start position, remove overlapping regions,
     ## Find duplicated records
-    echo -e "\nLooking for multiple primer occurrences"
+    echo -e "\\nLooking for multiple primer occurrences"
     
     echo -e "..Processing forward primers"
     if [ -s PF.txt ]; then
@@ -737,7 +737,7 @@ process primer_check {
       runiq multiprimer.txt > multiprimers.txt
       rm multiprimer.txt
 
-      echo -e "\nNumber of artefacts found: " \$(wc -l < multiprimers.txt)
+      echo -e "\\nNumber of artefacts found: " \$(wc -l < multiprimers.txt)
 
       echo -e "..Removing artefacts"
       ## Remove primer artefacts
@@ -759,13 +759,13 @@ process primer_check {
 
     else
 
-      echo -e "\nNo primer artefacts found"
+      echo -e "\\nNo primer artefacts found"
       ln -s ${input} no_multiprimers.fq.gz
     
     fi
     echo -e "..Done"
 
-    echo -e "\nReorienting sequences"
+    echo -e "\\nReorienting sequences"
 
     ## Reverse-complement rev primer
     RR=\$(rc.sh ${params.primer_reverse})
@@ -781,13 +781,13 @@ process primer_check {
       --output ${input.getSimpleName()}_PrimerChecked.fq.gz \
       no_multiprimers.fq.gz
 
-    echo -e "\nAll done"
+    echo -e "\\nAll done"
 
     ## Clean up
     if [ -f no_multiprimers.fq.gz ]; then rm no_multiprimers.fq.gz; fi
 
     ## Remove empty file (no valid sequences)
-    echo -e "\nRemoving empty files"
+    echo -e "\\nRemoving empty files"
     find . -type f -name ${input.getSimpleName()}_PrimerChecked.fq.gz -size -29c -print -delete
     echo -e "..Done"
     
@@ -849,10 +849,10 @@ process itsx {
     // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
 
     """
-    echo "Extraction of rRNA regions using ITSx\n"
+    echo -e "Extraction of rRNA regions using ITSx\\n"
 
     ## Trim primers    
-    echo -e "Trimming primers\n"
+    echo -e "Trimming primers\\n"
 
     ## Reverse-complement rev primer
     RR=\$(rc.sh ${params.primer_reverse})
@@ -868,18 +868,18 @@ process itsx {
       --output ${sampID}_primertrimmed.fq.gz \
       ${input}
 
-    echo -e "..Done\n"
+    echo -e "..Done\\n"
 
     ## Check if there are sequences in the output
     NUMSEQS=\$( seqkit stat --tabular --quiet ${sampID}_primertrimmed.fq.gz | awk -F'\t' 'NR==2 {print \$4}' )
     echo -e "Number of sequences after primer trimming: " \$NUMSEQS
     if [ \$NUMSEQS -lt 1 ]; then
-      echo -e "\nIt looks like no reads remained after trimming the primers\n"
+      echo -e "\\nIt looks like no reads remained after trimming the primers\\n"
       exit 0
     fi
    
     ## Estimate sequence quality and sort sequences by quality
-    echo -e "\nSorting by sequence quality"
+    echo -e "\\nSorting by sequence quality"
     seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
       | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
       | gzip -1 > ${sampID}_primertrimmed_sorted.fq.gz
@@ -888,7 +888,7 @@ process itsx {
     ## Hash sequences, add sample ID to the header
     ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
     ## Convert to Parquet format
-    echo -e "\nCreating hash table"
+    echo -e "\\nCreating hash table"
     seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
       | seqkit fx2tab --length \
       | sed 's/;/\t/ ; s/;/\t/ ; s/ avgphred=/\t/ ; s/ maxee=/\t/ ; s/ meep=/\t/' \
@@ -900,7 +900,7 @@ process itsx {
     # awk 'NF > 9 {print \$0 }' ${sampID}_hash_table.txt
 
     ## Dereplicate at sample level (use quality-sorted sequences to make sure that the representative sequence is with the highest quality)
-    echo -e "\nDereplicating at sample level"
+    echo -e "\\nDereplicating at sample level"
     seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
       | vsearch \
         --derep_fulllength - \
@@ -917,7 +917,7 @@ process itsx {
     echo -e "..Done"
 
     ## ITSx extraction
-    echo -e "\nITSx extraction"
+    echo -e "\\nITSx extraction"
     ITSx \
       -i derep.fasta \
       --complement ${params.ITSx_complement} \
@@ -956,7 +956,7 @@ process itsx {
 
     ## If partial sequences were required, remove empty sequences
     if [ \$(find . -type f -name "*.full_and_partial.fasta" | wc -l) -gt 0 ]; then
-      echo -e "Partial files found, removing empty sequences\n."
+      echo -e "Partial files found, removing empty sequences\\n."
 
       find . -name "*.full_and_partial.fasta" \
         | parallel -j${task.cpus} "seqkit seq -m 1 -w 0 {} > {.}_tmp.fasta"
@@ -968,7 +968,7 @@ process itsx {
 
 
     ## Remove empty files (no sequences)
-    echo -e "\nRemoving empty files"
+    echo -e "\\nRemoving empty files"
     find . -type f -name "*.fasta" -empty -print -delete
     echo -e "..Done"
 
@@ -977,7 +977,7 @@ process itsx {
     rm ${sampID}_primertrimmed.fq.gz
 
     ## Compress results
-    echo -e "\nCompressing files"
+    echo -e "\\nCompressing files"
 
     parallel -j${task.cpus} "gzip -${params.gzip_compression} {}" ::: \
       ${sampID}_hash_table.txt \
@@ -987,7 +987,7 @@ process itsx {
     ## Convert ITSx output to Parquet
     if [ ${params.ITSx_to_parquet} == true ]; then
 
-      echo -e "\nConverting ITSx output to Parquet"
+      echo -e "\\nConverting ITSx output to Parquet"
       mkdir -p parquet
 
       if [ -f ${sampID}.full.fasta.gz ]; then
@@ -1014,7 +1014,7 @@ process itsx {
         ITSx_to_DuckDB.sh -i ${sampID}.LSU.fasta.gz -o parquet/${sampID}.LSU.parquet
       fi
 
-      echo -e "Parquet files created\n"
+      echo -e "Parquet files created\\n"
 
     fi
 
@@ -1128,7 +1128,7 @@ process itsx_collect {
         | parallel -j1 "cat {}" >> LSU_full_and_partial.fasta.gz
     fi
 
-    echo -e "\n..Done"
+    echo -e "\\n..Done"
     """
 }
 
@@ -1163,7 +1163,7 @@ process trim_primers {
     sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
 
     """
-    echo -e "Trimming primers\n"
+    echo -e "Trimming primers\\n"
     echo -e "Input sample: "   ${sampID}
     echo -e "Forward primer: " ${params.primer_forward}
     echo -e "Reverse primer: " ${params.primer_reverse}
@@ -1172,7 +1172,7 @@ process trim_primers {
     RR=\$(rc.sh ${params.primer_reverse})
     echo -e "Reverse primer RC: " "\$RR"
 
-    echo -e "\nTrimming primers"
+    echo -e "\\nTrimming primers"
     cutadapt \
       -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
       --errors ${params.primer_mismatches} \
@@ -1188,7 +1188,7 @@ process trim_primers {
     if [ -n "\$(find . -name ${sampID}_primertrimmed.fq.gz -prune -size +29c)" ]; then 
 
       ## Estimate sequence quality and sort sequences by quality
-      echo -e "\nSorting by sequence quality"
+      echo -e "\\nSorting by sequence quality"
       seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
         | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
         | gzip -${params.gzip_compression} \
@@ -1200,7 +1200,7 @@ process trim_primers {
       ## Hash sequences, add sample ID to the header
       ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
       ## Convert to Parquet format
-      echo -e "\nCreating hash table"
+      echo -e "\\nCreating hash table"
       seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
         | seqkit fx2tab --length \
         | sed 's/;/\t/ ; s/;/\t/ ; s/ avgphred=/\t/ ; s/ maxee=/\t/ ; s/ meep=/\t/' \
@@ -1212,7 +1212,7 @@ process trim_primers {
       gzip -${params.gzip_compression} ${sampID}_hash_table.txt
 
       ## Dereplicate at sample level
-      echo -e "\nDereplicating at sample level"
+      echo -e "\\nDereplicating at sample level"
       seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
       | vsearch \
         --derep_fulllength - \
@@ -1234,7 +1234,7 @@ process trim_primers {
 
     else
 
-      echo -e "\nNo sequences found after primer removal"
+      echo -e "\\nNo sequences found after primer removal"
       if [ -f ${sampID}_primertrimmed.fq.gz ]; then rm ${sampID}_primertrimmed.fq.gz; fi
 
     fi
@@ -1275,16 +1275,16 @@ process assemble_its {
 
     if [[ -f ${ITS1} && ${S58} && ${ITS2} ]]; then
 
-      echo -e "\n..All parts found"
+      echo -e "\\n..All parts found"
 
       ## Prepare tables for ID matching
-      echo -e "\n..Converting data to tabular format"
+      echo -e "\\n..Converting data to tabular format"
       seqkit fx2tab ${ITS1} | sed 's/\t\$//g' | csvtk add-header -t -n id,ITS1 > tmp_1_ITS1.txt
       seqkit fx2tab ${S58}  | sed 's/\t\$//g' | csvtk add-header -t -n id,58S  > tmp_1_s58.txt
       seqkit fx2tab ${ITS2} | sed 's/\t\$//g' | csvtk add-header -t -n id,ITS2 > tmp_1_ITS2.txt
 
       ## Join ITS fragments
-      echo -e "\n..Joining ITS fragments"
+      echo -e "\\n..Joining ITS fragments"
       csvtk join -t -f   "id" tmp_1_ITS1.txt tmp_1_s58.txt tmp_1_ITS2.txt > tmp_2_ITS1_58S_ITS2.txt
 
       ## Check joining results
@@ -1295,20 +1295,20 @@ process assemble_its {
 
         ## Convert table back to fasta
         ## Remove leading and trailing Ns
-        echo -e "\n..Preparing fasta"
+        echo -e "\\n..Preparing fasta"
         awk 'NR>1 { print \$1 "\t" \$2\$3\$4 }' tmp_2_ITS1_58S_ITS2.txt \
           | seqkit tab2fx -w 0  \
           | seqkit replace -p "^n+|n+\$" -r "" -is -w 0 \
           | gzip -${params.gzip_compression} > ${sampID}_ITS1_58S_ITS2.fasta.gz
 
       else
-        echo "...There are no sequences with all ITS parts present\n"
-        echo -e "\n..Skipping ITS assembly for this sample"
+        echo "...There are no sequences with all ITS parts present\\n"
+        echo -e "\\n..Skipping ITS assembly for this sample"
       fi
 
     else 
-      echo -e "\n..Some or all parts are missing"
-      echo -e "\n..Skipping ITS assembly for this sample"
+      echo -e "\\n..Some or all parts are missing"
+      echo -e "\\n..Skipping ITS assembly for this sample"
     fi
 
     """
@@ -1384,7 +1384,7 @@ process homopolymer {
     echo -e "..Done"
 
     ## Re-cluster homopolymer-compressed data
-    echo -e "\nRe-clustering homopolymer-compressed data"
+    echo -e "\\nRe-clustering homopolymer-compressed data"
     vsearch \
       --cluster_size homo_compressed.fa \
       --id ${params.hp_similarity} \
@@ -1408,7 +1408,7 @@ process homopolymer {
 
       ## Substitute homopolymer-comressed sequences with uncompressed ones
       ## (update size annotaions)
-      echo -e "\nExtracting sequences"
+      echo -e "\\nExtracting sequences"
 
       seqkit fx2tab ${input} > inp_tab.txt
       seqkit fx2tab homo_clustered.fa > clust_tab.txt
@@ -1434,8 +1434,8 @@ process homopolymer {
       rm res.fa
 
     else
-      echo -e "Clustering homopolymer-compressed sequences returned to results\n"
-      echo -e "(most likely, sequences were too short)\n"
+      echo -e "Clustering homopolymer-compressed sequences returned to results"
+      echo -e "(most likely, sequences were too short)\\n"
     fi
 
     """
@@ -1531,7 +1531,7 @@ process chimera_ref {
     ## Add borderline sequences to non-chimeric sequences
     if [ -e borderline.fasta ]
     then
-        echo -e "\nBorderline sequences were added to non-chimeric sequences"
+        echo -e "\\nBorderline sequences were added to non-chimeric sequences"
         cat borderline.fasta nonchimeras.fasta > nc_bo.fasta
         mv nc_bo.fasta nonchimeras.fasta
         rm borderline.fasta
@@ -1546,7 +1546,7 @@ process chimera_ref {
         > "${sampID}_Chimera.fa.gz"
       rm chimeras.fasta
     else
-      echo -e "\nNo chimeras detected"
+      echo -e "\\nNo chimeras detected"
     fi
 
     ## Non-chimeric sequences
@@ -1580,7 +1580,7 @@ process chimera_rescue {
     """
 
     ## Aggregate chimeric sequences from different samples
-    echo -e "\nAggregating chimeric sequences"
+    echo -e "\\nAggregating chimeric sequences"
     find . -name "*_Chimera.fa.gz" \
       | parallel -j1 "zcat {}" \
       | seqkit fx2tab \
@@ -1591,7 +1591,7 @@ process chimera_rescue {
     ### Inspect chimerae occurrence
     ## Rescue sequences that were annotated as chimeric, 
     ## but have high occurrence within sequenceing run (e.g., occurrence > 2)
-    echo -e "\nInspecting occurrence of chimeric sequences"
+    echo -e "\\nInspecting occurrence of chimeric sequences"
 
     chimera_rescue.R \
       "All_chimeras.txt.gz" \
@@ -1603,7 +1603,7 @@ process chimera_rescue {
     ## Split rescured sequences by sample
     if [ -e Rescued_Chimeric_sequences.fa.gz ]
     then
-      echo -e "\n..Splitting rescued sequences by sample"
+      echo -e "\\n..Splitting rescued sequences by sample"
       seqkit split -i \
         --id-regexp ";sample=(.*);" \
         --threads ${task.cpus} \
@@ -1735,7 +1735,7 @@ process glob_derep {
     ## Concatenate non-chimeric sequences
     # zcat *_NoChimera.fa.gz *_RescuedChimera.fa.gz
 
-    echo -e "\n ===== Files with non-chimeric sequences:"
+    echo -e "\\n ===== Files with non-chimeric sequences:"
     if test -n "\$(find . -maxdepth 1 -name '*_NoChimera.fa.gz' -print -quit)"
     then
         ls -l *_NoChimera.fa.gz;
@@ -1743,7 +1743,7 @@ process glob_derep {
         echo "..No files"
     fi
 
-    echo -e "\n ===== Files with rescued chimeric sequences:"
+    echo -e "\\n ===== Files with rescued chimeric sequences:"
     if test -n "\$(find . -maxdepth 1 -name '*_RescuedChimera.fa.gz' -print -quit)"
     then
         ls -l *_RescuedChimera.fa.gz;
@@ -1751,7 +1751,7 @@ process glob_derep {
         echo "..No files"
     fi
 
-    echo -e "\nDereplicating sequences"
+    echo -e "\\nDereplicating sequences"
     find . -name "*Chimera.fa.gz" | parallel -j1 \
       "zcat {}" \
       | sed '/^>/ s/;sample=.*;/;/' \
@@ -1767,7 +1767,7 @@ process glob_derep {
     echo -e "..Done"
 
     ## Compress UC file
-    echo -e "\nCompressing UC file"
+    echo -e "\\nCompressing UC file"
     gzip -${params.gzip_compression} Derep_for_clust.uc
 
     """
@@ -1794,7 +1794,7 @@ process pool_seqs {
     script:
     """
 
-    echo -e "\nPooling and renaming sequences"
+    echo -e "\\nPooling and renaming sequences"
 
     ## If there is a sample ID in the header already, remove it
     parallel -j 1 --group \
@@ -1809,7 +1809,7 @@ process pool_seqs {
 
     echo "..Done"
 
-    echo -e "\nExtracting sequence count table"
+    echo -e "\\nExtracting sequence count table"
     seqkit seq --name Seq_not_filtered.fa.gz \
       | sed 's/;/\t/g; s/size=//; s/sample=// ; s/\t*\$//' \
       | gzip -${params.gzip_compression} \
@@ -1840,7 +1840,7 @@ process tj_preclust {
 
     script:
     """
-    echo -e "Pre-clustering sequences prior to tag-jump removal\n"
+    echo -e "Pre-clustering sequences prior to tag-jump removal\\n"
     vsearch \
       --cluster_size ${input} \
       --id    ${params.tj_id} \
@@ -1854,16 +1854,16 @@ process tj_preclust {
     | gzip -${params.gzip_compression} > TJPreclust.fa.gz
     
     ## Compress UC file
-    echo -e "\nCompressing UC file"
+    echo -e "\\nCompressing UC file"
     pigz -p ${task.cpus} -${params.gzip_compression} TJPreclust.uc
 
     ## Parse UC file
-    echo -e "\nParsing UC file"
+    echo -e "\\nParsing UC file"
     ucs --map-only --split-id --rm-dups \
       -i TJPreclust.uc.gz \
       -o TJPreclust.uc.parquet
 
-    echo -e "\n..Done"
+    echo -e "\\n..Done"
     """
 }
 
@@ -1976,14 +1976,14 @@ process demux_illumina_notmerged {
 
     script:
     """
-    echo -e "\nDemultiplexing not-merged reads"
+    echo -e "\\nDemultiplexing not-merged reads"
 
     echo -e "Input R1: " ${input[0]}
     echo -e "Input R2: " ${input[1]}
     echo -e "Barcodes: " ${barcodes}
 
     ## First round
-    echo -e "\nRound 1:"
+    echo -e "\\nRound 1:"
 
     cutadapt -g file:${barcodes} \
       -o round1-{name}.R1.fastq.gz \
@@ -1998,7 +1998,7 @@ process demux_illumina_notmerged {
     echo -e ".. round 1 finished"
     
     ## Second round
-    echo -e "\nRound 2:"
+    echo -e "\\nRound 2:"
 
     cutadapt -g file:${barcodes} \
       -o round2-{name}.R2.fastq.gz \
@@ -2013,18 +2013,18 @@ process demux_illumina_notmerged {
     echo -e ".. round 2 finished"
 
     ## Remove empty files (no sequences)
-    echo -e "\nRemoving empty files"
+    echo -e "\\nRemoving empty files"
     find . -type f -name "round*.fastq.gz" -size -29c -print -delete
     echo -e "..Done"
 
     ## Remove unknowns
-    echo -e "\nRemoving unknowns"
+    echo -e "\\nRemoving unknowns"
     rm round1-unknown.R{1,2}.fastq.gz
     rm round2-unknown.R{1,2}.fastq.gz
     echo -e "..Done"
 
     ## Combine sequences from round 1 and round 2 for each sample
-    echo -e "\nCombining sequences from round 1 and round 2 for each sample"
+    echo -e "\\nCombining sequences from round 1 and round 2 for each sample"
 
     if test -n "\$(find . -maxdepth 1 -name 'round*.fastq.gz' -print -quit)"
     then
@@ -2049,10 +2049,10 @@ process demux_illumina_notmerged {
     fi
 
     ## Clean up
-    echo -e "\nRemoving temporary files"
+    echo -e "\\nRemoving temporary files"
     find . -type f -name "round*.fastq.gz" -print -delete
 
-    echo -e "\nDemultiplexing finished"
+    echo -e "\\nDemultiplexing finished"
     """
 }
 
@@ -2097,7 +2097,7 @@ process trim_primers_pe {
     echo -e "Reverse primer RC: " "\$RR"
 
     ## Discard sequences without both primers
-    echo -e "\nChecking primers"
+    echo -e "\\nChecking primers"
     
     echo -e "..Forward strain"
 
@@ -2132,7 +2132,7 @@ process trim_primers_pe {
     #   in.1.fastq.gz in.2.fastq.gz
 
 
-    echo -e "\nReorienting"
+    echo -e "\\nReorienting"
 
     if [ -s for_R1.fastq.gz ]; then
       zcat for_R1.fastq.gz | seqkit replace -p "\\s.+" | gzip -${params.gzip_compression} > OK_R1.fastq.gz
@@ -2149,7 +2149,7 @@ process trim_primers_pe {
     fi
 
 
-    echo -e "\nTrimming primers"
+    echo -e "\\nTrimming primers"
     if [ -s OK_R1.fastq.gz]; then
 
       cutadapt \
@@ -2171,7 +2171,7 @@ process trim_primers_pe {
 
       ## Estimate sequence quality (for the extracted region)
       ## Sequence ID - Hash - Length - Average Phred score
-      echo -e "\nCreating sequence hash table with average sequence quality"
+      echo -e "\\nCreating sequence hash table with average sequence quality"
       
       seqkit fx2tab --length --avg-qual ${sampID}_R1.fq.gz \
         | hash_sequences.sh \
@@ -2187,7 +2187,7 @@ process trim_primers_pe {
 
 
       ## Estimating MaxEE
-      echo -e "\nEstimating maximum number of expected errors per sequence"
+      echo -e "\\nEstimating maximum number of expected errors per sequence"
 
       vsearch \
           --fastx_filter ${sampID}_R1.fq.gz \
@@ -2210,7 +2210,7 @@ process trim_primers_pe {
       echo -e "..Done"
 
 
-      echo -e "\nMerging quality estimates"
+      echo -e "\\nMerging quality estimates"
 
       max_ee.R \
         tmp_hash_table_R1.txt \
@@ -2226,7 +2226,7 @@ process trim_primers_pe {
 
 
       ## Independent dereplication of pair-end reads
-      echo -e "\nDereplicating R1 and R2 (independently)"
+      echo -e "\\nDereplicating R1 and R2 (independently)"
       
       seqkit fq2fa -w 0 ${sampID}_R1.fq.gz \
       | vsearch \
@@ -2268,7 +2268,7 @@ process trim_primers_pe {
 
 
     else
-      echo -e "\nNo sequences found after primer removal"
+      echo -e "\\nNo sequences found after primer removal"
     fi
 
     ## Clean up
@@ -2313,7 +2313,7 @@ process join_pe {
     echo -e "Joining non-merged Illumina reads"
     echo -e "Input sample: " ${sampID}
 
-    echo -e "\nJoining with N-pads"
+    echo -e "\\nJoining with N-pads"
     vsearch \
       --fastq_join ${input}.R1.fastq.gz \
       --reverse ${input}.R2.fastq.gz \
@@ -2327,7 +2327,7 @@ process join_pe {
     ## Check if there are some sequences in the file
     if [ -n "\$(find . -name ${sampID}_JoinedPE.fq.gz -prune -size +29c)" ]; then
 
-      echo -e "\nJoining without N-pads (for quality estimation)"
+      echo -e "\\nJoining without N-pads (for quality estimation)"
       vsearch \
         --fastq_join ${input}.R1.fastq.gz \
         --reverse ${input}.R2.fastq.gz \
@@ -2341,7 +2341,7 @@ process join_pe {
 
       ## Estimate sequence quality (without N pads!)
       ## Sequence ID - Hash - Length - Average Phred score
-      echo -e "\nCreating sequence hash table with average sequence quality"
+      echo -e "\\nCreating sequence hash table with average sequence quality"
         
       seqkit fx2tab --length --avg-qual tmp_for_qual.fq.gz \
         | hash_sequences.sh \
@@ -2351,7 +2351,7 @@ process join_pe {
       echo -e "..Done"
 
       ## Estimating MaxEE
-      echo -e "\nEstimating maximum number of expected errors per sequence"
+      echo -e "\\nEstimating maximum number of expected errors per sequence"
 
       vsearch \
           --fastx_filter tmp_for_qual.fq.gz \
@@ -2364,7 +2364,7 @@ process join_pe {
 
       echo -e "..Done"
 
-      echo -e "\nMerging quality estimates"
+      echo -e "\\nMerging quality estimates"
 
       max_ee.R \
         tmp_hash_table.txt \
@@ -2382,7 +2382,7 @@ process join_pe {
       rm tmp_ee.txt
     
     else
-      echo -e "\nIt looks like there are no joined reads"
+      echo -e "\\nIt looks like there are no joined reads"
     fi
 
     ## Remove redundant symlinks
@@ -2438,28 +2438,28 @@ process read_counts {
     script:
 
     """
-    echo -e "Summarizing run statistics\n"
-    echo -e "Counting the number of reads in:\n"
+    echo -e "Summarizing run statistics\\n"
+    echo -e "Counting the number of reads in:\\n"
 
 
     ## Count raw reads
-    echo -e "\n..Raw data"
+    echo -e "\\n..Raw data"
     seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       1_input/* > Counts_1.RawData.txt
     
     ## Count number of reads passed QC
-    echo -e "\n..Sequenced passed QC"
+    echo -e "\\n..Sequenced passed QC"
     seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       2_qc/* > Counts_2.QC.txt
     
     ## Count demultiplexed reads
-    echo -e "\n..Demultiplexed data"
+    echo -e "\\n..Demultiplexed data"
     seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       3_demux/* > Counts_3.Demux.txt
     
 
     ## Count primer-checked reads
-    echo -e "\n..Primer-checked data"
+    echo -e "\\n..Primer-checked data"
     if [ `find 4_primerch -name no_primerchecked 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2471,7 +2471,7 @@ process read_counts {
 
 
     ## Count primer-artefacts
-    echo -e "\n..Primer-artefacts"
+    echo -e "\\n..Primer-artefacts"
     if [ `find 4_primerartefacts -name no_multiprimer 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2484,7 +2484,7 @@ process read_counts {
 
     ## Count ITSx reads or primer-trimmed reads (if ITSx was not used)
     ## Take number of reads into account (--sizein)
-    echo -e "\n..ITSx- or primer-trimmed data"
+    echo -e "\\n..ITSx- or primer-trimmed data"
     if [ `find 5_itsxtrim \\( -name no_itsx -o -name no_primertrim \\) 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2498,7 +2498,7 @@ process read_counts {
 
 
     ## Count homopolymer-correction results
-    echo -e "\n..Counting homopolymer-corrected reads"
+    echo -e "\\n..Counting homopolymer-corrected reads"
     if [ `find 5_homopolymers \\( -name no_homopolymer \\) 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2511,7 +2511,7 @@ process read_counts {
     fi
     
     ## Count number of reads for reference-based chimeras
-    echo -e "\n..Reference-based chimeras"
+    echo -e "\\n..Reference-based chimeras"
     if [ `find 6_chimref -name no_chimref 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2533,7 +2533,7 @@ process read_counts {
 
 
     ## Number of de novo chimeras (read counts are not taken into account!)
-    echo -e "\n..De novo chimeras"
+    echo -e "\\n..De novo chimeras"
     if [ `find 7_chimdenov -name no_chimdenovo 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2544,7 +2544,7 @@ process read_counts {
 
 
     ## Rescued chimeras
-    echo -e "\n..Rescued chimeric sequences"
+    echo -e "\\n..Rescued chimeric sequences"
     if [ `find 8_chimrecov -name no_chimrescued 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2619,27 +2619,27 @@ process quick_stats {
     script:
 
     """
-    echo -e "Summarizing run statistics\n"
-    echo -e "Counting the number of reads in:\n"
+    echo -e "Summarizing run statistics\\n"
+    echo -e "Counting the number of reads in:\\n"
 
 
     ## Count raw reads
-    echo -e "\n..Raw data"
+    echo -e "\\n..Raw data"
     seqkit stat --basename --tabular --threads ${task.cpus} \
       1_input/* > Counts_1.RawData.txt
     
     ## Count number of reads passed QC
-    echo -e "\n..Sequenced passed QC"
+    echo -e "\\n..Sequenced passed QC"
     seqkit stat --basename --tabular --threads ${task.cpus} \
       2_qc/* > Counts_2.QC.txt
     
     ## Count demultiplexed reads
-    echo -e "\n..Demultiplexed data"
+    echo -e "\\n..Demultiplexed data"
     seqkit stat --basename --tabular --threads ${task.cpus} \
       3_demux/* > Counts_3.Demux.txt
 
     ## Count primer-checked reads
-    echo -e "\n..Primer-checked data"
+    echo -e "\\n..Primer-checked data"
     if [ `find 4_primerch -name no_primerchecked 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2650,7 +2650,7 @@ process quick_stats {
     fi
 
     ## Count primer-artefacts
-    echo -e "\n..Primer-areifacts"
+    echo -e "\\n..Primer-areifacts"
     if [ `find 4_primerartefacts -name no_multiprimer 2>/dev/null` ]
     then
       echo -e "... No files found"
@@ -2691,7 +2691,7 @@ process document_analysis_s1 {
 
     script:
     """
-    echo -e "Descriptive summary generation\n"
+    echo -e "Descriptive summary generation\\n"
 
     document_s1.R \
       ${versions} \
