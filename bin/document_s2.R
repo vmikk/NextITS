@@ -196,6 +196,23 @@ emit_clustering <- function(p, v) {
   return(res)
 }
 
+emit_uc_merging <- function(p, v) {
+  glue("UC files from dereplication, pre-clustering, and clustering steps were merged using \\
+    ucs v.{getv(v,'merge_uc','ucs')} (Mikryukov, 2025) and \\
+    DuckDB v.{getv(v,'merge_uc','duckdb')} (Raasveldt & Mühleisen, 2019) \\
+    to track sequence membership through all processing steps.")
+}
+
+emit_lulu <- function(p, v) {
+  glue("Post-clustering curation was performed using \\
+    LULU algorithm (Frøslev et al., 2017) \\
+    as implemented in MUMU v.{getv(v,'lulu','mumu')} (Mahé, 2025) \\
+    with {getp(p,'lulu_match',95.0)}% minimum similarity, \\
+    {getp(p,'lulu_ratio',1.0)} minimum abundance ratio, \\
+    and {getp(p,'lulu_relcooc',0.95)} minimum relative co-occurrence. \\
+    Pairwise sequence similarities were calculated using \\
+    VSEARCH v.{getv(v,'lulu','vsearch')} (Rognes et al., 2016).")
+}
 
 
 ##################################
