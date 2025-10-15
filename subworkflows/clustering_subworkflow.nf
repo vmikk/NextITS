@@ -1,3 +1,13 @@
+/*
+============================================================================
+  NextITS: Pipeline to process eukaryotic ITS amplicons
+============================================================================
+  License: Apache-2.0
+  Github : https://github.com/vmikk/NextITS
+  Website: https://Next-ITS.github.io/
+----------------------------------------------------------------------------
+*/
+
 // Subworkflow for clustering sequences (with optional pre-clustering or denoising)
 
 

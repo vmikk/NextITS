@@ -1,15 +1,15 @@
-#!/usr/bin/env nextflow
 /*
-
 ============================================================================
-  NextITS: Pipeline to process fungal ITS amplicons
-  Step II: aggregate sequencing runs
+  NextITS: Pipeline to process eukaryotic ITS amplicons
 ============================================================================
   License: Apache-2.0
   Github : https://github.com/vmikk/NextITS
-  Website: https://next-its.github.io/
+  Website: https://Next-ITS.github.io/
 ----------------------------------------------------------------------------
 */
+
+// ---- Step-2 workflow ----
+
 
 // Step-2 workflow:
 // - Dereplicate sequences
