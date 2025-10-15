@@ -2582,6 +2582,7 @@ process read_counts {
       --chimrecovu   Counts_8.ChimRecov_uniqs.txt \
       --tj           ${samples_tj} \
       --seqtab       ${seqtab} \
+      --maxchim      ${params.max_ChimeraScore} \
       --threads      ${task.cpus}
 
     """
