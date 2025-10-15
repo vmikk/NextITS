@@ -17,8 +17,8 @@
 #   --chimrecovu   Counts_8.ChimRecov_uniqs.txt \
 #   --tj           TagJump_scores.qs \
 #   --seqtab       Seqs.parquet \
+#   --maxchim     0.6 \
 #   --threads      4
-
 
 
 ############################################## Parse input parameters
@@ -48,6 +48,7 @@ option_list <- list(
   make_option("--chimrecovu", action="store", default=NA, type='character', help="Number of resued unique sequences detected as de novo chimeras (false positives)"),
   make_option("--tj",         action="store", default=NA, type='character', help="Tag jump removal data (serialized in qs format)"),
   make_option("--seqtab",     action="store", default=NA, type='character', help="Final seq table (Parquet format)"),
+  make_option("--maxchim",    action="store", default=0.6, type='numeric',  help = "Maximum de novo chimera score to remove"),
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -82,6 +83,7 @@ CHIMRECOVN  <- opt$chimrecovn
 CHIMRECOVU  <- opt$chimrecovu
 TJ          <- opt$tj
 SEQTAB      <- opt$seqtab
+MAXCHIM     <- opt$maxchim
 CPUTHREADS  <- as.numeric( opt$threads )
 
 ## Log assigned variables
@@ -98,7 +100,8 @@ cat(paste("Counts - Chimera de novo: " ,                               CHIMDENOV
 cat(paste("Counts - Chimera Ref-based recoverd, reads: " ,             CHIMRECOVN, "\n", sep=""))
 cat(paste("Counts - Chimera Ref-based recoverd, unique sequences: " ,  CHIMRECOVU, "\n", sep=""))
 cat(paste("Tag-jump data: " ,                TJ, "\n", sep=""))
-cat(paste("Final sequence table: " ,         SEQTAB, "\n", sep=""))
+cat(paste("Final sequence table: " ,         SEQTAB,  "\n", sep=""))
+cat(paste("Maximum de novo chimera score: ", MAXCHIM, "\n", sep=""))
 cat(paste("Number of CPU threads to use: ",  CPUTHREADS,    "\n", sep=""))
 
 cat("\n")
@@ -120,6 +123,7 @@ cat("\n")
 # CHIMRECOVU  <- "Counts_8.ChimRecov_uniqs.txt"
 # TJ          <- "TagJump_scores.qs"
 # SEQTAB      <- "Seqs.parquet"
+# MAXCHIM     <- 0.6
 # CPUTHREADS  <- 6
 
 
@@ -354,6 +358,24 @@ PER_SAMPLE_COUNTS_merged <- merge(
   x = PER_SAMPLE_COUNTS_merged, 
   y = HOMOPOLY_counts,
   by.x = "file", by.y = "SampleID", all.x = TRUE)
+
+
+## Add de novo chimera stats
+cat("Adding de novo chimera stats\n")
+denovo_stats <- SEQTAB |>
+  dplyr::filter(DeNovo_Chimera_Score >= MAXCHIM) |>
+  dplyr::group_by(SampleID) |>
+  dplyr::summarize(
+    DeNovoChimeras_NumReads    = sum(Abundance, na.rm = TRUE),
+    DeNovoChimeras_NumUniqSeqs = n()) |>
+  dplyr::collect() |>
+  setDT()
+
+PER_SAMPLE_COUNTS_merged <- merge(
+  x = PER_SAMPLE_COUNTS_merged,
+  y = denovo_stats,
+  by.x = "file", by.y = "SampleID", all.x = TRUE)
+
 
 
 ## Number of reads and unique sequences in the sequence table (per sample)
