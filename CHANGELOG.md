@@ -17,8 +17,12 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
     - `chunking_n` (number of chunks to split the dataset into prior clustering)  
     - `chunking_id` (minimum sequence identity for splitting the dataset into chunks)  
 - Added DADA2 denoising (`--preclustering dada2`, works also with `--clustering none`)
+- Implemented automated documentation for analysis procedures (generates `README_Step1_Methods.txt` and `README_Step2_Methods.txt` in the `pipeline_info` directory)  
 - Refactored parameter validation (using `nf-schema` plugin)  
 - Refactored runtime parameter summary and help message  
+- Added automated continuous integration tests  
+- Added test profiles (`test`, `test1`, `test2`)  
+- Improved run summary for Step-1  
 
 ## [1.0.0] - 2025-03-24
 
