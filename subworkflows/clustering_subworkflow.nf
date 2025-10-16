@@ -109,7 +109,7 @@ process unoise {
 
     publishDir(
       "${params.outdir}/02.UNOISE",
-      mode: 'symlink',
+      mode: "${params.storagemode}",
       enabled: params.chunking_n == null || params.chunking_n < 2
     )
 
@@ -161,7 +161,7 @@ process dada2 {
 
     publishDir(
       "${params.outdir}/02.DADA2",
-      mode: 'symlink',
+      mode: "${params.storagemode}",
       enabled: params.chunking_n == null || params.chunking_n < 2
     )
 
@@ -229,7 +229,7 @@ process precluster_swarm {
 
     publishDir(
       "${params.outdir}/02.Preclustered_SWARM_d1",
-      mode: 'symlink',
+      mode: "${params.storagemode}",
       enabled: params.chunking_n == null || params.chunking_n < 2
     )
 
@@ -287,7 +287,7 @@ process cluster_vsearch {
 
     publishDir(
       "${params.outdir}/03.Clustered_VSEARCH",
-      mode: 'symlink',
+      mode: "${params.storagemode}",
       enabled: params.chunking_n == null || params.chunking_n < 2
     )
 
@@ -338,7 +338,7 @@ process cluster_swarm {
 
     publishDir(
       "${params.outdir}/03.Clustered_SWARM",
-      mode: 'symlink',
+      mode: "${params.storagemode}",
       enabled: params.chunking_n == null || params.chunking_n < 2
     )
 
