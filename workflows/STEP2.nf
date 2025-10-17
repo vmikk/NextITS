@@ -74,7 +74,7 @@ process dereplication {
 
     label "main_container"
 
-    publishDir "${params.outdir}/01.Dereplicated", mode: 'symlink'
+    publishDir "${params.outdir}/01.Dereplicated", mode: "${params.storagemode}"
     // cpus 8
 
     input:
@@ -131,7 +131,7 @@ process dereplication_unite {
 
     label "main_container"
 
-    publishDir "${params.outdir}/01.Dereplicated", mode: 'symlink'
+    publishDir "${params.outdir}/01.Dereplicated", mode: "${params.storagemode}"
     // cpus 8
 
     input:
@@ -417,7 +417,7 @@ process merge_uc {
 
     label "main_container"
     
-    publishDir "${params.outdir}/04.PooledResults", mode: 'symlink'
+    publishDir "${params.outdir}/04.PooledResults", mode: "${params.storagemode}"
     // cpus 4
 
     input:
@@ -469,7 +469,7 @@ process summarize {
 
     label "main_container"
 
-    publishDir "${params.outdir}/04.PooledResults", mode: 'symlink'
+    publishDir "${params.outdir}/04.PooledResults", mode: "${params.storagemode}"
     // cpus 4
 
     input:
@@ -510,7 +510,7 @@ process lulu {
 
     label "main_container"
 
-    publishDir "${params.outdir}/05.LULU", mode: 'symlink'
+    publishDir "${params.outdir}/05.LULU", mode: "${params.storagemode}"
     // cpus 8
 
     input:
