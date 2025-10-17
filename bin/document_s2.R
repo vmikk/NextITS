@@ -2,6 +2,11 @@
 
 ## Script to document the Step-2 workflow of the NextITS pipeline.
 
+## Usage:
+##   Rscript document_s2.R <software_versions.yml> <params.csv_or_tsv> [output_path]
+
+
+
 ## Function to load packages
 load_pckg <- function(pkg = "data.table"){
   suppressPackageStartupMessages( library(package = pkg, character.only = TRUE) )
@@ -278,6 +283,16 @@ build_docs <- function(versions, params){
     }
   }
 
+  ## UC file merging
+  body <- c(body, emit_uc_merging(params, versions))
+  tools_used <- c(tools_used, c("ucs", "duckdb"))
+
+  ## Conditional: LULU post-clustering curation
+  lulu_enabled <- tolower(as.character(getp(params, "lulu", "true"))) %in% c("true", "t", "1")
+  if(lulu_enabled){
+    body <- c(body, emit_lulu(params, versions))
+    tools_used <- c(tools_used, c("mumu", "lulu", "vsearch"))
+  }
 
   ## Generate citations
   tools_used <- unique(tools_used)
