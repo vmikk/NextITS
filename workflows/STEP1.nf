@@ -1789,19 +1789,39 @@ process tj_preclust {
       tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
+    def derep = (params.tj_id as BigDecimal).compareTo(1G) == 0    // to handle floating point comparisons too
     """
     echo -e "Pre-clustering sequences prior to tag-jump removal\\n"
-    vsearch \
-      --cluster_size ${input} \
-      --id    ${params.tj_id} \
-      --iddef ${params.tj_iddef} \
-      --sizein --sizeout \
-      --qmask dust --strand both \
-      --fasta_width 0 \
-      --uc         TJPreclust.uc \
-      --threads    ${task.cpus} \
-      --centroids - \
-    | gzip -${params.gzip_compression} > TJPreclust.fa.gz
+
+    if [[ ${derep} == true ]]; then
+      echo -e "Using VSEARCH derep_fulllength\\n"
+
+      vsearch \
+        --derep_fulllength ${input} \
+        --sizein --sizeout \
+        --strand both \
+        --fasta_width 0 \
+        --uc TJPreclust.uc \
+        --threads 1 \
+        --output - \
+      | gzip -${params.gzip_compression} > TJPreclust.fa.gz
+
+    else
+      echo -e "Using VSEARCH cluster_size\\n"
+
+      vsearch \
+        --cluster_size ${input} \
+        --id    ${params.tj_id} \
+        --iddef ${params.tj_iddef} \
+        --sizein --sizeout \
+        --qmask dust --strand both \
+        --fasta_width 0 \
+        --uc         TJPreclust.uc \
+        --threads    ${task.cpus} \
+        --centroids - \
+      | gzip -${params.gzip_compression} > TJPreclust.fa.gz
+
+    fi
     
     ## Compress UC file
     echo -e "\\nCompressing UC file"
