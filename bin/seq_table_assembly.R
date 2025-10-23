@@ -34,7 +34,7 @@ load_pckg("arrow")
 # load_pckg("openxlsx")
 
 
-cat("Parsing input options and arguments...\n")
+cat("\nParsing input options and arguments...\n")
 
 option_list <- list(
   make_option("--seqtab",  action="store", default=NA, type='character', help = "Sequence table (tab-delimited, long format)"),
@@ -89,7 +89,7 @@ cat("\n")
 
 
 ## Set CPU thread number
-cat("\nSetting number of CPU threads to: ", CPUTHREADS, "\n")
+cat("Setting number of CPU threads to: ", CPUTHREADS, "\n")
 setDTthreads(threads = CPUTHREADS)     # for data.table
 set_cpu_count(CPUTHREADS)              # for arrow
 
@@ -214,7 +214,7 @@ SQTAB <- data.table(
   Sequence = as.character(SQS))
 
 ## Split the header  (`feb76b9;size=1;sample=ABCD;` )
-SQTAB[ , c("SeqID", "SampleID") := tstrsplit(x = SeqHeader, split = ";", keep = c(1,3)) ]
+SQTAB[ , c("SeqID", "SampleID") := tstrsplit(x = SeqHeader, split = ";", keep = c(1,2)) ]
 SQTAB[ , SeqHeader := NULL ]
 SQTAB[ , SampleID := gsub(pattern = "sample=", replacement = "", x = SampleID) ]
 

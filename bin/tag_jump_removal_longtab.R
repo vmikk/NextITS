@@ -92,7 +92,7 @@ theme_set(theme_classic(base_size = 14))
 cat("..Loading sequence table\n")
 SEQTAB <- fread(file = SEQTAB,
   sep = "\t", header = FALSE,
-  col.names = c("SeqID", "Abundance", "SampleID"))
+  col.names = c("SeqID", "SampleID", "Abundance"))
 
 ## Load sequence membership table
 cat("..Loading sequence membership table\n")
