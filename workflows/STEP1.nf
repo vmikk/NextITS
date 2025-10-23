@@ -1752,6 +1752,8 @@ process pool_seqs {
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: sequences/*.fa.gz \
+      | vsearch --sortbysize - --sizein --sizeout --fasta_width 0 --output - \
+      | sed -r '/^>/ s/;;/;/g' \
       | gzip -${params.gzip_compression} \
       > Seq_not_filtered.fa.gz
 
