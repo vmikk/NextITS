@@ -70,6 +70,14 @@ cat(paste("p-parameter of UNCROSS: ", P, "\n", sep = ""))
 cat("\n")
 
 
+############################################## Data for debugging
+
+# SEQTAB <- "Seq_tab_not_filtered.txt.gz"
+# PRECLS <- "TJPreclust.uc.parquet"
+# F      <- 0.01
+# P      <- 1
+
+
 ############################################## Load packages
 
 cat("Loading R packages...\n")
