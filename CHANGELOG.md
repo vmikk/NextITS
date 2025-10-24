@@ -11,6 +11,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 
 - Fixed issue with handling unknown barcode combinations (in `dual asymmetric` mode), thanks to Alice Retter for reporting the issue  
 - Refactored and optimized tag-jump removal step  
+- Fixed bug with duplicated sequences in tag-jump removal step, thanks to Valentin Etienne for reporting the issue  
 - Implemented chunking option for splitting the dataset into smaller parts prior clustering in Step-2 (pre-clustering, clustering, and denoising moved to a separate sub-workflow), using MMseqs2  
 - New parameters added:  
     - `lima_remove_unknown` (default, `false`; if `true`, unknown barcode combinations will be removed from demultiplexed data)  
