@@ -3162,6 +3162,11 @@ workflow S1 {
   if( params.demultiplexed == false ){
 
     if(params.seqplatform == "PacBio"){
+
+      // Input data and QC = single multiplexed file
+      ch_counts_1 = ch_input
+      ch_counts_2 = qc_se.out.filtered
+
       ch_all_demux = demux.out.samples_demux.flatten().collect()
     }
 
@@ -3170,9 +3175,15 @@ workflow S1 {
     }
 
   } else {
+  
+    // Input data and QC = several demultiplexed files
+    ch_counts_1 = ch_input.flatten().collect()
+    ch_counts_2 = qc_se.out.filtered.flatten().collect()
+
     ch_all_demux = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
   }
-        
+  
+
   // Primer-checked and multiprimer sequences
   ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
   ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
@@ -3241,8 +3252,8 @@ workflow S1 {
   if(params.seqplatform == "PacBio"){
 
     read_counts(
-      ch_input,                // input data
-      qc_se.out.filtered,      // data that passed QC
+      ch_counts_1,             // input data (single multiplexed file or several demultiplexed files)
+      ch_counts_2,             // data that passed QC (single or several demuxed files)
       ch_all_demux,            // demultiplexed sequences per sample
       ch_all_primerchecked,    // primer-cheched sequences
       ch_all_primerartefacts,  // multiprimer artefacts
