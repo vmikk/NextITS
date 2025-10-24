@@ -1783,8 +1783,6 @@ process tj_preclust {
       path input
 
     output:
-      path "TJPreclust.fa.gz",      emit: preclust
-      path "TJPreclust.uc.gz",      emit: preclust_uc
       path "TJPreclust.uc.parquet", emit: preclust_uc_parquet
       tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
@@ -1793,45 +1791,73 @@ process tj_preclust {
     """
     echo -e "Pre-clustering sequences prior to tag-jump removal\\n"
 
-    if [[ ${derep} == true ]]; then
-      echo -e "Using VSEARCH derep_fulllength\\n"
+    echo -e "Running dereplication\\n"
+  
+    vsearch \
+      --derep_fulllength ${input} \
+      --sizein --sizeout \
+      --strand both \
+      --fasta_width 0 \
+      --threads 1 \
+      --uc     Dereplicated.uc \
+      --output Dereplicated.fa
+
+    echo -e "\\nCompressing files"
+    pigz -p ${task.cpus} -${params.gzip_compression} Dereplicated.uc
+    pigz -p ${task.cpus} -${params.gzip_compression} Dereplicated.fa
+
+    ## Additional clustering (e.g., at 99% similarity)
+    if [[ ${derep} == false ]]; then
+
+      echo -e "\\nAdditional clustering at ${params.tj_id} similarity threshold\\n"
 
       vsearch \
-        --derep_fulllength ${input} \
-        --sizein --sizeout \
-        --strand both \
-        --fasta_width 0 \
-        --uc TJPreclust.uc \
-        --threads 1 \
-        --output - \
-      | gzip -${params.gzip_compression} > TJPreclust.fa.gz
-
-    else
-      echo -e "Using VSEARCH cluster_size\\n"
-
-      vsearch \
-        --cluster_size ${input} \
+        --cluster_size Dereplicated.fa.gz \
         --id    ${params.tj_id} \
         --iddef ${params.tj_iddef} \
         --sizein --sizeout \
-        --qmask dust --strand both \
+        --qmask dust --strand plus \
+        --maxrejects 128 --maxaccepts 1 \
         --fasta_width 0 \
-        --uc         TJPreclust.uc \
-        --threads    ${task.cpus} \
-        --centroids - \
-      | gzip -${params.gzip_compression} > TJPreclust.fa.gz
+        --threads   ${task.cpus} \
+        --uc        Clustered.uc \
+        --centroids Clustered.fa
+
+      echo -e "\\nCompressing files"
+      pigz -p ${task.cpus} -${params.gzip_compression} Clustered.uc
+      pigz -p ${task.cpus} -${params.gzip_compression} Clustered.fa
 
     fi
-    
-    ## Compress UC file
-    echo -e "\\nCompressing UC file"
-    pigz -p ${task.cpus} -${params.gzip_compression} TJPreclust.uc
+
 
     ## Parse UC file
-    echo -e "\\nParsing UC file"
-    ucs --map-only --split-id --rm-dups \
-      -i TJPreclust.uc.gz \
-      -o TJPreclust.uc.parquet
+    if [[ ${derep} == true ]]; then
+
+      echo -e "\\nParsing UC file"
+      ucs --map-only --split-id --rm-dups \
+        -i Dereplicated.uc.gz \
+        -o TJPreclust.uc.parquet
+
+    else
+
+      echo -e "\\nParsing dereplicated UC file"
+      ucs --map-only --split-id --rm-dups \
+        -i Dereplicated.uc.gz \
+        -o Dereplicated.parquet
+
+      echo -e "\\nParsing clustered UC file"
+      ucs --map-only --split-id --rm-dups \
+        -i Clustered.uc.gz \
+        -o Clustered.parquet
+
+      echo -e "\\nCombining dereplication and clustering UC files"
+      merge_tj_memberships.sh \
+        -d Dereplicated.parquet \
+        -c Clustered.parquet \
+        -o TJPreclust.uc.parquet \
+        -t ${task.cpus}
+
+    fi
 
     echo -e "\\n..Done"
     """
