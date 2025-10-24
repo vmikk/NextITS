@@ -5,7 +5,7 @@
 # Input arguments:
 #   1. Sequence table in long format, no header (`Seq_tab_not_filtered.txt.gz`),
 #       with columns: `SeqID`, `Abundance`, `SampleID`
-#   2. Pre-clustered membership table (`TJPreclust.uc.parquet`)
+#   2. Dereplicated or pre-clustered membership table (`TJPreclust.uc.parquet`)
 #   2. f-parameter of UNCROSS (e.g., 0.01)
 #   3. p-parameter (e.g., 1.0)
 
@@ -94,6 +94,8 @@ load_pckg("ggplot2")
 
 theme_set(theme_classic(base_size = 14))
 
+cat("\n")
+
 ############################################## Workflow
 
 ## Load sequence table
@@ -107,6 +109,12 @@ cat("..Loading sequence membership table\n")
 PRECLS <- read_parquet(file = PRECLS)
 setDT(PRECLS)
 setnames(PRECLS, new = c("SeqID", "OTU"))
+
+## Remove ambiguous mappings (should not happen, but just in case)
+if(any(duplicated(PRECLS$SeqID))){
+  cat("WARNING: ambiguous mapping of sequences in membership table detected - excluding duplicates\n")
+  PRECLS <- unique(PRECLS, by = "SeqID")
+}
 
 ## Add cluster membership to the sequence table
 SEQTAB <- merge(x = SEQTAB, y = PRECLS, by = "SeqID", all.x = TRUE)
