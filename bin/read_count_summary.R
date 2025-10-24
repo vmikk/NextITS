@@ -396,11 +396,13 @@ PER_SAMPLE_COUNTS_merged <- merge(
   by.x = "file", by.y = "SampleID", all.x = TRUE)
 
 
+## Replace NAs with zeros
+cat("Replacing NAs with zero\n")
+for (j in seq_len(ncol(PER_SAMPLE_COUNTS_merged))){
+  set(PER_SAMPLE_COUNTS_merged, which(is.na(PER_SAMPLE_COUNTS_merged[[j]])), j, 0)
+}
+rm(j)
 
-
-### ... update
-# .. replace NAs with zero
-# .. reorder columns
 # .. estimate percentages
 # .. add tag-jump summary
 # .. add final counts from the Seq table
