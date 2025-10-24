@@ -277,13 +277,12 @@ CUSTOMCOUNTS <- llply(.data = CUSTOMCOUNTS, .fun = custom_process)
 cat("Estimating homopolymer stats\n")
 HOMOPOLY_counts <- HOMOPOLY_data[ , .(
   N_UniqSequences_AfterITSx_or_PrimerTrimming = .N,
-  N_UniqSequences__AfterHomopolymerCorrection = length(unique(Target))
+  N_UniqSequences_AfterHomopolymerCorrection = length(unique(Target))
   ),
-  by = "SampleID"
-  ]
+  by = "SampleID" ]
 
-HOMOPOLY_counts[, HomopolymerCorrected_NumUniqSequences := 
-  N_UniqSequences_AfterITSx_or_PrimerTrimming - N_UniqSequences__AfterHomopolymerCorrection ]
+# HOMOPOLY_counts[, Num_HomopolymerCorrectedSequences := 
+#   N_UniqSequences_AfterITSx_or_PrimerTrimming - N_UniqSequences_AfterHomopolymerCorrection ]
 
 
 ## Rename columns
@@ -415,23 +414,51 @@ PER_SAMPLE_COUNTS_merged[ , ITSx_Yield_Percent := round( ITSx_Extracted_Reads / 
 # .. estimate percentages
 # .. add per-run positive / negative counts (based on default sample names)
 
+
+## Reorder columns
+setcolorder(PER_SAMPLE_COUNTS_merged,
+  skip_absent = TRUE,
+  neworder = c(
+    "file", "Demultiplexed_Reads",
+    "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent", 
+    "ReferenceBasedChimera_Reads", "ReferenceBasedChimera_NumUniqSequences", 
+    "Recovered_ReferenceBasedChimea_Reads", "Recovered_ReferenceBasedChimea_NumUniqSequences", 
+    "DeNovoChimeras_NumReads", "DeNovoChimeras_NumUniqSeqs", 
+    "ITSx_Extracted_Reads", "ITSx_Yield_Percent",
+    "N_UniqSequences_AfterITSx_or_PrimerTrimming", 
+    "N_UniqSequences_AfterHomopolymerCorrection", 
+    # "Num_HomopolymerCorrectedSequences",
+    "TagJump_Reads", "TagJump_Events", 
+    "SeqTable_NumReads", "SeqTable_NumUniqSeqs", 
+    "Percentage_Reads_Retained"))
+
+
+
+
 ## Prepare per-run stats
 cat("Preparing per-run stats\n")
 PER_RUN_COUNTS_merged <- data.table(
-  Total_Number_Of_Reads = RAW$num_seqs,
-  Reads_Passed_QC       = QC$num_seqs,
+  Total_Number_Of_Reads = sum(RAW$num_seqs, na.rm = TRUE),
   Reads_Demultiplexed   = sum(PER_SAMPLE_COUNTS_merged$Demultiplexed_Reads, na.rm = TRUE),
-  Reads_PrimerChecked   = sum(PER_SAMPLE_COUNTS_merged$PrimerChecked_Reads, na.rm = TRUE),
-  UniqSequences_HomopolymerCorrected = sum(PER_SAMPLE_COUNTS_merged$HomopolymerCorrected_NumUniqSequences, na.rm = TRUE)
+  Reads_Passed_QC       = sum(QC$num_seqs, na.rm = TRUE),
+  Reads_PrimerChecked   = sum(PER_SAMPLE_COUNTS_merged$PrimerChecked_Reads, na.rm = TRUE)
   )
+
+if("ITSx_Extracted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
+  PER_RUN_COUNTS_merged[ , Reads_ITSx_Extracted := sum(PER_SAMPLE_COUNTS_merged$ITSx_Extracted_Reads, na.rm = TRUE) ]
+}
 
 ## Estimate percentage of reads passed primer checking
 cat("..Estimating per-run percentages\n")
 PER_RUN_COUNTS_merged[ , Percentage_Demultiplexed := 
   round(Reads_Demultiplexed / Total_Number_Of_Reads * 100, 1) ]
 
-PER_RUN_COUNTS_merged[ , Percentage_Passed := 
+PER_RUN_COUNTS_merged[ , Percentage_PrimerChecked := 
   round(Reads_PrimerChecked / Total_Number_Of_Reads * 100, 1) ]
+
+## Final per-run num reads
+PER_RUN_COUNTS_merged[ , SeqTable_NumReads := sum(PER_SAMPLE_COUNTS_merged$SeqTable_NumReads, na.rm = TRUE) ]
+PER_RUN_COUNTS_merged[ , Percentage_Reads_Retained := round( SeqTable_NumReads / Total_Number_Of_Reads * 100, 2) ]
 
 
 ## Export summary stats
