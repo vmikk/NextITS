@@ -293,10 +293,10 @@
         },
         "tj_id": {
           "type": "number",
-          "default": 0.99,
+          "default": 1,
           "minimum": 0,
           "maximum": 1,
-          "description": "Pre-clustering sequence identity for tag-jump removal"
+          "description": "Sequence similarity threshold for tag-jump removal (1 = dereplication, < 1 = pre-clustering)"
         },
         "tj_iddef": {
           "type": "integer",
