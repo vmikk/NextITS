@@ -403,9 +403,16 @@ for (j in seq_len(ncol(PER_SAMPLE_COUNTS_merged))){
 }
 rm(j)
 
+## Estimate percentage of reads retained (starting from demultiplexed reads)
+cat("Estimating percentage of reads retained\n")
+PER_SAMPLE_COUNTS_merged[ , Percentage_Reads_Retained := round( SeqTable_NumReads / Demultiplexed_Reads * 100, 2) ]
+
+## Estimate percentage of reads retained after ITSx
+PER_SAMPLE_COUNTS_merged[ , ITSx_Yield_Percent := round( ITSx_Extracted_Reads / PrimerChecked_Reads * 100, 2) ]
+
+
+### TODO:
 # .. estimate percentages
-# .. add tag-jump summary
-# .. add final counts from the Seq table
 # .. add per-run positive / negative counts (based on default sample names)
 
 ## Prepare per-run stats
