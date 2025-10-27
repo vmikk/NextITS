@@ -7,7 +7,7 @@
 
 ## Input:
 ##  - software_versions.yml
-##  - params_table.tsv
+##  - pipeline_params.tsv
 
 ## Output:
 ##  - README_Step1_Methods.txt
@@ -51,6 +51,14 @@ if(!file.exists(params_path)){
   stop(glue("Params table not found: {params_path}"))
 }
 
+
+##################################
+################################## Data for debugging
+##################################
+
+# versions_path <- "software_versions.yml"
+# params_path   <- "pipeline_params.tsv"
+# output_path   <- "README_Step1_Methods.txt"
 
 
 ##################################
@@ -184,6 +192,10 @@ emit_itsx <- function(p, v) {
     ITSx v.{getv(v,'itsx','ITSx')} (Bengtsson-Palme et al., 2013).")
 }
 
+emit_assemble_its <- function(p, v) {
+  glue("To assemble near-full-length ITS sequences, we ... (TODO)")
+}
+
 
 emit_hp_and_chimeras <- function(p, v, did_hp) {
   res <- character()
@@ -267,7 +279,7 @@ build_docs <- function(versions, params){
     body <- c(body, emit_trim_primers(params, versions))
     tools_used <- c(tools_used, c("cutadapt"))
   } else if (its_region %in% "ITS1_5.8S_ITS2") {
-    body <- c(body, emit_itsx(params, versions), emit_assemble_its(params, versions))
+    body <- c(body, emit_itsx(params, versions))   # , emit_assemble_its(params, versions))
     tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
   }
 
