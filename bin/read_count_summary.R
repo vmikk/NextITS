@@ -195,10 +195,14 @@ cat("..Loading rescued ref-based chimera counts\n")
 CUSTOMCOUNTS$CHIMRECOVN <- fread(CHIMRECOVN)
 SEQKITCOUNTS$CHIMRECOVU <- fread(CHIMRECOVU)
 
-if(!is.na(TJ)){
+if(!is.na(TJ) && TJ != "no_tj" && file.exists(TJ)){
   cat("..Loading tag-jump filtration data\n")
   TJ <- qs::qread(TJ)
-}
+  tjdata <- TRUE
+} else {
+  cat("..No tag-jump filtration data found\n")
+  tjdata <- FALSE
+} 
 
 cat("..Loading sequence table\n")
 SEQTAB <- arrow::open_dataset(SEQTAB)
@@ -338,22 +342,23 @@ PER_SAMPLE_COUNTS_merged[ ,
  ]
 
 ## Estimate tag-jump stats
-cat("Estimating tag-jump removal yields\n")
-TJ_stats <- TJ[ TagJump == TRUE, .(
-    TagJump_Events = .N,
-    TagJump_Reads  = sum(Abundance, na.rm = TRUE)),
-  by = "SampleID" ]
+if(tjdata == TRUE){
+  cat("Estimating tag-jump removal yields\n")
+  TJ_stats <- TJ[ TagJump == TRUE, .(
+      TagJump_Events = .N,
+      TagJump_Reads  = sum(Abundance, na.rm = TRUE)),
+    by = "SampleID" ]
 
-if(nrow(TJ_stats) > 0){
-  PER_SAMPLE_COUNTS_merged <- merge(
-    x = PER_SAMPLE_COUNTS_merged,
-    y = TJ_stats,
-    by.x = "file", by.y = "SampleID", all.x = TRUE)
-} else {
-  PER_SAMPLE_COUNTS_merged[ , TagJump_Events := 0 ]
-  PER_SAMPLE_COUNTS_merged[ , TagJump_Reads  := 0 ]
+  if(nrow(TJ_stats) > 0){
+    PER_SAMPLE_COUNTS_merged <- merge(
+      x = PER_SAMPLE_COUNTS_merged,
+      y = TJ_stats,
+      by.x = "file", by.y = "SampleID", all.x = TRUE)
+  } else {
+    PER_SAMPLE_COUNTS_merged[ , TagJump_Events := 0 ]
+    PER_SAMPLE_COUNTS_merged[ , TagJump_Reads  := 0 ]
+  }
 }
-
 
 ## Add homopolymer stats
 if(nrow(HOMOPOLY_data) > 0){
