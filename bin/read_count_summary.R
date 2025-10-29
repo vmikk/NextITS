@@ -275,11 +275,15 @@ SEQKITCOUNTS <- llply(.data = SEQKITCOUNTS, .fun = seqkit_process)
 CUSTOMCOUNTS <- llply(.data = CUSTOMCOUNTS, .fun = custom_process)
 
 cat("Estimating homopolymer stats\n")
-HOMOPOLY_counts <- HOMOPOLY_data[ , .(
-  N_UniqSequences_AfterITSx_or_PrimerTrimming = .N,
-  N_UniqSequences_AfterHomopolymerCorrection = length(unique(Target))
-  ),
-  by = "SampleID" ]
+if(nrow(HOMOPOLY_data) > 0){
+  HOMOPOLY_counts <- HOMOPOLY_data[ , .(
+    N_UniqSequences_AfterITSx_or_PrimerTrimming = .N,
+    N_UniqSequences_AfterHomopolymerCorrection = length(unique(Target))
+    ),
+    by = "SampleID" ]
+} else {
+  cat("..No homopolymer correction data found\n")
+}
 
 # HOMOPOLY_counts[, Num_HomopolymerCorrectedSequences := 
 #   N_UniqSequences_AfterITSx_or_PrimerTrimming - N_UniqSequences_AfterHomopolymerCorrection ]
@@ -352,12 +356,13 @@ if(nrow(TJ_stats) > 0){
 
 
 ## Add homopolymer stats
-cat("Adding homopolymer stats\n")
-PER_SAMPLE_COUNTS_merged <- merge(
-  x = PER_SAMPLE_COUNTS_merged, 
-  y = HOMOPOLY_counts,
-  by.x = "file", by.y = "SampleID", all.x = TRUE)
-
+if(nrow(HOMOPOLY_data) > 0){
+  cat("Adding homopolymer stats\n")
+  PER_SAMPLE_COUNTS_merged <- merge(
+    x = PER_SAMPLE_COUNTS_merged, 
+    y = HOMOPOLY_counts,
+    by.x = "file", by.y = "SampleID", all.x = TRUE)
+}
 
 ## Add de novo chimera stats
 cat("Adding de novo chimera stats\n")
