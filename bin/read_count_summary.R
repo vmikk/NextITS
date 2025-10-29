@@ -461,6 +461,8 @@ PER_RUN_COUNTS_merged[ , Percentage_PrimerChecked :=
 PER_RUN_COUNTS_merged[ , SeqTable_NumReads := sum(PER_SAMPLE_COUNTS_merged$SeqTable_NumReads, na.rm = TRUE) ]
 PER_RUN_COUNTS_merged[ , Percentage_Reads_Retained := round( SeqTable_NumReads / Total_Number_Of_Reads * 100, 2) ]
 
+NumUniqSeqs <- SEQTAB |> dplyr::select(SeqID) |>   dplyr::summarize(N = n()) |> dplyr::collect()
+PER_RUN_COUNTS_merged$SeqTable_NumUniqueSequences <- NumUniqSeqs$N
 
 ## Export summary stats
 cat("Exporting results\n")
