@@ -3132,6 +3132,7 @@ workflow S1 {
     .collect()
 
   // Pool sequences (for a final sequence table)
+  pool_seqs(ch_filteredseqs)
   // Tag-jump removal
   if(params.tj == true){
 
