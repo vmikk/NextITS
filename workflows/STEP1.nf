@@ -1763,6 +1763,8 @@ process pool_seqs {
     echo -e "\\nExtracting sequence count table"
     seqkit seq --name Seq_not_filtered.fa.gz \
       | sed 's/;/\t/g; s/size=//; s/sample=// ; s/\t*\$//' \
+      | csvtk -t cut -f 2,1,3 \
+      | csvtk -t add-header -n "SampleID,SeqID,Abundance" \
       | gzip -${params.gzip_compression} \
       > Seq_tab_not_filtered.txt.gz
 
