@@ -101,8 +101,7 @@ cat("\n")
 ## Load sequence table
 cat("..Loading sequence table\n")
 SEQTAB <- fread(file = SEQTAB,
-  sep = "\t", header = FALSE,
-  col.names = c("SeqID", "SampleID", "Abundance"))
+  sep = "\t", header = TRUE)   # "SeqID", "SampleID", "Abundance"
 
 ## Load sequence membership table
 cat("..Loading sequence membership table\n")
