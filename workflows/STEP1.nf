@@ -3129,22 +3129,34 @@ workflow S1 {
     .collect()
 
   // Pool sequences (for a final sequence table)
-  pool_seqs(ch_filteredseqs)
-
-  // Pre-clustering prior to tag-jump removal
-  tj_preclust(pool_seqs.out.seqsnf)
-
   // Tag-jump removal
-  tj(
-    pool_seqs.out.seqtabnf,
-    tj_preclust.out.preclust_uc_parquet)
+  if(params.tj == true){
+
+    // Pre-clustering prior to tag-jump removal
+    tj_preclust(pool_seqs.out.seqsnf)
+
+    // Tag-jump removal
+    tj(
+      pool_seqs.out.seqtabnf,
+      tj_preclust.out.preclust_uc_parquet)
+
+    ch_seqtab_after_tj = tj.out.seqtabtj
+    ch_tj_scores       = tj.out.tjs
+
+  } else {
+
+    // Skip tag-jump removal
+    ch_seqtab_after_tj = pool_seqs.out.seqtabnf
+    ch_tj_scores = file("no_tj")
+
+  }
 
   // Check optional channel with de novo chimera scores
   ch_denovoscores = chimera_denovo_agg.out.alldenovochim.ifEmpty(file('DeNovo_Chimera.txt'))
 
   // Create sequence table
   prep_seqtab(
-    tj.out.seqtabtj,       // tag-jump-filtered sequence table (long format)
+    ch_seqtab_after_tj,    // (optionally) tag-jump-filtered sequence table (long format)
     pool_seqs.out.seqsnf,  // Sequences in FASTA format
     ch_denovoscores,       // de novo chimera scores
     seq_qual.out.quals     // sequence qualities
@@ -3262,7 +3274,7 @@ workflow S1 {
       ch_chimref,              // Reference-based chimeras
       ch_chimdenovo,           // De novo chimeras
       ch_chimrescued,          // Rescued chimeras
-      ch_tj,                   // Tag-jump filtering stats
+      ch_tj_scores,            // Tag-jump filtering scores
       prep_seqtab.out.seq_pq   // Final table with sequences (in Parquet format)
       )
 
