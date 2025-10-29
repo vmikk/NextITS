@@ -279,6 +279,11 @@
           "default": 8,
           "description": "xn parameter for de novo chimera removal"
         },
+        "tj": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run tag-jump removal"
+        },
         "tj_f": {
           "type": "number",
           "default": 0.01,
