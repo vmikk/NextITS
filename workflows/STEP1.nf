@@ -3255,8 +3255,6 @@ workflow S1 {
   ch_chimdenovo  = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
   ch_chimrescued = chimera_rescue.out.rescuedchimeric.flatten().collect().ifEmpty(file("no_chimrescued"))
 
-  // Tag-jump filtering channel
-  ch_tj = tj.out.tjs
 
 
   // Count reads and prepare summary stats for the run
