@@ -1748,7 +1748,7 @@ process pool_seqs {
     parallel -j 1 --group \
       "zcat {} \
         | sed -r '/^>/ s/;sample=[^;]*/;/g ; s/;;/;/g' \
-        | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g' \
+        | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g ; s/_Homopolymer_compressed.fa//g' \
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: sequences/*.fa.gz \
