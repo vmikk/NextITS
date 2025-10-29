@@ -196,7 +196,6 @@ emit_assemble_its <- function(p, v) {
   glue("To assemble near-full-length ITS sequences, we ... (TODO)")
 }
 
-
 emit_hp_and_chimeras <- function(p, v, did_hp) {
   res <- character()
   if(isTRUE(did_hp)){
@@ -271,13 +270,15 @@ build_docs <- function(versions, params){
     }
   }
 
+  ## Primer trimming
+  body <- c(body, emit_primer_check(params, versions))
+  tools_used <- c(tools_used, c("cutadapt"))
+
+  ## ITS extraction
   its_region <- getp(params, "its_region", "full")
   if(its_region %in% c("full", "ITS1", "ITS2", "SSU", "LSU")){
     body <- c(body, emit_itsx(params, versions))
     tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
-  } else if (its_region %in% "none") {
-    body <- c(body, emit_trim_primers(params, versions))
-    tools_used <- c(tools_used, c("cutadapt"))
   } else if (its_region %in% "ITS1_5.8S_ITS2") {
     body <- c(body, emit_itsx(params, versions))   # , emit_assemble_its(params, versions))
     tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
