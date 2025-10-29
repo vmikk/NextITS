@@ -1746,9 +1746,10 @@ process pool_seqs {
 
     ## If there is a sample ID in the header already, remove it
     parallel -j 1 --group \
+      --rpl '{/:} s:(.*/)?([^/.]+)(\\.[^/]+)*\$:\$2:' \
       "zcat {} \
         | sed -r '/^>/ s/;sample=[^;]*/;/g ; s/;;/;/g' \
-        | sed 's/>.*/&;sample='{/.}';/ ; s/_NoChimera.fa//g ; s/_RescuedChimera.fa//g  ; s/_JoinedPE//g ; s/_Homopolymer_compressed.fa//g' \
+        | sed 's/>.*/&;sample='{/:}';/ ; s/_NoChimera//g ; s/_RescuedChimera//g  ; s/_JoinedPE//g ; s/_Homopolymer_compressed//g' \
         | sed 's/Rescued_Chimeric_sequences.part_//g' \
         | sed -r '/^>/ s/;;/;/g'" \
       ::: sequences/*.fa.gz \
