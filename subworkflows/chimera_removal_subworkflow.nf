@@ -1,3 +1,17 @@
+/*
+============================================================================
+  NextITS: Pipeline to process eukaryotic ITS amplicons
+============================================================================
+  License: Apache-2.0
+  Github : https://github.com/vmikk/NextITS
+  Website: https://Next-ITS.github.io/
+----------------------------------------------------------------------------
+*/
+
+// Subworkflow for chimera removal (reference-based and de novo)
+
+// Path to the output results
+out_5_chim   = params.outdir + "/05_Chimera"
 
 // Reference-based chimera removal
 process chimera_ref {
@@ -226,4 +240,57 @@ process chimera_denovo_agg {
 
     """
 }
+
+
+
+// Chimera indetification, removal, and recovery
+workflow CHIMERA_REMOVAL {
+
+  take:
+    seqs
+    db
+
+  main:
+    def methodsRaw = (params.chimera_methods ?: '').toString().toLowerCase()
+    def chim_rm    = methodsRaw && methodsRaw != 'none'
+    def doRef      = chim_rm && methodsRaw.split(',').contains('ref')
+    def doDenovo   = chim_rm && methodsRaw.split(',').contains('denovo')
+
+    if( doRef ) {
+      // Reference-based chimera identification and removal
+      chimera_ref(seqs, db)
+      nonchim = chimera_ref.out.nonchimeric
+      chim    = chimera_ref.out.chimeric
+
+      // Rescue chimeras per current logic
+      chimera_rescue(chim.collect())
+      rescued = chimera_rescue.out.rescuedchimeric
+    } else {
+      nonchim = seqs
+      chim    = Channel.empty()
+      rescued = Channel.empty()
+    }
+
+    if( doDenovo ) {
+
+      // De novo chimera identification
+      chimera_denovo(seqs)
+
+      // Aggregate de novo chimeras into a single file
+      chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
+      dnvAgg = chimera_denovo_agg.out.alldenovochim
+    } else {
+      dnvAgg = Channel.empty()
+    }
+
+    // Final sequences for downstream pooling
+    filtered = nonchim.concat(rescued).collect()
+
+  emit:
+  filtered   = filtered
+  chimeric   = chim
+  rescued    = rescued
+  denovo_agg = dnvAgg
+
+} // end of chimera_removal subworkflow
 
