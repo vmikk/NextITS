@@ -1475,19 +1475,18 @@ process just_derep {
     sampID="${input.getSimpleName()}"
 
     """
+    echo -e "Dereplicating sequences\\n"
 
-     vsearch \
-          --derep_fulllength ${input} \
-          --output - \
-          --strand both \
-          --fasta_width 0 \
-          --threads 1 \
-          --relabel_sha1 \
-          --sizein --sizeout \
-          --uc ${sampID}_uc.uc \
-          --quiet \
-        | gzip -${params.gzip_compression} \
-        > ${sampID}.fa.gz
+    vsearch \
+        --derep_fulllength ${input} \
+        --output - \
+        --strand both \
+        --fasta_width 0 \
+        --threads 1 \
+        --sizein --sizeout \
+        --uc ${sampID}_uc.uc \
+      | gzip -${params.gzip_compression} \
+      > ${sampID}.fa.gz
 
     """
 }
