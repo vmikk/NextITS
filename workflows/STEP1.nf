@@ -14,6 +14,7 @@
 // Include functions
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
+include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
 // Define output paths for different steps
 out_0_bam    = params.outdir + "/00_BAM2FASTQ"
@@ -25,7 +26,7 @@ out_3_itsxp  = params.outdir + "/03_ITSx_PooledParts"
 out_3_trim   = params.outdir + "/03_PrimerTrim"
 out_3_trimPE = params.outdir + "/03_PrimerTrim_NotMerged"
 out_4_homop  = params.outdir + "/04_Homopolymer"
-out_5_chim   = params.outdir + "/05_Chimera"
+// out_5_chim   = params.outdir + "/05_Chimera"
 out_6_tj     = params.outdir + "/06_TagJumpFiltration"
 out_7_seq    = params.outdir + "/07_SeqTable"
 out_8_smr    = params.outdir + "/08_RunSummary"
@@ -2794,13 +2795,6 @@ workflow S1 {
     if(params.its_region == "ITS1_5.8S_ITS2"){
       homopolymer(assemble_its.out.itsnf)
     }
-    
-    // Reference-based chimera removal
-    ch_chimerabd = Channel.value(params.chimera_db)
-    chimera_ref(homopolymer.out.hc, ch_chimerabd)
-
-    // De novo chimera search
-    chimera_denovo(homopolymer.out.hc)
 
 
   } else {
@@ -2846,40 +2840,40 @@ workflow S1 {
         }
       }
     
-      // Reference-based chimera removal
-      ch_chimerabd = Channel.value(params.chimera_db)
-      chimera_ref(just_derep.out.nhc, ch_chimerabd)
-
-      // De novo chimera search
-      chimera_denovo(just_derep.out.nhc)
-
     }  // end of ITS
 
-    // --Primer-trimmed sequences are already dereplicated
-    if(params.its_region == "none"){
-          
-      // just_derep(trim_primers.out.primertrimmed_fa)
-
-      // Reference-based chimera removal
-      ch_chimerabd = Channel.value(params.chimera_db)
-      chimera_ref(trim_primers.out.primertrimmed_fa, ch_chimerabd)
-
-      // De novo chimera search
-      chimera_denovo(trim_primers.out.primertrimmed_fa)
-    }
-
-    // Assembled ITS is also primer trimmed and dereplicated
-    if(params.its_region == "ITS1_5.8S_ITS2"){
-
-      // Reference-based chimera removal
-      ch_chimerabd = Channel.value(params.chimera_db)
-      chimera_ref(assemble_its.out.itsnf, ch_chimerabd)
-
-      // De novo chimera search
-      chimera_denovo(assemble_its.out.itsnf)
-    }
 
   } // end of homopolymer correction condition
+
+
+  /*
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      Chimera removal
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  */
+
+
+  // Chimera removal (optional)
+  ch_chimerabd = Channel.value(params.chimera_db)
+
+  // Input depends on the selected workflow
+  if(params.hp == true){
+
+    ch_input_for_chim = homopolymer.out.hc
+
+  } else {
+
+    if(params.its_region == "none"){
+      ch_input_for_chim = trim_primers.out.primertrimmed_fa
+    } else if(params.its_region == "ITS1_5.8S_ITS2"){
+      ch_input_for_chim = assemble_its.out.itsnf
+    } else {
+      ch_input_for_chim = just_derep.out.nhc
+    }
+    
+  }
+  
+  CHIMERA_REMOVAL(ch_input_for_chim, ch_chimerabd)
 
 
 
@@ -2889,20 +2883,9 @@ workflow S1 {
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   */
 
-  // Chimera rescue
-  ch_chimerafiles = chimera_ref.out.chimeric.collect()
-  chimera_rescue(ch_chimerafiles)
-
-  // Aggregate de novo chimeras into a single file
-  chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
-
-  // Create channel with filtered reads
-  ch_filteredseqs = chimera_ref.out.nonchimeric
-    .concat(chimera_rescue.out.rescuedchimeric)
-    .collect()
-
   // Pool sequences (for a final sequence table)
-  pool_seqs(ch_filteredseqs)
+  pool_seqs(CHIMERA_REMOVAL.out.filtered)
+
   // Tag-jump removal
   if(params.tj == true){
 
@@ -2926,7 +2909,7 @@ workflow S1 {
   }
 
   // Check optional channel with de novo chimera scores
-  ch_denovoscores = chimera_denovo_agg.out.alldenovochim.ifEmpty(file('DeNovo_Chimera.txt'))
+  ch_denovoscores = CHIMERA_REMOVAL.out.denovo_agg.ifEmpty(file('DeNovo_Chimera.txt'))
 
   // Create sequence table
   prep_seqtab(
@@ -3021,11 +3004,9 @@ workflow S1 {
   }
 
   // Chimeric channels
-  ch_chimref     = chimera_ref.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
-  ch_chimdenovo  = chimera_denovo.out.denovochim.flatten().collect().ifEmpty(file("no_chimdenovo"))
-  ch_chimrescued = chimera_rescue.out.rescuedchimeric.flatten().collect().ifEmpty(file("no_chimrescued"))
-
-
+  ch_chimref     = CHIMERA_REMOVAL.out.chimeric.flatten().collect().ifEmpty(file("no_chimref"))
+  ch_chimdenovo  = CHIMERA_REMOVAL.out.denovo_agg.flatten().collect().ifEmpty(file("no_chimdenovo"))
+  ch_chimrescued = CHIMERA_REMOVAL.out.rescued.flatten().collect().ifEmpty(file("no_chimrescued"))
 
   // Count reads and prepare summary stats for the run
   // Currently, implemented only for PacBio
