@@ -238,6 +238,12 @@
           "maximum": 4,
           "description": "Identity definition for homopolymer compression"
         },
+        "chimera_methods": {
+          "type": "string",
+          "default": "ref,denovo",
+          "description": "Which chimera removal methods to use",
+          "enum": ["ref", "denovo", "ref,denovo", "denovo,ref", "none", "null"]
+        },
         "chimera_db": {
           "type": "string",
           "fa_icon": "fas fa-database",
