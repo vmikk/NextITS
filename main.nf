@@ -107,15 +107,21 @@ if( params.step == "Step1" || params.step == "seqstats" ) {
 
 if( params.step == "Step1" ) {
 
-  if (!params.chimera_db || !file(params.chimera_db).exists()) {
-      println( errorMsg("Please provide the UDB file with reference sequences for chimera removal with `--chimera_db` parameter.", params.monochrome_logs))
-      println( colorize("See https://Next-ITS.github.io/installation/#databases for more information.", 'red', params.monochrome_logs))
-      exit(1)
+  // Reference-based chimera removal
+  if (params.chimera_methods && params.chimera_methods.toLowerCase().split(',').contains('ref')) {
+    if (!params.chimera_db || !file(params.chimera_db).exists()) {
+        println( errorMsg("For reference-based chimera removal, please provide the database in UDB format with `--chimera_db` parameter.", params.monochrome_logs))
+        println( colorize("       See https://Next-ITS.github.io/installation/#databases for more information.", 'red', params.monochrome_logs))
+        println( colorize("Alternatively, you can disable reference-based chimera removal with `--chimera_methods` parameter (set it to `none` or `denovo`).", 'red', params.monochrome_logs))
+        exit(1)
+    }
+    if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
+        println( errorMsg("The reference database file specified with `--chimera_db` parameter must be in UDB format.", params.monochrome_logs))
+        println( colorize("       See https://Next-ITS.github.io/installation/#databases for more information.", 'red', params.monochrome_logs))
+        exit 1
+    }
   }
-  if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
-      println( errorMsg("The reference database file specified with `--chimera_db` parameter must be in UDB format.", params.monochrome_logs))
-      exit 1
-  }
+
   if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
       println( errorMsg("Homopolymer compression is not implemented for Illumina non-merged reads.", params.monochrome_logs))
       exit(1)
