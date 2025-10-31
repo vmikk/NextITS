@@ -276,38 +276,38 @@ process merge_buckets {
     
     // Pre-clustering results (if any)
     publishDir "${params.outdir}/02.Homopolymer", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "homopolymer",
                pattern: "PreClustered.uc.gz",
                saveAs: { filename -> filename == "PreClustered.uc.gz" ? "HomopolymerCompressed.uc.gz" : null }
     
     publishDir "${params.outdir}/02.UNOISE", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "unoise",
                pattern: "PreClustered.uc.gz",
                saveAs: { filename -> filename == "PreClustered.uc.gz" ? "UNOISE.uc.gz" : null }
                
     publishDir "${params.outdir}/02.DADA2", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "dada2",
                pattern: "PreClustered.uc.gz",
                saveAs: { filename -> filename == "PreClustered.uc.gz" ? "DADA2_denoised.uc.gz" : null }
                
     publishDir "${params.outdir}/02.Preclustered_SWARM_d1", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "swarm_d1",
                pattern: "PreClustered.uc.gz",
                saveAs: { filename -> filename == "PreClustered.uc.gz" ? "SWARM.uc.gz" : null }
     
     // Final clustering results - publish to clustering directory if clustering != "none"
     publishDir "${params.outdir}/03.Clustered_VSEARCH", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "vsearch",
                pattern: "Clustered.{fa,uc}.gz"
                // No saveAs needed - files already have correct names for VSEARCH
                
     publishDir "${params.outdir}/03.Clustered_SWARM", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "swarm",
                pattern: "Clustered.{fa,uc}.gz",
                saveAs: { filename -> 
@@ -320,7 +320,7 @@ process merge_buckets {
     
     // Final results when no clustering is done (clustering == "none") - publish to preclustering directory
     publishDir "${params.outdir}/02.Homopolymer", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "homopolymer",
                pattern: "Clustered.{fa,uc}.gz",
                saveAs: { filename -> 
@@ -332,7 +332,7 @@ process merge_buckets {
                }
                
     publishDir "${params.outdir}/02.UNOISE", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "unoise",
                pattern: "Clustered.{fa,uc}.gz",
                saveAs: { filename -> 
@@ -344,7 +344,7 @@ process merge_buckets {
                }
                
     publishDir "${params.outdir}/02.DADA2", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "dada2",
                pattern: "Clustered.{fa,uc}.gz",
                saveAs: { filename -> 
@@ -356,7 +356,7 @@ process merge_buckets {
                }
                
     publishDir "${params.outdir}/02.Preclustered_SWARM_d1", 
-               mode: 'symlink',
+               mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "none" && params.preclustering == "swarm_d1",
                pattern: "Clustered.{fa,uc}.gz",
                saveAs: { filename -> 
