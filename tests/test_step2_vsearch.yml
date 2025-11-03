@@ -1,0 +1,18 @@
+---
+- name: step2 vsearch
+  command: >
+    nextflow run . -profile test2,docker
+    --outdir out/step2_vsearch
+    -work-dir out/step2_vsearch_wd
+    --preclustering none
+    --clustering vsearch
+    --otu_id 0.98
+  files:
+    - path: "out/step2_vsearch/01.Dereplicated/Dereplicated.fa.gz"
+    - path: "out/step2_vsearch/01.Dereplicated/Dereplicated.uc.gz"
+    - path: "out/step2_vsearch/03.Clustered_VSEARCH/Clustered.fa.gz"
+    - path: "out/step2_vsearch/03.Clustered_VSEARCH/Clustered.uc.gz"
+    - path: "out/step2_vsearch/04.PooledResults/UC_Pooled.parquet"
+    - path: "out/step2_vsearch/04.PooledResults/OTU_table_wide.txt.gz"
+    - path: "out/step2_vsearch/04.PooledResults/OTU_table_long.txt.gz"
+    - path: "out/step2_vsearch/04.PooledResults/OTUs.fa.gz"
