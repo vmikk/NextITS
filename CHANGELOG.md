@@ -13,6 +13,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 - Refactored and optimized the tag-jump removal step  
 - Fixed a bug with duplicated sequences in the tag-jump removal step; thanks to Valentin Etienne for reporting  
 - Implemented a chunking option for splitting the dataset into smaller parts prior to clustering in Step-2 (pre-clustering, clustering, and denoising moved to a separate sub-workflow), using MMseqs2  
+- Added possibility to disable reference-based and/or de novo chimera removal steps and tag-jump removal  
 - New parameters added:  
     - `lima_remove_unknown` (default, `false`; if `true`, unknown barcode combinations are removed from demultiplexed data)  
     - `chunking_n` (number of chunks to split the dataset into prior to clustering)  
