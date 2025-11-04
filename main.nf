@@ -212,7 +212,7 @@ if( params.step == "Step1" ) {
       def invalid_profiles = (itsx_items as Set) - ITSX_ALLOWED
       if (invalid_profiles) {
           println( errorMsg("Parameter --ITSx_tax: invalid profile names - ${invalid_profiles.join(', ')}", params.monochrome_logs) )
-          println( colorize("       Supported profiles: ${ITSX_ALLOWED.join(', ')}", 'red', params.monochrome_logs))
+          println( colorize("       Supported profiles: `all` OR a comma-separated list of the following: ${ITSX_ALLOWED.join(', ')}", 'red', params.monochrome_logs))
           exit(1)
       }
     }
