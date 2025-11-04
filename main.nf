@@ -217,6 +217,12 @@ if( params.step == "Step1" ) {
       }
     }
 
+    // Currently, there is no X.hmm profile (Apusozoa)
+    if (itsx_items.contains('apusozoa')) {
+      println( errorMsg("Parameter --ITSx_tax: Apusozoa profile is not yet supported in ITSx.", params.monochrome_logs))
+      exit(1)
+    }
+
   } // end of ITSx profiles validation
 
 
