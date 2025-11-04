@@ -135,6 +135,77 @@ if( params.step == "Step1" ) {
       println( warningMsg("Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.", params.monochrome_logs))
   }
 
+  // ITSx profiles validation
+  if (params.its_region != "none") {
+
+    /*
+    Currently, the following regex pattern is used to pre-validate the `ITSx_tax` parameter (in schema):
+    "^(?:all|
+    (?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia)
+    (?:,\\s*(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia))*)$"
+    
+    this forbids:
+    - mixing `all` with other values
+    - empty elements and trailing commas
+    - invalid values
+    */
+
+    def itsx_profiles = params.ITSx_tax
+    if (itsx_profiles == null) {
+      println( errorMsg("Parameter --ITSx_tax is required (use 'all' or a comma-separated list of taxa).", params.monochrome_logs))
+      exit(1)
+    }
+
+    // Allowed taxa (lowercase)
+    def ITSX_ALLOWED = [
+        'alveolata','bryophyta','bacillariophyta','amoebozoa','euglenozoa','fungi',
+        'chlorophyta','rhodophyta','phaeophyceae','marchantiophyta','metazoa','oomycota',
+        'haptophyceae','raphidophyceae','rhizaria','synurophyceae','tracheophyta',
+        'eustigmatophyceae','apusozoa','parabasalia'
+    ] as Set
+
+
+    // Parse the specified profile string
+    def itsx_items = itsx_profiles.toString().split(',', -1) as List<String>
+
+    // Empty-item validation (empty or whitespace-only tokens, incl. ",," and trailing commas)
+    def emptyIdx = []
+    itsx_items.eachWithIndex { s, i ->
+      if (s == null || s.trim().isEmpty()) emptyIdx << i
+    }
+    if (emptyIdx) {
+      println( errorMsg("Parameter --ITSx_tax: empty entries are not allowed (check commas at positions: ${emptyIdx.join(', ')}).", params.monochrome_logs) )
+      exit(1)
+    }
+
+    // Disallow internal whitespaces
+    def whitespaces = itsx_items.findAll { s ->
+    def tr = s.toString().trim()
+      !(tr ==~ /\S+/)   // after trimming, token must be all non-whitespace
+    }
+    if (whitespaces) {
+        println( errorMsg("Parameter --ITSx_tax: whitespace is not allowed in profile names.", params.monochrome_logs) )
+        exit(1)
+    }
+
+    // Detect duplicates
+    itsx_items = itsx_items.collect { it.trim() }
+    def dups = itsx_items.countBy { it }.findAll { k, v -> v > 1 }.keySet().toList()
+    if (dups) {
+      println( errorMsg("Parameter --ITSx_tax: duplicated profile names are not allowed: ${dups.join(', ')}", params.monochrome_logs) )
+      exit(1)
+    }
+
+    // Disallow mixing 'all' with specific profile names
+    if (itsx_items.size() > 1 && itsx_items.contains('all')) {
+      println( errorMsg("Parameter --ITSx_tax: do not combine 'all' with taxon-specific profile names.", params.monochrome_logs))
+      exit(1)
+    }
+
+
+  } // end of ITSx profiles validation
+
+
 }  // end of Step-1 parameter validation
 
 
