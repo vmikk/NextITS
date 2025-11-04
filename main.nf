@@ -151,8 +151,14 @@ if( params.step == "Step1" ) {
     */
 
     def itsx_profiles = params.ITSx_tax
-    if (itsx_profiles == null) {
-      println( errorMsg("Parameter --ITSx_tax is required (use 'all' or a comma-separated list of taxa).", params.monochrome_logs))
+
+    // `ITSx_tax` must be a non-empty string (if specifying `--ITSx_tax ""`, Nextflow may coerce empty/flag to boolean)
+    if (itsx_profiles == null || itsx_profiles instanceof Boolean) {
+      println( errorMsg("Parameter --ITSx_tax must have a value (e.g. 'all' or 'fungi,rhizaria').", params.monochrome_logs) )
+      exit(1)
+    }
+    if (itsx_profiles.toString().trim().isEmpty()) {
+      println( errorMsg("Parameter --ITSx_tax cannot be empty. Use 'all' or a comma-separated list of taxa.", params.monochrome_logs) )
       exit(1)
     }
 
