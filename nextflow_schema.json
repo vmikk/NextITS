@@ -167,29 +167,7 @@
           "default": "all",
           "fa_icon": "fas fa-user-tag",
           "description": "Taxonomic profile for ITS extraction",
-          "enum": [
-            "all",
-            "alveolata",
-            "bryophyta",
-            "bacillariophyta",
-            "amoebozoa",
-            "euglenozoa",
-            "fungi",
-            "chlorophyta",
-            "rhodophyta",
-            "phaeophyceae",
-            "marchantiophyta",
-            "metazoa",
-            "oomycota",
-            "haptophyceae",
-            "raphidophyceae",
-            "rhizaria",
-            "synurophyceae",
-            "tracheophyta",
-            "eustigmatophyceae",
-            "apusozoa",
-            "parabasalia"
-          ]
+          "pattern": "^(?:all|(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia)(?:,\\s*(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia))*)$"
         },
         "ITSx_evalue": {
           "type": "number",
