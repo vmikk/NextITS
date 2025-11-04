@@ -162,14 +162,13 @@ if( params.step == "Step1" ) {
       exit(1)
     }
 
-    // Allowed taxa (lowercase)
+    // Allowed profiles
     def ITSX_ALLOWED = [
         'alveolata','bryophyta','bacillariophyta','amoebozoa','euglenozoa','fungi',
         'chlorophyta','rhodophyta','phaeophyceae','marchantiophyta','metazoa','oomycota',
         'haptophyceae','raphidophyceae','rhizaria','synurophyceae','tracheophyta',
         'eustigmatophyceae','apusozoa','parabasalia'
     ] as Set
-
 
     // Parse the specified profile string
     def itsx_items = itsx_profiles.toString().split(',', -1) as List<String>
@@ -208,6 +207,15 @@ if( params.step == "Step1" ) {
       exit(1)
     }
 
+    // Validate values against the allow-list (skip when it's exactly ['all'])
+    if (!(itsx_items.size() == 1 && itsx_items[0] == 'all')) {
+      def invalid_profiles = (itsx_items as Set) - ITSX_ALLOWED
+      if (invalid_profiles) {
+          println( errorMsg("Parameter --ITSx_tax: invalid profile names - ${invalid_profiles.join(', ')}", params.monochrome_logs) )
+          println( colorize("       Supported profiles: ${ITSX_ALLOWED.join(', ')}", 'red', params.monochrome_logs))
+          exit(1)
+      }
+    }
 
   } // end of ITSx profiles validation
 
