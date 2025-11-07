@@ -141,7 +141,7 @@ process chimera_rescue {
         Rescued_Chimeric_sequences.fa.gz
 
       rename \
-        --filename 's/^Rescued_Chimeric_sequences.id_//g; s/.fa.gz/_RescuedChimera.fa.gz/' \
+        --filename 's/^Rescued_Chimeric_sequences.id_//g ; s/^Rescued_Chimeric_sequences.part_//g ; s/.fa.gz/_RescuedChimera.fa.gz/' \
         \$(find Rescued_by_sample -name "*.fa.gz")
 
       mv Rescued_by_sample/*_RescuedChimera.fa.gz .
