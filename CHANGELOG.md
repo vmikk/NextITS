@@ -11,7 +11,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 
 - Fixed handling of unknown barcode combinations (in `dual asymmetric` mode); thanks to Alice Retter for reporting  
 - Refactored and optimized the tag-jump removal step  
-- Fixed a bug with duplicated sequences in the tag-jump removal step; thanks to Valentin Etienne for reporting  
+- Fixed a bug with duplicated sequences in the tag-jump removal step; thanks to Valentin Étienne for reporting  
 - Implemented a chunking option for splitting the dataset into smaller parts prior to clustering in Step-2 (pre-clustering, clustering, and denoising moved to a separate sub-workflow), using MMseqs2  
 - Added possibility to disable reference-based and/or de novo chimera removal steps and tag-jump removal  
 - New parameters added:  
@@ -27,6 +27,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 - Default parameters changed:  
     - ITSx now checks only a single strand (option `ITSx_complement` set to `F`). This should be safe for most cases, as amplicons were re-oriented using primers during the pipeline run. However, we recommend checking the results carefully (e.g., columns `ITSx_Extracted_Reads` and `ITSx_Yield_Percent` in the run summary)  
     - Prior to tag-jump removal, sequences are now dereplicated at 100% identity (option `tj_id` set to `1`). It is possible to pre-cluster sequences at a lower similarity threshold (e.g., `--tj_id 0.99`) but this will take much longer. This change should also be safe for most cases, as amplicons undergo homopolymer-correction  
+- Fixed a minor bug in extraction of sample IDs at the ref-based chimera rescue step; thanks to Valentin Étienne for reporting  
 
 ## [1.0.0] - 2025-03-24
 
