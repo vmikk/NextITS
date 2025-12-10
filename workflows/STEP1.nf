@@ -17,7 +17,7 @@ include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
 if ( params.seqplatform == "Illumina" ){
-  include { demux_illumina_notmerged; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
+  include { qc_pe; demux_illumina_notmerged; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
 }
 
 
