@@ -123,7 +123,7 @@ if( params.step == "Step1" ) {
   }
 
   if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
-      println( errorMsg("Homopolymer compression is not implemented for Illumina non-merged reads.", params.monochrome_logs))
+      println( errorMsg("Homopolymer compression is not implemented for Illumina non-merged reads (add `--hp false` to your command).", params.monochrome_logs))
       exit(1)
   }
   if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
