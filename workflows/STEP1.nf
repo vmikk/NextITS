@@ -16,6 +16,11 @@ include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
+if ( params.seqplatform == "Illumina" ){
+  include { demux_illumina_notmerged; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
+}
+
+
 // Define output paths for different steps
 out_0_bam    = params.outdir + "/00_BAM2FASTQ"
 out_1_demux  = params.outdir + "/01_Demux"
@@ -2117,7 +2122,7 @@ workflow S1 {
 
     } // end of PacBio-specific tasks
 
-   // Illumina 
+    // Illumina 
     if ( params.seqplatform == "Illumina" ) {
       
       // Input file with multiplexed pair-end reads (FASTQ.gz)
