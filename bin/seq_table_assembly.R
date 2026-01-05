@@ -105,7 +105,7 @@ TAB <- fread(
   sep = "\t", header = TRUE)
 
 ## Load sequences in fasta format
-cat("..Loading sequneces in FASTA format\n")
+cat("..Loading sequences in FASTA format\n")
 SQS <- readDNAStringSet(filepath = FASTA)
 
 ## Load de novo chimera scores
