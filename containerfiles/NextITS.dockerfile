@@ -9,17 +9,17 @@
 # docker build --target test --tag nextits-test --file NextITS.dockerfile .
 
 ## Build stage 1 (Rust and Cargo)
-FROM rust:1.89.0-slim AS rust
+FROM rust:1.92.0-slim AS rust
 RUN cargo install runiq sd
 
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.5.1 AS main
+FROM rocker/r-ver:4.5.2 AS main
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV SHELL=/bin/bash
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
-LABEL org.opencontainers.image.version="1.1.0"
+LABEL org.opencontainers.image.version="1.2.0"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
@@ -54,7 +54,13 @@ RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("phyloseq",   ask = FALSE)' \
     && rm -rf /tmp/downloaded_packages
 
-RUN    install2.r --error --skipinstalled geodist phytools \
+RUN    install2.r --error --skipinstalled \
+      geodist \
+      phytools \
+      ggdendro \
+      gridExtra \
+    && R -e 'ok <- tryCatch({ remotes::install_github("mikemc/speedyseq"); TRUE }, error=function(e){ message(e); FALSE }); \
+          if (!ok || !requireNamespace("speedyseq", quietly=TRUE)) quit(status=1)' \
     && R -e 'ok <- tryCatch({ remotes::install_github("vmikk/metagMisc"); TRUE }, error=function(e){ message(e); FALSE }); \
           if (!ok || !requireNamespace("metagMisc", quietly=TRUE)) quit(status=1)' \
     && R -e 'ok <- tryCatch({ remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2"); TRUE }, error=function(e){ message(e); FALSE }); \
@@ -91,25 +97,25 @@ RUN cd /opt/software \
 RUN /opt/software/conda/bin/mamba install -y \
     "lima>=2.13.0" \
     "pbtk>=3.5.0" \
-    "vsearch>=2.30.0" \
-    "swarm>=3.1.5" \
-    "seqkit>=2.10.1" \
-    "seqfu>=1.22.3" \
+    "vsearch>=2.30.3" \
+    "swarm>=3.1.6" \
+    "seqkit>=2.12.0" \
+    "seqfu>=1.23.0" \
     "fastp>=1.0.1" \
     "blast>=2.17.0" \
     "bioawk" \
-    "miller>=6.13.0" \
+    "miller>=6.16.0" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20250622" \
-    "csvtk>=0.34.0" \
-    "cutadapt>=5.1" \
+    "parallel>=20251122" \
+    "csvtk>=0.36.0" \
+    "cutadapt>=5.2" \
     "itsx>=1.1.3" \
-    "bbmap>=39.33" \
-    "ripgrep>=14.1.1" \
-    "fd-find>=10.2.0" \
+    "bbmap>=39.52" \
+    "ripgrep>=15.1.0" \
+    "fd-find>=10.3.0" \
     "mmseqs2" \
-  && /opt/software/conda/bin/mamba clean --all --yes
+  && /opt/software/conda/bin/conda clean --all --yes
 
 
 ## Install cutadapt (with dependencies) from pip - it fails with conda (Python 3.13 confilict)
@@ -121,7 +127,7 @@ RUN cd /opt/software \
     && wget https://github.com/vmikk/seqhasher/releases/download/1.1.2/seqhasher \
     && chmod +x seqhasher \
     && mv seqhasher /opt/software/conda/bin/ \
-    && wget https://github.com/vmikk/phredsort/releases/download/1.3.0/phredsort \
+    && wget https://github.com/vmikk/phredsort/releases/download/1.4.0/phredsort \
     && chmod +x phredsort \
     && mv phredsort /opt/software/conda/bin/ \
     && wget https://github.com/vmikk/ucs/releases/download/0.8.0/ucs \
@@ -137,7 +143,7 @@ RUN git clone --depth 1 https://github.com/indraniel/fqgrep \
   && rm -r fqgrep
 
 ## rush
-RUN wget https://github.com/shenwei356/rush/releases/download/v0.7.0/rush_linux_amd64.tar.gz \
+RUN wget https://github.com/shenwei356/rush/releases/download/v0.8.0/rush_linux_amd64.tar.gz \
   && tar -xzf rush_linux_amd64.tar.gz \
   && mv rush /opt/software/conda/bin/ \
   && rm rush_linux_amd64.tar.gz
@@ -172,7 +178,7 @@ RUN cd /opt/software \
 
 ## Install DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.3.2/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.4.3/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
@@ -214,7 +220,7 @@ ENTRYPOINT ["/opt/software/entrypoint.sh"]
 FROM main AS test
 
 # Set environment variable for R version testing
-ENV R_VERSION=4.5.1
+ENV R_VERSION=4.5.2
 
 RUN echo "=== Testing R installation and packages ===" \
   && R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')" \
