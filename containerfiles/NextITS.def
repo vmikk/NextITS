@@ -197,6 +197,7 @@ Stage: final
   rm -r mumu
 
   ## Get the updated ITSx databases ["Version 2", 5 April 2024, curated by Henrik Nilsson]
+  ## NB! Currently, there is no X.hmm profile (Apusozoa)
   git clone --depth 1 https://github.com/USDA-ARS-GBRU/ITS_HMMs/
   ## Compress and index HMM flatfiles
   find ITS_HMMs/ITSx_db/HMMs/ -name "*.hmm" | grep -v "N.hmm" \
