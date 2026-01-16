@@ -6,26 +6,26 @@
 
 ## Build stage (Rust and Cargo), for runiq
 Bootstrap: docker
-From: rust:1.89.0-slim
+From: rust:1.92.0-slim
 Stage: build
 
 %post
   # rustup --version   # 1.28.2
-  # rustc  --version   # 1.89.0
-  # cargo  --version   # 1.89.0
+  # rustc  --version   # 1.92.0
+  # cargo  --version   # 1.92.0
   cargo install runiq sd
-  # runiq --version    # 2.0.0
+  # runiq --version    # 2.1.0
   # sd    --version    # 1.0.0
 
 ## Main stage
 Bootstrap: docker
-From: rocker/r-ver:4.5.1
+From: rocker/r-ver:4.5.2
 Stage: final
 
 %labels
   Maintainer vladimir.mikryukov@ut.ee
-  R_Version 4.5.1
-  NextITS_container_version 1.1.0
+  R_Version 4.5.2
+  NextITS_container_version 1.2.0
 
 %runscript
   exec "$@"
@@ -47,7 +47,7 @@ Stage: final
 
 ## Install the required dependencies
 %post
-  export R_VERSION=4.5.1
+  export R_VERSION=4.5.2
 
   apt-get update -qq \
   && apt-get -y --no-install-recommends install \
@@ -87,7 +87,13 @@ Stage: final
     && R -e 'BiocManager::install("phyloseq",   ask = FALSE)' \
     && rm -rf /tmp/downloaded_packages
 
-  install2.r --error --skipinstalled geodist phytools \
+  install2.r --error --skipinstalled  \
+      geodist \
+      phytools \
+      ggdendro \
+      gridExtra \
+    && R -e 'ok <- tryCatch({ remotes::install_github("mikemc/speedyseq"); TRUE }, error=function(e){ message(e); FALSE }); \
+          if (!ok || !requireNamespace("speedyseq", quietly=TRUE)) quit(status=1)' \
     && R -e 'ok <- tryCatch({ remotes::install_github("vmikk/metagMisc"); TRUE }, error=function(e){ message(e); FALSE }); \
           if (!ok || !requireNamespace("metagMisc", quietly=TRUE)) quit(status=1)' \
     && R -e 'ok <- tryCatch({ remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2"); TRUE }, error=function(e){ message(e); FALSE }); \
@@ -127,23 +133,23 @@ Stage: final
   ${conda_prefix}/bin/mamba install --quiet --yes \
     "lima>=2.13.0" \
     "pbtk>=3.5.0" \
-    "vsearch>=2.30.0" \
-    "swarm>=3.1.5" \
-    "seqkit>=2.10.1" \
-    "seqfu>=1.22.3" \
+    "vsearch>=2.30.3" \
+    "swarm>=3.1.6" \
+    "seqkit>=2.12.0" \
+    "seqfu>=1.23.0" \
     "fastp>=1.0.1" \
     "blast>=2.17.0" \
     "bioawk" \
-    "miller>=6.13.0" \
+    "miller>=6.16.0" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20250622" \
-    "csvtk>=0.34.0" \
+    "parallel>=20251122" \
+    "csvtk>=0.36.0" \
+    "cutadapt>=5.2" \
     "itsx>=1.1.3" \
-    "cutadapt>=5.1" \
-    "bbmap>=39.33" \
-    "ripgrep>=14.1.1" \
-    "fd-find>=10.2.0" \
+    "bbmap>=39.52" \
+    "ripgrep>=15.1.0" \
+    "fd-find>=10.3.0" \
     "mmseqs2"
 
   ## seqhasher
@@ -154,7 +160,7 @@ Stage: final
 
   ## phredsort
   # https://github.com/vmikk/phredsort
-  wget https://github.com/vmikk/phredsort/releases/download/1.3.0/phredsort
+  wget https://github.com/vmikk/phredsort/releases/download/1.4.0/phredsort
   chmod +x phredsort
   mv phredsort ${conda_prefix}/bin/
 
@@ -175,7 +181,7 @@ Stage: final
 
   ## rush
   # https://github.com/shenwei356/rush
-  wget https://github.com/shenwei356/rush/releases/download/v0.7.0/rush_linux_amd64.tar.gz
+  wget https://github.com/shenwei356/rush/releases/download/v0.8.0/rush_linux_amd64.tar.gz
   tar -xzf rush_linux_amd64.tar.gz
   mv rush ${conda_prefix}/bin/
   rm rush_linux_amd64.tar.gz
@@ -212,7 +218,7 @@ Stage: final
 
   ## DuckDB
   # https://duckdb.org/docs/installation/?version=stable
-  curl -L https://github.com/duckdb/duckdb/releases/download/v1.3.2/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+  curl -L https://github.com/duckdb/duckdb/releases/download/v1.4.3/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d ${conda_prefix}/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
