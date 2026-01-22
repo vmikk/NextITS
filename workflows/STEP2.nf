@@ -346,6 +346,7 @@ process merge_buckets {
     // Since there are name collisions, we need to stage files with unique names
     input:
       path(preclustuc_chunks, stageAs: "pre/?/*")  // UC files for pre-clustering (optional)
+      path(preclustaf_chunks, stageAs: "pre/?/*")  // FASTA files for pre-clustering (optional)
       path(cluster_chunks, stageAs:    "cls/?/*")  // Sequence representatives
       path(clustuc_chunks, stageAs:    "ucs/?/*")  // UC files for clustering
 
@@ -713,12 +714,14 @@ workflow S2 {
 
       // collect UC and FASTA files from all chunks
       preclustuc_chunks = CLUSTERING.out.preclustuc_ch.collect()
+      preclustaf_chunks = CLUSTERING.out.preclustaf_ch.collect()
       cluster_chunks    = CLUSTERING.out.cluster_ch.collect()
       clustuc_chunks    = CLUSTERING.out.clustuc_ch.collect()
 
       // Merge buckets into a single file
       merge_buckets(
         preclustuc_chunks,
+        preclustaf_chunks,
         cluster_chunks,
         clustuc_chunks)
 
