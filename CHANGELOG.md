@@ -18,6 +18,8 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
     - `lima_remove_unknown` (default, `false`; if `true`, unknown barcode combinations are removed from demultiplexed data)  
     - `chunking_n` (number of chunks to split the dataset into prior to clustering)  
     - `chunking_id` (minimum sequence identity used for splitting the dataset into chunks)  
+    - `chimera_methods` (specifies which chimera removal methods to use - "ref" for reference-based, "denovo" for de novo, or "ref,denovo" for both; could be also "none" or `null` to disable chimera removal)  
+    - `tj` (specifies whether to run tag-jump removal - "true" or "false")  
 - Added DADA2 denoising (`--preclustering dada2`; also works with `--clustering none`)
 - Implemented automated documentation for analysis procedures (generates `README_Step1_Methods.txt` and `README_Step2_Methods.txt` in the `pipeline_info` directory)  
 - Refactored parameter validation (using `nf-schema` plugin)  
