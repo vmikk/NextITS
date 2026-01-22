@@ -11,7 +11,7 @@ authors:
 - family-names: "Tedersoo"
   given-names: "Leho"
   orcid: "https://orcid.org/0000-0002-1635-1249"
-version: 1.0.0
+version: 1.1.0
 doi: 10.5281/zenodo.15074881
 date-released: 2025-03-24
 url: "https://github.com/vmikk/NextITS"
