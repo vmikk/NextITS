@@ -378,9 +378,16 @@ process merge_buckets {
       echo -e "..Pre-clustering was not performed. Skipping pooling these data\\n"
     else
       echo -e "..Pre-clustering was performed\\n"
+      
+      echo -e "..Pooling pre-clustered UC files\\n"
       find pre -name "*.uc.gz" \
         | parallel -j 1 "cat {}" \
         > PreClustered.uc.gz
+
+      echo -e "..Pooling pre-clustered FASTA files\\n"
+      find pre -name "*.fa.gz" \
+        | parallel -j 1 "cat {}" \
+        > PreClustered.fa.gz
     fi
 
     echo -e "..Done\\n"
