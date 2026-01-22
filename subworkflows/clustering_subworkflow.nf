@@ -421,12 +421,14 @@ workflow CLUSTERING {
     if ( params.preclustering == "none" || params.preclustering == null ) {
       denoise_ch    = derep_ch
       preclustuc_ch = file('NoPrecluster')
+      preclustaf_ch = file('NoPreclusterFASTA')
     
     // Denoise with UNOISE
     } else if ( params.preclustering == "unoise" ) {
       unoise(derep_ch)
       denoise_ch    = unoise.out.unoise
       preclustuc_ch = unoise.out.unoise_uc
+      preclustaf_ch = denoise_ch
     
     // Denoise with DADA2
     } else if ( params.preclustering == "dada2" ) {
@@ -436,19 +438,42 @@ workflow CLUSTERING {
         dada2(derep_ch)
         denoise_ch    = dada2.out.dada
         preclustuc_ch = dada2.out.dada_uc
+        preclustaf_ch = denoise_ch
       }
+
+      // // Dereplicate and denoise by sequencing run
+      // if(params.dada2_pooling == "byrun"){
+      //   
+      //   dereplication_byrun(ch_seqs)
+      //   dada2(dereplication_byrun.out.dereps.flatten())
+      //   
+      //   dada2pool(
+      //     dereplication.out.derep_uc,
+      //     dada2.out.dada_ucr.collect()
+      //     )
+      // 
+      //   /*
+      //   denoise_ch    = dada2pool.out.dada
+      //   preclustuc_ch = dada2pool.out.dada_uc
+      //   preclustaf_ch = file('NoPreclusterFASTA')
+      // 
+      //   */
+      // }
+
 
     // Precluster with SWARM
     } else if ( params.preclustering == "swarm_d1" ){
       precluster_swarm(derep_ch)
       denoise_ch    = precluster_swarm.out.clust
       preclustuc_ch = precluster_swarm.out.clust_uc
+      preclustaf_ch = denoise_ch
 
     // Global homopolymer correction
     } else if ( params.preclustering == "homopolymer" ){
       homopolymer(derep_ch)
       denoise_ch    = homopolymer.out.hp
       preclustuc_ch = homopolymer.out.hp_uc
+      preclustaf_ch = denoise_ch
     }
 
 
@@ -473,6 +498,7 @@ workflow CLUSTERING {
         cluster_ch = precluster_swarm.out.clust
         clustuc_ch = precluster_swarm.out.clust_uc
         preclustuc_ch = file('NoPrecluster')
+        preclustaf_ch = file('NoPreclusterFASTA')
       
       // Otherwise, run SWARM
       } else {
@@ -486,6 +512,7 @@ workflow CLUSTERING {
       cluster_ch = unoise.out.unoise
       clustuc_ch = unoise.out.unoise_uc
       preclustuc_ch = file('NoPrecluster')
+      preclustaf_ch = file('NoPreclusterFASTA')
 
     // Do not cluster, use ASVs from DADA2
     } else if ( params.preclustering == "dada2" & params.clustering == "none" ){
@@ -496,6 +523,7 @@ workflow CLUSTERING {
       } 
     
       preclustuc_ch = file('NoPrecluster')
+      preclustaf_ch = file('NoPreclusterFASTA')
     
     } else if ( params.preclustering == "none" & params.clustering == "none" ){
       println "No pre-clustering or clustering was done"
@@ -505,8 +533,9 @@ workflow CLUSTERING {
 
 
     emit:
-    preclustuc_ch = preclustuc_ch
-    cluster_ch    = cluster_ch
-    clustuc_ch    = clustuc_ch
+    preclustuc_ch = preclustuc_ch    // UC file for pre-clustering
+    preclustaf_ch = preclustaf_ch    // FASTA file for pre-clustering
+    cluster_ch    = cluster_ch       // FASTA file for clustering
+    clustuc_ch    = clustuc_ch       // UC file for clustering
 
 } // end of subworkflow
