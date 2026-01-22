@@ -7,7 +7,7 @@ For version numbering, we use the following convention: `MAJOR.MINOR.PATCH`.
 Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).  
 
 
-## [1.1.0] - 2025-xx-xx
+## [1.1.0] - 2026-01-22
 
 - Fixed handling of unknown barcode combinations (in `dual asymmetric` mode); thanks to Alice Retter for reporting  
 - Refactored and optimized the tag-jump removal step  
