@@ -352,6 +352,7 @@ process merge_buckets {
 
     output:
       path "PreClustered.uc.gz", emit: preclustuc_ch, optional: true
+      path "PreClustered.fa.gz", emit: preclustaf_ch, optional: true
       path "Clustered.fa.gz",    emit: cluster_ch
       path "Clustered.uc.gz",    emit: clustuc_ch
 
