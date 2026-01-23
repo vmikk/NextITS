@@ -387,6 +387,13 @@ process merge_buckets {
       echo -e "..Pooling pre-clustered FASTA files\\n"
       find pre -name "*.fa.gz" \
         | parallel -j 1 "cat {}" \
+        | vsearch \
+            --sortbysize - \
+            --sizein --sizeout \
+            --threads 1 \
+            --fasta_width 0 \
+            --output - \
+        | pigz -p ${task.cpus} -${params.gzip_compression} \
         > PreClustered.fa.gz
     fi
 
