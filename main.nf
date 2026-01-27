@@ -232,8 +232,8 @@ if( params.step == "Step1" ) {
 // Additional parameter validation for Step-2
 if( params.step == "Step2" ) {
 
-  if (params.preclustering == "none" && params.clustering == "none"){
-    println errorMsg("Pre-clustering and clustering could not be both set to 'none'", params.monochrome_logs)
+  if (params.preclustering == "none" && params.clustering == "none" && params.lulu == true){
+    println errorMsg("LULU can not be applied when pre-clustering and clustering are set to 'none'", params.monochrome_logs)
     exit(1)
   }
 
