@@ -746,6 +746,17 @@ workflow S2 {
     //   hash-based dereplication first, then additional round of clustering-based derep.
     // But it would add extra complexity to manage and combine two UC files.
 
+    // Prepare sequence table based on dereplicated sequences
+    // (no clustering, pre-clustering, or denoising)
+    if(params.preclustering == "none" & params.clustering == "none"){
+
+      summarize_dereplicated_data(
+        aggregate_sequences.out.seqs_parquet,
+        derepuc_ch,
+        derep_ch
+      )
+    
+    } else {
 
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -825,9 +836,11 @@ workflow S2 {
       )
     }
 
-    // Run statistics
-    // run_summary()
+  } // end of preclustering == "none" & clustering == "none"
 
+
+  // Run statistics
+  // run_summary()
 
   // Dump the software versions to a file
   ch_versions_yml = software_versions_to_yaml(Channel.topic('versions'))
