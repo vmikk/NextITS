@@ -496,6 +496,54 @@ process summarize {
 }
 
 
+// Summarize dereplicated data
+process summarize_dereplicated_data {
+
+    label "main_container"
+    publishDir "${params.outdir}/04.PooledResults", mode: "${params.storagemode}"
+    // cpus 4
+  
+    input:
+      path(seqtab)          // Sequence tables in long format, parquet
+      path(uc_derep)        // UC file from dereplication
+      path(fasta)           // FASTA file with sequences
+
+    output:
+      path "UC_Pooled.parquet", emit: uc
+      path "OTU_table_wide.txt.gz", emit: otutabwide
+      path "OTU_table_long.txt.gz", emit: otutablong
+      path "OTU_table_wide.RData",  emit: otutabwider
+      path "OTU_table_long.RData",  emit: otutablongr
+      path "OTUs.fa.gz",            emit: seqs
+      tuple val("${task.process}"), val('ucs'), eval('ucs --version | sed "s/ucs //"'), topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
+      tuple val("${task.process}"), val('arrow'), eval('Rscript -e "cat(as.character(packageVersion(\'arrow\')))"'),  topic: versions
+      tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'),  topic: versions
+
+    script:
+    """
+    echo -e "Summarizing clustered data\\n"
+
+    ## Parse UC file from dereplication
+    echo -e "..Parsing dereplicated UC file"
+    ucs --input ${uc_derep} --output UC_Pooled.parquet
+
+    ## Summarize sequence abundance by OTU and sample
+    echo -e "\\n..Summarizing sequence abundance by OTU and sample\\n"
+    summarize_dereplicated_data.R \
+      --seqtab         ${seqtab} \
+      --uc             UC_Pooled.parquet \
+      --seqs           ${fasta} \
+      --maxmeep        ${params.max_MEEP} \
+      --recoversinglet ${params.recover_lowqsingletons} \
+      --mergesamples   ${params.merge_replicates} \
+      --threads        ${task.cpus}
+
+    """
+}
+
+
 // Post-clustering curation
 process lulu {
 
