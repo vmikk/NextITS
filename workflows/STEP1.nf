@@ -787,7 +787,7 @@ process itsx {
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.problematic.txt", optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_no_detections.fasta.gz", emit: itsx_nondetects, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.summary.txt",        emit: itsx_summary, optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.extraction.results", emit: itsx_details, optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.extraction.results.gz", emit: itsx_details, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.SSU.full_and_partial.fasta.gz",  emit: itsx_ssu_part,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS1.full_and_partial.fasta.gz", emit: itsx_its1_part, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.5_8S.full_and_partial.fasta.gz", emit: itsx_58s_part,  optional: true
@@ -946,7 +946,8 @@ process itsx {
     parallel -j${task.cpus} "gzip -${params.gzip_compression} {}" ::: \
       ${sampID}_hash_table.txt \
       ${sampID}_uc.uc \
-      *.fasta
+      *.fasta \
+      ${sampID}.extraction.results
 
     ## Convert ITSx output to Parquet
     if [ ${params.ITSx_to_parquet} == true ]; then
