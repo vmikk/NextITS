@@ -281,3 +281,26 @@ process itsx {
 }
 
 
+
+
+// ITSx processing workflow
+workflow ITSx {
+
+  take:
+    seqs
+
+  main:
+
+    // Add metadata to the channel (fetch sample ID from the FASTQ file name)
+    ch_seqs = seqs.map { fastq ->
+          def sample_id = fastq.getSimpleName().replaceAll(/_PrimerChecked/, '')
+          def meta = [id: sample_id]
+          [meta, fastq]
+      }
+
+    // Trim primers and dereplicate at sample level
+    primer_trim(ch_seqs)
+
+
+
+} // end of ITSx workflow
