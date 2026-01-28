@@ -527,8 +527,7 @@ workflow CLUSTERING {
     
     } else if ( params.preclustering == "none" & params.clustering == "none" ){
       println "No pre-clustering or clustering was done"
-
-      // TODO: create table based on dereplicated sequences?
+      // This is done outside the clustering subworkflow
     }
 
 
