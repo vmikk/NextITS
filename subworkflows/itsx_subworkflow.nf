@@ -132,3 +132,152 @@ process primer_trim {
 
     """
 }
+
+
+// Extract ITS region with ITSx
+// NB. In input data, sequence header should not contain spaces!
+process itsx {
+
+    label "main_container"
+
+    // No need to publish intermediate results for chunked workflow, as they will be concatenated later
+    publishDir "${out_3_itsx}", 
+               mode: "${params.storagemode}",
+               enabled: params.ITSx_chunk_size == 0
+
+    // cpus 2
+
+    // Add sample ID to the log file
+    tag { meta.chunk_id != null ? "${meta.id}__chunk${meta.chunk_id}" : "${meta.id}" }
+
+    input:
+      tuple val(meta), path(input)   // FASTA file with dereplicated sequences
+
+    output:
+      tuple val(meta), path( "${meta.id}*.full.fasta.gz"), emit: itsx_full, optional: true
+      tuple val(meta), path( "${meta.id}*.SSU.fasta.gz"),  emit: itsx_ssu,  optional: true
+      tuple val(meta), path( "${meta.id}*.ITS1.fasta.gz"), emit: itsx_its1, optional: true
+      tuple val(meta), path( "${meta.id}*.5_8S.fasta.gz"), emit: itsx_58s,  optional: true
+      tuple val(meta), path( "${meta.id}*.ITS2.fasta.gz"), emit: itsx_its2, optional: true
+      tuple val(meta), path( "${meta.id}*.LSU.fasta.gz"),  emit: itsx_lsu,  optional: true
+      tuple val(meta), path( "${meta.id}*.positions.txt"),   emit: itsx_positions, optional: true
+      tuple val(meta), path( "${meta.id}*.problematic.txt"), emit: itsx_problematic, optional: true
+      tuple val(meta), path( "${meta.id}*_no_detections.fasta.gz"), emit: itsx_nondetects, optional: true
+      tuple val(meta), path( "${meta.id}*.summary.txt"),        emit: itsx_summary, optional: true
+      tuple val(meta), path( "${meta.id}*.extraction.results.gz"), emit: itsx_details, optional: true
+      tuple val(meta), path( "${meta.id}*.SSU.full_and_partial.fasta.gz"),  emit: itsx_ssu_part,  optional: true
+      tuple val(meta), path( "${meta.id}*.ITS1.full_and_partial.fasta.gz"), emit: itsx_its1_part, optional: true
+      tuple val(meta), path( "${meta.id}*.5_8S.full_and_partial.fasta.gz"), emit: itsx_58s_part,  optional: true
+      tuple val(meta), path( "${meta.id}*.ITS2.full_and_partial.fasta.gz"), emit: itsx_its2_part, optional: true
+      tuple val(meta), path( "${meta.id}*.LSU.full_and_partial.fasta.gz"),  emit: itsx_lsu_part,  optional: true
+      tuple val("${task.process}"), val('ITSx'), eval('ITSx --help 2>&1 | head -n 3 | tail -n 1 | sed "s/Version: //"'), topic: versions
+      tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+      tuple val("${task.process}"), val('phredsort'), eval('phredsort -v | sed "s/phredsort //"'), topic: versions
+      tuple val("${task.process}"), val('seqhasher'), eval('seqhasher -v | sed "s/SeqHasher //"'), topic: versions
+      tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
+      tuple val("${task.process}"), val('brename'), eval('brename --help | head -n 4 | tail -1 | sed "s/Version: //"'), topic: versions
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
+
+    script:
+    sampID="${meta.id}"
+    chunkPrefix="${meta.id}_chunk${meta.chunk_id}"
+
+    // Allow inclusion of sequences that only find a single domain, given that they meet the given E-value and score thresholds, on with parameters 1e-9,0 by default
+    // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
+
+    """
+    echo -e "Extraction of rRNA regions using ITSx\\n"
+    echo -e "Input sample: " ${sampID}
+    echo -e "Chunk ID: " ${meta.chunk_id}
+    
+    ## Check if input file is gz-compressed (by magic bytes `1f 8b`)
+    tmp_created=0
+    tmpfile=""
+    if [[ -f "${input}" ]] && head -c 2 -- "${input}" | LC_ALL=C od -An -tx1 | tr -d ' \n' | grep -qi '^1f8b'; then
+      echo -e "Input file is gz-compressed, decompressing..."
+      tmpfile="\$(mktemp "tmp.decompressed.input.XXXXXX")"
+      gunzip -c -- "${input}" > "\$tmpfile"
+      tmp_created=1
+      itsxinput="\$tmpfile"
+      itsxoutput="${sampID}"
+    else
+      itsxinput="${input}"
+      itsxoutput="${chunkPrefix}"
+    fi
+
+    ## ITSx extraction
+    echo -e "\\nITSx extraction"
+    ITSx \
+      -i "\$itsxinput" \
+      --complement ${params.ITSx_complement} \
+      --save_regions all \
+      --graphical F \
+      --detailed_results T \
+      --positions T \
+      --not_found T \
+      -E ${params.ITSx_evalue} \
+      -t ${params.ITSx_tax} \
+      --partial ${params.ITSx_partial} \
+      --cpu ${task.cpus} \
+      --preserve T \
+      -o "\$itsxoutput"
+    
+    echo -e "..Done"
+
+      # ITSx.full.fasta
+      # ITSx.SSU.fasta
+      # ITSx.ITS1.fasta
+      # ITSx.5_8S.fasta
+      # ITSx.ITS2.fasta
+      # ITSx.LSU.fasta
+      # ITSx.positions.txt
+      # ITSx.problematic.txt
+      # ITSx_no_detections.fasta
+      # ITSx_no_detections.txt
+      # ITSx.summary.txt
+      # ITSx.extraction.results
+      # ITSx.SSU.full_and_partial.fasta
+      # ITSx.ITS1.full_and_partial.fasta
+      # ITSx.5_8S.full_and_partial.fasta
+      # ITSx.ITS2.full_and_partial.fasta
+      # ITSx.LSU.full_and_partial.fasta
+
+
+    ## If partial sequences were required, remove empty sequences
+    if [ \$(find . -type f -name "*.full_and_partial.fasta" | wc -l) -gt 0 ]; then
+      echo -e "Partial files found, removing empty sequences\\n."
+
+      find . -name "*.full_and_partial.fasta" \
+        | parallel -j${task.cpus} "seqkit seq -m 1 -w 0 {} > {.}_tmp.fasta"
+
+      rm *.full_and_partial.fasta
+      brename -p "_tmp" -r "" -f "_tmp.fasta\$"
+
+    fi
+
+    ## Remove empty files (no sequences)
+    echo -e "\\nRemoving empty files"
+    find . -type f -name "*.fasta" -empty -print -delete
+    echo -e "..Done"
+
+    ## Remove temporary file (if input file was gz-compressed)
+    if (( tmp_created )); then
+      rm -f -- "\$tmpfile"
+    fi
+
+    ## Compress results
+    echo -e "\\nCompressing files"
+
+    ## ITSx results (no symlinked derep input)
+    find . -type f -name "*.fasta" \
+    | parallel -j${task.cpus} "gzip -${params.gzip_compression} {}"
+
+    gzip -${params.gzip_compression} "\$itsxoutput".extraction.results
+
+    echo -e "..Done"
+    """
+}
+
+
