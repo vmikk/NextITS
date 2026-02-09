@@ -531,6 +531,34 @@ workflow ITSx {
     // Trim primers and dereplicate at sample level
     primer_trim(ch_seqs)
 
+    // Size of dereplicated input for ITSx
+    //   if null, use default value (currently, 10000)
+    //   if 0, use all sequences in one chunk
+    def chunk_size = (params.ITSx_chunk_size == null ? 10000 : params.ITSx_chunk_size as int)
+
+    if( chunk_size == 0 ) {
+      // Single-chunk workflow (no data splitting)
+      // NB!  here, fasta will be gz-compressed -> will be handled in the itsx process
+      chunks_ch = primer_trim.out.derep
+        .map { meta, fasta -> [ meta + [chunk_id: null], fasta ] }
+    }
+    else {
+      // Chunking mode: split the dereplicated primer-trimmed sequences (at sample level) into chunks while preserving metadata
+      // NB!  here, fasta will be uncompressed
+      chunks_ch = primer_trim.out.derep
+        .flatMap { meta, fasta ->
+          def chunks = fasta.splitFasta(by: chunk_size, file: true, decompress: true, compress: false)
+          def result = []
+          chunks.eachWithIndex { chunk_file, idx ->
+            result << [ meta + [chunk_id: idx], chunk_file ]
+          }
+          return result
+        }
+    }
+
+    // Run ITSx
+    itsx(chunks_ch)
+
 
 
 } // end of ITSx workflow
