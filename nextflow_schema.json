@@ -197,6 +197,12 @@
           "fa_icon": "fas fa-database",
           "description": "Convert ITSx output (FASTA files) to Parquet"
         },
+        "ITSx_chunk_size": {
+          "type": "integer",
+          "default": 10000,
+          "fa_icon": "fas fa-database",
+          "description": "Chunk size for distributed ITSx processing (number of dereplicated sequences per sample); set to 0 to disable chunking"
+        },
         "hp": {
           "type": "boolean",
           "default": true,
