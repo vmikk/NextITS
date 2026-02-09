@@ -281,6 +281,236 @@ process itsx {
 }
 
 
+// Concatenate ITSx output from all chunks (per samples)
+// Convert ITSx output to Parquet
+process itsx_concatenate {
+
+    label "main_container"
+
+    publishDir "${out_3_itsx}", mode: "${params.storagemode}"
+  
+    tag "${meta.id}"
+
+    input:
+      tuple val(meta), path(fasta_chunks, stageAs: "chunks/")  // all files from ITSx for all chunks for each sample
+    
+    output:
+      path( "${meta.id}.full.fasta.gz"), emit: itsx_full, optional: true
+      path( "${meta.id}.SSU.fasta.gz"),  emit: itsx_ssu,  optional: true
+      path( "${meta.id}.ITS1.fasta.gz"), emit: itsx_its1, optional: true
+      path( "${meta.id}.5_8S.fasta.gz"), emit: itsx_58s,  optional: true
+      path( "${meta.id}.ITS2.fasta.gz"), emit: itsx_its2, optional: true
+      path( "${meta.id}.LSU.fasta.gz"),  emit: itsx_lsu,  optional: true
+      path( "${meta.id}.positions.txt"),   emit: itsx_positions, optional: true
+      path( "${meta.id}.problematic.txt"), emit: itsx_problematic, optional: true
+      path( "${meta.id}_no_detections.fasta.gz"), emit: itsx_nondetects, optional: true
+      path( "${meta.id}.summary.txt"),        emit: itsx_summary, optional: true
+      path( "${meta.id}.extraction.results.gz"), emit: itsx_details, optional: true
+      path( "${meta.id}.SSU.full_and_partial.fasta.gz"),  emit: itsx_ssu_part,  optional: true
+      path( "${meta.id}.ITS1.full_and_partial.fasta.gz"), emit: itsx_its1_part, optional: true
+      path( "${meta.id}.5_8S.full_and_partial.fasta.gz"), emit: itsx_58s_part,  optional: true
+      path( "${meta.id}.ITS2.full_and_partial.fasta.gz"), emit: itsx_its2_part, optional: true
+      path( "${meta.id}.LSU.full_and_partial.fasta.gz"),  emit: itsx_lsu_part,  optional: true
+      path( "parquet/*.parquet"), emit: parquet, optional: true
+
+    script:
+    sampID="${meta.id}"
+    """
+
+    echo -e "Concatenating ITSx output from all chunks"
+    echo -e "Input sample: " ${sampID}
+
+    shopt -s nullglob
+
+    ## Concatenate ITSx FASTA outputs
+    echo -e "Concatenating:"
+    
+    full_files=( chunks/${sampID}_chunk*.full.fasta.gz )
+    echo -e "  - full ITS sequences: \${#full_files[@]}"
+    if [ \${#full_files[@]} -gt 0 ]; then
+      for f in "\${full_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${full_files[@]}" > ${sampID}.full.fasta.gz
+    fi
+
+    ssu_files=( chunks/${sampID}_chunk*.SSU.fasta.gz )
+    echo -e "  - SSU sequences: \${#ssu_files[@]}"
+    if [ \${#ssu_files[@]} -gt 0 ]; then
+      for f in "\${ssu_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${ssu_files[@]}" > ${sampID}.SSU.fasta.gz
+    fi
+
+    its1_files=( chunks/${sampID}_chunk*.ITS1.fasta.gz )
+    echo -e "  - ITS1 sequences: \${#its1_files[@]}"
+    if [ \${#its1_files[@]} -gt 0 ]; then
+      for f in "\${its1_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${its1_files[@]}" > ${sampID}.ITS1.fasta.gz
+    fi
+
+    s58_files=( chunks/${sampID}_chunk*.5_8S.fasta.gz )
+    echo -e "  - 5.8S sequences: \${#s58_files[@]}"
+    if [ \${#s58_files[@]} -gt 0 ]; then
+      for f in "\${s58_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${s58_files[@]}" > ${sampID}.5_8S.fasta.gz
+    fi
+
+    its2_files=( chunks/${sampID}_chunk*.ITS2.fasta.gz )
+    echo -e "  - ITS2 sequences: \${#its2_files[@]}"
+    if [ \${#its2_files[@]} -gt 0 ]; then
+      for f in "\${its2_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${its2_files[@]}" > ${sampID}.ITS2.fasta.gz
+    fi
+
+    lsu_files=( chunks/${sampID}_chunk*.LSU.fasta.gz )
+    echo -e "  - LSU sequences: \${#lsu_files[@]}"
+    if [ \${#lsu_files[@]} -gt 0 ]; then
+      for f in "\${lsu_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${lsu_files[@]}" > ${sampID}.LSU.fasta.gz
+    fi
+
+    nd_files=( chunks/${sampID}_chunk*_no_detections.fasta.gz )
+    echo -e "  - no detections sequences: \${#nd_files[@]}"
+    if [ \${#nd_files[@]} -gt 0 ]; then
+      for f in "\${nd_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${nd_files[@]}" > ${sampID}_no_detections.fasta.gz
+    fi
+
+    ## Concatenate partial outputs if present
+    ssu_part_files=( chunks/${sampID}_chunk*.SSU.full_and_partial.fasta.gz )
+    echo -e "  - SSU partial sequences: \${#ssu_part_files[@]}"
+    if [ \${#ssu_part_files[@]} -gt 0 ]; then
+      for f in "\${ssu_part_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${ssu_part_files[@]}" > ${sampID}.SSU.full_and_partial.fasta.gz
+    fi
+
+    its1_part_files=( chunks/${sampID}_chunk*.ITS1.full_and_partial.fasta.gz )
+    echo -e "  - ITS1 partial sequences: \${#its1_part_files[@]}"
+    if [ \${#its1_part_files[@]} -gt 0 ]; then
+      for f in "\${its1_part_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${its1_part_files[@]}" > ${sampID}.ITS1.full_and_partial.fasta.gz
+    fi
+
+    s58_part_files=( chunks/${sampID}_chunk*.5_8S.full_and_partial.fasta.gz )
+    echo -e "  - 5.8S partial sequences: \${#s58_part_files[@]}"
+    if [ \${#s58_part_files[@]} -gt 0 ]; then
+      for f in "\${s58_part_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${s58_part_files[@]}" > ${sampID}.5_8S.full_and_partial.fasta.gz
+    fi
+
+    its2_part_files=( chunks/${sampID}_chunk*.ITS2.full_and_partial.fasta.gz )
+    echo -e "  - ITS2 partial sequences: \${#its2_part_files[@]}"
+    if [ \${#its2_part_files[@]} -gt 0 ]; then
+      for f in "\${its2_part_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${its2_part_files[@]}" > ${sampID}.ITS2.full_and_partial.fasta.gz
+    fi
+
+    lsu_part_files=( chunks/${sampID}_chunk*.LSU.full_and_partial.fasta.gz )
+    echo -e "  - LSU partial sequences: \${#lsu_part_files[@]}"
+    if [ \${#lsu_part_files[@]} -gt 0 ]; then
+      for f in "\${lsu_part_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${lsu_part_files[@]}" > ${sampID}.LSU.full_and_partial.fasta.gz
+    fi
+
+    ## Concatenate text outputs
+    pos_files=( chunks/${sampID}_chunk*.positions.txt )
+    echo -e "  - positions: \${#pos_files[@]}"
+    if [ \${#pos_files[@]} -gt 0 ]; then
+      for f in "\${pos_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${pos_files[@]}" > ${sampID}.positions.txt
+    fi
+
+    prob_files=( chunks/${sampID}_chunk*.problematic.txt )
+    echo -e "  - problematic sequences: \${#prob_files[@]}"
+    if [ \${#prob_files[@]} -gt 0 ]; then
+      for f in "\${prob_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${prob_files[@]}" > ${sampID}.problematic.txt
+    fi
+
+    sum_files=( chunks/${sampID}_chunk*.summary.txt )
+    echo -e "  - ITSx summary reports: \${#sum_files[@]}"
+    if [ \${#sum_files[@]} -gt 0 ]; then
+      for f in "\${sum_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${sum_files[@]}" > ${sampID}.summary.txt
+    fi
+
+    det_files=( chunks/${sampID}_chunk*.extraction.results.gz )
+    echo -e "  - ITSx extraction results: \${#det_files[@]}"
+    if [ \${#det_files[@]} -gt 0 ]; then
+      for f in "\${det_files[@]}"; do
+        echo -e "        \$f"
+      done
+      cat "\${det_files[@]}" > ${sampID}.extraction.results.gz
+    fi
+
+    echo -e "\\n"
+
+    ## Convert ITSx output to Parquet
+    if [ ${params.ITSx_to_parquet} == true ]; then
+
+      echo -e "\\nConverting ITSx output to Parquet"
+      mkdir -p parquet
+
+      if [ -f ${sampID}.full.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.full.fasta.gz -o parquet/${sampID}.full.parquet
+      fi
+
+      if [ -f ${sampID}.SSU.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.SSU.fasta.gz -o parquet/${sampID}.SSU.parquet
+      fi
+
+      if [ -f ${sampID}.ITS1.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.ITS1.fasta.gz -o parquet/${sampID}.ITS1.parquet
+      fi
+
+      if [ -f ${sampID}.5_8S.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.5_8S.fasta.gz -o parquet/${sampID}.5_8S.parquet
+      fi
+
+      if [ -f ${sampID}.ITS2.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.ITS2.fasta.gz -o parquet/${sampID}.ITS2.parquet
+      fi
+
+      if [ -f ${sampID}.LSU.fasta.gz ]; then
+        ITSx_to_DuckDB.sh -i ${sampID}.LSU.fasta.gz -o parquet/${sampID}.LSU.parquet
+      fi
+
+      echo -e "Parquet files created\\n"
+
+    fi
+
+    """
+}
+
+
 
 
 // ITSx processing workflow
