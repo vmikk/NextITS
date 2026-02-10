@@ -389,8 +389,9 @@ process demux {
         echo -e "\\n\\nSymmetric barcodes counts\\n\\n" >> LIMA/lima.lima.counts
         cat LIMAs/lima.lima.counts >> LIMA/lima.lima.counts
 
-        echo -e "\\n\\nSymmetric barcodes report\\n\\n" >> LIMA/lima.lima.report
-        cat LIMAs/lima.lima.report >> LIMA/lima.lima.report
+        ## Reports should be identical for symmetric and asymmetric barcodes, so no need to combine them
+        # echo -e "\\n\\nSymmetric barcodes report\\n\\n" >> LIMA/lima.lima.report
+        # cat LIMAs/lima.lima.report >> LIMA/lima.lima.report
       fi
 
     fi  # end of dual logs pooling
