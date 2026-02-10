@@ -209,6 +209,13 @@ DUAL <- grepl(pattern = "\\.\\.\\.", x = as.character(TAGS))
 
 if(any(DUAL)){
   cat("Barcode type detected: Dual\n")
+
+  if(any(!DUAL)){
+    cat("WARNING: mixture of single and dual tags detected!\n")
+    print(names(TAGS)[ !DUAL ])
+    stop("\nPlease fix the tag sequences (remove single tags or add double dots to dual tags)!\n")
+  }
+
 } else {
   cat("Barcode type detected: Single (or dual symmetric)\n")
 }
