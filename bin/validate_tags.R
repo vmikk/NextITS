@@ -362,6 +362,20 @@ if(any(DUAL) == TRUE){
   res[ , OldName := paste0("lima.", Barcodes, ".fq.gz") ]
   res[ , NewName := paste0(`Bio Sample`, ".fq.gz") ]
 
+  ## The order of tags can be different in the FASTQ file names
+  ## Ensure that we keep track of both options (x--y and y--x)
+  tmp <- copy(res)
+  tmp[ , c("ID1", "ID2") := tstrsplit(x = Barcodes, split = "--", keep = 1:2) ]
+  tmp[ , Barcodes := paste0(ID2, "--", ID1) ]
+  tmp[ , OldName := paste0("lima.", Barcodes, ".fq.gz") ]
+  tmp[ , ID1 := NULL ]
+  tmp[ , ID2 := NULL ]
+
+  res <- rbind(res, tmp)
+  rm(tmp)
+  res <- unique(res, by = "OldName")
+  setorder(x = res, Barcodes)
+
   cat("Exporting file naming scheme: 'file_renaming.tsv'\n")
 
   fwrite(x = res[ , .(OldName, NewName)],
@@ -403,11 +417,23 @@ if(any(DUAL) == TRUE){
     RUNID <- "unknown"
   }
 
-  UNKN[ , IDS      := paste0(ID1, "--", ID2) ]
-  UNKN[ , OldName  := paste0("lima.", IDS, ".fq.gz") ]
-  UNKN[ , Barcodes := paste0(Tag1, "_", Tag2) ]
-  UNKN[ , NewName  := paste0(RUNID, "__", Barcodes, ".fq.gz") ]
+  UNKN1 <- copy(UNKN)
+  UNKN1[ , IDS      := paste0(ID1, "--", ID2) ]
+  UNKN1[ , OldName  := paste0("lima.", IDS, ".fq.gz") ]
+  UNKN1[ , Barcodes := paste0(Tag1, "_", Tag2) ]
+  UNKN1[ , NewName  := paste0(RUNID, "__", Barcodes, ".fq.gz") ]
   
+  UNKN2 <- copy(UNKN)
+  UNKN2[ , IDS      := paste0(ID2, "--", ID1) ]
+  UNKN2[ , OldName  := paste0("lima.", IDS, ".fq.gz") ]
+  UNKN2[ , Barcodes := paste0(Tag2, "_", Tag1) ]
+  UNKN2[ , NewName  := paste0(RUNID, "__", Barcodes, ".fq.gz") ]
+  
+  UNKN <- rbind(UNKN1, UNKN2)
+  rm(UNKN1, UNKN2)
+  UNKN <- unique(UNKN, by = "OldName")
+  setorder(x = UNKN, OldName)
+
   ## Remove known combinations
   UNKN <- UNKN[ !IDS %in% res$Barcodes ]
 
