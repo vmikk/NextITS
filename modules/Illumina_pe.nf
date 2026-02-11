@@ -118,7 +118,7 @@ process merge_pe {
 // NB. it's possible to use anchored adapters (e.g., -g ^file:barcodes.fa),
 //     but there could be a preceding nucleotides before the barcode,
 //     therefore, modified barcodes would be used here (e.g., XN{30})
-process demux_illumina_notmerged {
+process demux_pe {
 
     label "main_container"
 
