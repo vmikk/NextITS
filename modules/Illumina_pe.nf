@@ -52,6 +52,66 @@ process qc_pe {
 
 
 
+// Merge Illumina PE reads
+process merge_pe {
+
+    label "main_container"
+
+    // publishDir "${out_1_demux}", mode: "${params.storagemode}"
+    // cpus 10
+
+    input:
+      path input_R1
+      path input_R2
+
+    output:
+      path "Merged.fq.gz", emit: r12
+      tuple path("NotMerged_R1.fq.gz"), path("NotMerged_R2.fq.gz"), emit: nm, optional: true
+
+    script:
+    """
+    echo -e "Merging Illumina pair-end reads\\n"
+
+    ## By default, fastp modifies sequences header
+    ## e.g., `merged_150_15` means that 150bp are from read1, and 15bp are from read2
+    ## But we'll preserve only sequence ID
+
+    fastp \
+      --in1 ${input_R1} \
+      --in2 ${input_R2} \
+      --merge --correction \
+      --overlap_len_require ${params.pe_minoverlap} \
+      --overlap_diff_limit ${params.pe_difflimit} \
+      --overlap_diff_percent_limit ${params.pe_diffperclimit} \
+      --length_required ${params.pe_minlen} \
+      --disable_quality_filtering \
+      --disable_adapter_trimming \
+      --dont_eval_duplication \
+      --compression 6 \
+      --thread ${task.cpus} \
+      --out1 NotMerged_R1.fq.gz \
+      --out2 NotMerged_R2.fq.gz \
+      --json log.json \
+      --html log.html \
+      --stdout \
+    | seqkit seq --only-id \
+    | gzip -${params.gzip_compression} \
+    > Merged.fq.gz
+
+    ##  --merged_out Merged.fq.gz \
+    ##  --n_base_limit ${params.pe_nlimit} \
+
+    # --overlap_len_require         the minimum length to detect overlapped region of PE reads
+    # --overlap_diff_limit          the maximum number of mismatched bases to detect overlapped region of PE reads
+    # --overlap_diff_percent_limit  the maximum percentage of mismatched bases to detect overlapped region of PE reads
+    ## NB: reads should meet these three conditions simultaneously!
+
+    echo -e "..done"
+    """
+}
+
+
+
 
 
 // Demultiplexing with cutadapt - for Illumina PE reads (only not merged)
