@@ -441,8 +441,8 @@ process prep_barcodes {
 }
 
 
-// Demultiplexing with cutadapt - for Illumina SE reads
-process demux_illumina {
+// Demultiplexing with cutadapt (single-end reads)
+process demux_se {
 
     label "main_container"
 
@@ -2033,11 +2033,11 @@ workflow S1 {
       prep_barcodes(tag_validation.out.fasta)
 
       // Demultiplexing
-      demux_illumina(
+      demux_se(
         merge_pe.out.r12,
         prep_barcodes.out.barcodesm)
 
-      ch_demux_merged = demux_illumina.out.samples_demux.flatten()
+      ch_demux_merged = demux_se.out.samples_demux.flatten()
 
       // Illumina nonmerged PE reads sub-workflow (optional)
       if(params.illumina_keep_notmerged == true){
@@ -2401,7 +2401,7 @@ workflow S1 {
     }
 
     if(params.seqplatform == "Illumina"){
-      ch_all_demux = demux_illumina.out.samples_demux.flatten().collect()
+      ch_all_demux = demux_se.out.samples_demux.flatten().collect()
     }
 
   } else {
