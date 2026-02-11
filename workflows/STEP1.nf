@@ -17,7 +17,7 @@ include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
 if ( params.seqplatform == "Illumina" ){
-  include { qc_pe; demux_illumina_notmerged; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
+  include { qc_pe; merge_pe; demux_pe; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
 }
 
 
@@ -2102,25 +2102,25 @@ workflow S1 {
       if(params.illumina_keep_notmerged == true){
 
         // Demultiplexing non-merged reads
-        demux_illumina_notmerged(
+        demux_pe(
           merge_pe.out.nm,
           prep_barcodes.out.barcodesm)
 
         // Channel of non-merged reads by sample (split into sample tuples)
-        // ch_R1 = demux_illumina_notmerged.out.demux_pe....
+        // ch_R1 = demux_pe.out.demux_pe....
 
         // Non-merged sample list
-        ch_nonmerged = demux_illumina_notmerged.out.samples_nonm_pe.splitText().map{it -> it.trim()}
+        ch_nonmerged = demux_pe.out.samples_nonm_pe.splitText().map{it -> it.trim()}
 
         // Trim primers of nonmerged PE reads
         // Estimate sequence qualities
         // Dereplicate R1 and R2 independently
-        // trim_primers_pe(demux_illumina_notmerged.out.demux_pe.flatten())
+        // trim_primers_pe(demux_pe.out.demux_pe.flatten())
 
         // Join nonmerged reads with poly-N pads
         join_pe(
           ch_nonmerged,
-          demux_illumina_notmerged.out.demux_pe.flatten().collect()   // all non-merged R1 and R2 files
+          demux_pe.out.demux_pe.flatten().collect()   // all non-merged R1 and R2 files
           )
 
         // Add joined reads to the merged reads
