@@ -347,6 +347,8 @@ if(any(DUAL) == TRUE){
     `Bio Sample` = dtt$SampleID,
     TagSymmetry  = dtt$TagSymmetry)
 
+  setorder(x = res, `Bio Sample`)
+
   fwrite(
     x = res[ TagSymmetry %in% "symmetric", .(Barcodes, `Bio Sample`) ] ,
     file = "biosamples_sym.csv",
