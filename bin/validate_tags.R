@@ -338,6 +338,31 @@ if(any(DUAL) == TRUE){
   }
 
 
+  ## Find unique barcode combinations (taking into account reverse complements)
+  dtt[, tag_pair_unordered := paste(
+      pmin(Tag1, Tag2),
+      pmax(Tag1, Tag2),
+    sep="|") ]
+
+  dtt[, tag_pair_ordered := paste(Tag1, Tag2, sep="|") ]
+
+  ## Swapped-pair ambiguity: X-Y exists AND Y-X exists (cannot disambiguate if you don't know direction)
+  swapped <- dtt[, .(
+    n_samples = .N,
+    n_ordered   = uniqueN(tag_pair_ordered),
+    samples     = paste(sort(SampleID), collapse=", "),
+    ordered_set = paste(sort(unique(tag_pair_ordered)), collapse=", ")
+  ), by = tag_pair_unordered][ n_samples > 1 ]
+
+  if(nrow(swapped) > 0){
+    cat("\nWARNING: swapped-pair tag ambiguity detected!\n")
+    cat("..Number of swapped-pair tag combinations: ", nrow(swapped), "\n")
+    cat("..Swapped-pair tag combinations: ", "\n")
+    print(swapped[ , .(samples, tag_pair_unordered) ])
+    stop("\nIt is impossible to assign sample ID to sequences with swapped-pair tag combinations!\nPlease fix the tag sequences (e.g., combine primer sequence with the tag sequence!\n")
+  }
+
+
   ## Prepare biosample table for LIMA
   # https://lima.how/faq/biosample.html
   cat("\nExporting biosample tables: 'biosamples_sym.csv' and 'biosamples_asym.csv'\n")
