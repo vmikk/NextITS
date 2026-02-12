@@ -715,8 +715,9 @@ workflow S2 {
 
     // Find quality-filtered sequence tables
     ch_seqtabs = Channel.fromPath(
-      params.data_path + "/**/07_SeqTable/Seqs.parquet",
-      checkIfExists: true).collect()
+      params.data_path + "/*/07_SeqTable/Seqs.parquet",
+      checkIfExists: true,
+      maxDepth: 2).collect()
 
     // Aggregate sequences, remove de novo chimeras
     aggregate_sequences(ch_seqtabs)
