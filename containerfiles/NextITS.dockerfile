@@ -178,7 +178,7 @@ RUN cd /opt/software \
 
 ## Install DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.4.3/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.4.4/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
