@@ -6,6 +6,11 @@ This project tries to adhere to [Semantic Versioning](https://semver.org/spec/v2
 For version numbering, we use the following convention: `MAJOR.MINOR.PATCH`.  
 Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).  
 
+## [1.2.0] - 2026-XX-XX
+- Fixed a bug with demultiplexing using dual tags (sometimes files were named as unknown tag combinations)  
+- Add automatic detection of "single-library" results in Step-2  
+
+
 
 ## [1.1.0] - 2026-01-22
 
