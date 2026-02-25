@@ -714,10 +714,19 @@ process document_analysis_s2 {
 workflow S2 {
 
     // Find quality-filtered sequence tables
-    ch_seqtabs = Channel.fromPath(
-      params.data_path + "/*/07_SeqTable/Seqs.parquet",
-      checkIfExists: true,
-      maxDepth: 2).collect()
+    def base = params.data_path
+    def singleParquet = file("${base}/07_SeqTable/Seqs.parquet")
+    
+    if( singleParquet.exists() ) {
+        log.info "Single-library analysis"
+        ch_seqtabs = Channel.value([ singleParquet ])
+    } else {
+        log.info "Multi-library analysis"
+        ch_seqtabs = Channel.fromPath(
+          "${base}/*/07_SeqTable/Seqs.parquet",
+          checkIfExists: true,
+          maxDepth: 2).collect()
+    }
 
     // Aggregate sequences, remove de novo chimeras
     aggregate_sequences(ch_seqtabs)
