@@ -360,7 +360,7 @@ cat("Number of reads of discarded sequences (%): ", num_dscreads, "(", perc_dscr
 
 ## Remove noisy sequences
 UC <- UC[ ! is.na(SeqNumID), .(DerepSeqID, ASV) ]
-UC[ , RecordType := fifelse(DerepSeqID == ASV, "C", "H", na = NA) ]
+UC[ , RecordType := fifelse(DerepSeqID == ASV, "S", "H", na = NA) ]
 UC[ , `:=` (ClustNum = NA, SeqLen = NA, Ident = NA, Strand = "+", V6 = NA, V7 = NA, ALN = ".") ]
 
 setcolorder(x = UC,
