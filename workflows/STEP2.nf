@@ -390,6 +390,7 @@ process merge_buckets {
         | vsearch \
             --sortbysize - \
             --sizein --sizeout \
+            --gzip_decompress \
             --threads 1 \
             --fasta_width 0 \
             --output - \
