@@ -154,8 +154,62 @@ process unoise {
 
 
 
-// Denoize sequences with DADA2
-process dada2 {
+// DADA2 - Estimate error rates
+process dada2_error_est {
+
+    label "main_container"
+
+    // cpus 8
+
+    input:
+      tuple val(input_id), path(input)
+
+    output:
+      tuple val(input_id), path("DADA2_ErrorRates_noqualErrfun.RData"), emit: error_model_by_id
+      path "DADA2_ErrorRates_noqualErrfun.RData", emit: error_model
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
+      tuple val("${task.process}"), val('dada2'), eval('Rscript -e "cat(as.character(packageVersion(\'dada2\')))"'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
+
+    script:
+    """
+    echo -e "Estimating DADA2 error rates\\n"
+
+    ## DADA2 works with ACGT alphabet only
+    ## 1. So check if there are any sequences with ambiguities
+    ## 2. If any, remove them
+    ## 3. Sort by sequence abundance
+    ## 4. Convert FASTA to pseudo-FASTQ
+
+    echo -e "..Preparing sequences\\n"
+    seqkit seq -w 0 ${input} \
+      | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+      | vsearch --sortbysize - --output - --fasta_width 0 \
+      | awk 'BEGIN {RS = ">" ; FS = "\\n"} NR > 1 {print "@"\$1"\\n"\$2"\\n+"\$1"\\n"gensub(/./, "I", "g", \$2)}' \
+      | gzip -${params.gzip_compression} > no_ambigs.fq.gz
+
+    echo -e "\\n..Running DADA2 error estimation\\n"
+    dada2_no_quals_1_ErrorEstimation.R \
+      --input            no_ambigs.fq.gz \
+      --nbases           ${params.dada2_nbases} \
+      --bandsize         ${params.dada2_bandsize} \
+      --detectsingletons ${params.dada2_detectsingletons} \
+      --omegaA           ${params.dada2_omegaA} \
+      --omegaC           ${params.dada2_omegaC} \
+      --omegaP           ${params.dada2_omegaP} \
+      --maxconsist       ${params.dada2_maxconsist} \
+      --match            ${params.dada2_match} \
+      --mismatch         ${params.dada2_mismatch} \
+      --gappenalty       ${params.dada2_gappenalty} \
+      --threads          ${task.cpus}
+
+    echo -e "..DADA2 error estimation finished\\n"
+    """
+}
+
+
+// DADA2 - Denoize sequences
+process dada2_inference {
 
     label "main_container"
 
@@ -168,7 +222,7 @@ process dada2 {
     // cpus 8
 
     input:
-      path input
+      tuple val(input_id), path(input), path(errors)
 
     output:
       path "DADA2_denoised.fa.gz",        emit: dada
@@ -184,6 +238,7 @@ process dada2 {
     script:
     """
     echo -e "Denoizing sequences with DADA2\\n"
+    echo -e "..Input: ${input}"
 
     ## DADA2 works with ACGT alphabet only
     ## 1. So check if there are any sequences with ambiguities
@@ -194,16 +249,16 @@ process dada2 {
 
     ## Remove sequences with ambiguities
     echo -e "..Preparing sequences\\n"
-    zcat ${input} \
+    seqkit seq -w 0 ${input} \
       | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
       | vsearch --sortbysize - --output - --fasta_width 0 \
       | awk 'BEGIN {RS = ">" ; FS = "\\n"} NR > 1 {print "@"\$1"\\n"\$2"\\n+"\$1"\\n"gensub(/./, "I", "g", \$2)}' \
       | gzip -${params.gzip_compression} > no_ambigs.fq.gz
 
     echo -e "\\n\\n..Running DADA2\\n"
-    dada2_no_quals.R \
+    dada2_no_quals_2_Inference.R \
       --input            no_ambigs.fq.gz \
-      --nbases           ${params.dada2_nbases} \
+      --errors           ${errors} \
       --bandsize         ${params.dada2_bandsize} \
       --detectsingletons ${params.dada2_detectsingletons} \
       --omegaA           ${params.dada2_omegaA} \
@@ -407,7 +462,8 @@ process cluster_swarm {
 workflow CLUSTERING {
 
     take:
-    derep_ch
+      derep_ch       // channel of dereplicated sequences in FASTA format
+      shared_err_ch  // for DADA2, shared error model for all chunks; can be `Channel.empty()` if not needed
 
     main:
 
@@ -433,11 +489,37 @@ workflow CLUSTERING {
     // Denoise with DADA2
     } else if ( params.preclustering == "dada2" ) {
 
+      // Create channel of tuples
+      dada_input_ch = derep_ch.map { input_file -> tuple(input_file.baseName, input_file) }
+
       // Denoise all dereplicated sequences
       if(params.dada2_pooling == "global"){
-        dada2(derep_ch)
-        denoise_ch    = dada2.out.dada
-        preclustuc_ch = dada2.out.dada_uc
+        
+        // Prepare shared error model
+        if(params.dada2_error_estimation == "shared" && params.chunking_n != null && params.chunking_n >= 2){
+          
+          shared_dada_input_ch = dada_input_ch
+            .combine(shared_err_ch)
+            .map { input_id, input_file, err_model -> tuple(input_id, input_file, err_model) }
+          
+          dada2_inference(shared_dada_input_ch)
+        
+        // Estimate error model for each chunk
+        } else {
+
+          dada2_error_est(dada_input_ch)
+
+          // Join input channel with error models (by bucket id, which is the first element of the tuple)
+          dada2_input_with_err_ch = dada_input_ch.join(dada2_error_est.out.error_model_by_id, by: 0)
+
+          dada2_inference(dada2_input_with_err_ch)
+        }
+
+        dada_denoise_ch = dada2_inference.out.dada
+        dada_uc_ch      = dada2_inference.out.dada_uc
+
+        denoise_ch    = dada_denoise_ch
+        preclustuc_ch = dada_uc_ch
         preclustaf_ch = denoise_ch
       }
 
@@ -518,9 +600,15 @@ workflow CLUSTERING {
     } else if ( params.preclustering == "dada2" & params.clustering == "none" ){
       
       if(params.dada2_pooling == "global"){
-        cluster_ch = dada2.out.dada
-        clustuc_ch = dada2.out.dada_uc
+        cluster_ch = dada_denoise_ch
+        clustuc_ch = dada_uc_ch
       } 
+      /*
+      else if(params.dada2_pooling == "byrun"){
+        cluster_ch = dada2pool.out.dada
+        clustuc_ch = dada2pool.out.dada_uc
+      }
+      */
     
       preclustuc_ch = file('NoPrecluster')
       preclustaf_ch = file('NoPreclusterFASTA')

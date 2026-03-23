@@ -29,6 +29,10 @@ include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { CLUSTERING }                from '../subworkflows/clustering_subworkflow.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 
+if(params.preclustering == "dada2" && params.dada2_error_estimation == "shared"){
+  include { dada2_error_est } from '../subworkflows/clustering_subworkflow.nf'
+}
+
 // Directory for storing pipeline information
 out_tracedir = params.tracedir
 
@@ -262,6 +266,69 @@ process bucketize {
   """
 }
 
+
+// Prepare a cross-bucket sequences subset for shared DADA2 error estimation
+process prepare_dada2_error_subset {
+
+    label "main_container"
+
+    input:
+      path(bucket_fastas, stageAs: "buckets/*")
+
+    output:
+      path "DADA2_error_subset.fa.gz", emit: subset
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'),  topic: versions
+      tuple val("${task.process}"), val('csvtk'), eval('csvtk version | sed "s/csvtk v//"'),  topic: versions
+
+    script:
+    """
+    echo -e "Preparing shared DADA2 error-estimation subset\\n"
+
+    echo -e "Calculating bucket statistics:\\n"
+    seqkit stat -T --threads ${task.cpus} --quiet ./buckets/* \
+      | csvtk cut -t -T -f file,num_seqs,sum_len --delete-header \
+      > bucket_stats.tsv
+
+    TOTAL_READS=\$(csvtk summary -t -f 2:sum -H -U bucket_stats.tsv | sed 's/.00\$//')
+    TOTAL_BASES=\$(csvtk summary -t -f 3:sum -H -U bucket_stats.tsv | sed 's/.00\$//')
+
+    echo -e "..Total reads across buckets: \${TOTAL_READS}"
+    echo -e "..Total bases across buckets: \${TOTAL_BASES}"
+
+    GLOBAL_PROP=\$(awk -v target=${params.dada2_nbases} -v total="\${TOTAL_BASES}" 'BEGIN {
+      prop = target / total;
+      if (prop > 1) prop = 1;
+      if (prop <= 0) prop = 1 / total;
+      printf "%.12f\\n", prop
+    }')
+
+    echo -e "..Global sampling proportion: \${GLOBAL_PROP}\\n"
+
+    TAB=\$(printf '\\t')
+    while IFS="\${TAB}" read -r fasta reads bases; do
+      FILE_PROP=\$(awk -v global="\${GLOBAL_PROP}" -v reads="\${reads}" 'BEGIN {
+        min_prop = 1 / reads;
+        prop = (global > min_prop ? global : min_prop);
+        if (prop > 1) prop = 1;
+        printf "%.12f\\n", prop
+      }')
+
+      echo -e "..Sampling \${fasta} with proportion \${FILE_PROP}" >&2
+
+      seqkit sample --quiet \
+        --proportion "\${FILE_PROP}" \
+        --rand-seed 111 \
+        -w 0 \
+        --threads ${task.cpus} \
+        "\${fasta}"
+
+    done < bucket_stats.tsv \
+      | gzip -${params.gzip_compression} \
+      > DADA2_error_subset.fa.gz
+
+    echo -e "\\n..Shared DADA2 subset prepared\\n"
+    """
+}
 
 
 
@@ -786,7 +853,7 @@ workflow S2 {
     // No chunking (process all sequences at once)
     if(params.chunking_n == null || params.chunking_n < 2){
 
-      CLUSTERING(derep_ch)
+      CLUSTERING(derep_ch, Channel.empty())  // second channel is used for DADA2
 
       preclustuc_ch = CLUSTERING.out.preclustuc_ch
       cluster_ch    = CLUSTERING.out.cluster_ch
@@ -800,10 +867,24 @@ workflow S2 {
 
       // Bucketize sequence clusters into chunks
       bucketize(derep_ch, linclust.out.db_clu)
-      buckets_ch = bucketize.out.buckets.flatten()
+      all_buckets_ch = bucketize.out.buckets
+      buckets_ch     = all_buckets_ch.flatten()
 
-      // Run clustering/pre-clustering/denoising subworkflow
-      CLUSTERING(buckets_ch)
+      // For DADA2, prepare shared error model for all chunks
+      if(params.preclustering == "dada2" && params.dada2_error_estimation == "shared"){
+        
+        prepare_dada2_error_subset(all_buckets_ch)
+        
+        shared_dada2_input_ch = prepare_dada2_error_subset.out.subset
+          .map { subset_file -> tuple(subset_file.baseName, subset_file) }
+        
+        dada2_error_est(shared_dada2_input_ch)
+        
+        CLUSTERING(buckets_ch, dada2_error_est.out.error_model)
+      
+      } else {
+        CLUSTERING(buckets_ch, Channel.empty())
+      }
 
       // collect UC and FASTA files from all chunks
       preclustuc_chunks = CLUSTERING.out.preclustuc_ch.collect()
