@@ -524,7 +524,21 @@ workflow CLUSTERING {
     
       preclustuc_ch = file('NoPrecluster')
       preclustaf_ch = file('NoPreclusterFASTA')
-    
+
+    // Do not cluster, use SWARM representatives
+    } else if ( params.preclustering == "swarm_d1" & params.clustering == "none" ){
+      cluster_ch = precluster_swarm.out.clust
+      clustuc_ch = precluster_swarm.out.clust_uc
+      preclustuc_ch = file('NoPrecluster')
+      preclustaf_ch = file('NoPreclusterFASTA')
+
+    // Do not cluster, use homopolymer-compressed sequences
+    } else if ( params.preclustering == "homopolymer" & params.clustering == "none" ){
+      cluster_ch = homopolymer.out.hp
+      clustuc_ch = homopolymer.out.hp_uc
+      preclustuc_ch = file('NoPrecluster')
+      preclustaf_ch = file('NoPreclusterFASTA')
+
     } else if ( params.preclustering == "none" & params.clustering == "none" ){
       println "No pre-clustering or clustering was done"
       // This is done outside the clustering subworkflow
