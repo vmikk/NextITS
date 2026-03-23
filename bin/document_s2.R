@@ -45,6 +45,13 @@ if(!file.exists(params_path)){
 }
 
 
+##################################
+################################## Data for debugging
+##################################
+
+# versions_path <- "software_versions.yml"
+# params_path   <- "pipeline_params.tsv"
+# output_path   <- "README_Step2_Methods.txt"
 
 ##################################
 ################################## References
@@ -188,8 +195,8 @@ emit_clustering <- function(p, v) {
         with { as.numeric(getp(p,'otu_id',0.98))*100}% similarity threshold."),
 
     "swarm" = {
-      fastidious_text <- if(getp(p, "swarm_fastidious", TRUE) && getp(p, "swarm_d", 1) == 1) {
-        " with fastidious option enabled"
+      fastidious_text <- if(as.logical(getp(p, "swarm_fastidious", TRUE)) && getp(p, "swarm_d", 1) == 1) {
+        " and fastidious option enabled"
       } else {
         ""
       }
