@@ -365,6 +365,14 @@ process merge_buckets {
     echo -e "..Pooling sequence representatives\\n"
     find cls -name "*.fa.gz" \
       | parallel -j 1 "cat {}" \
+      | vsearch \
+          --sortbysize - \
+          --sizein --sizeout \
+          --gzip_decompress \
+          --threads 1 \
+          --fasta_width 0 \
+          --output - \
+      | pigz -p ${task.cpus} -${params.gzip_compression} \
       > Clustered.fa.gz
 
     ## Pool UC files
