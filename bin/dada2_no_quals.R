@@ -15,7 +15,7 @@
 ## Usage example:
 # dada2_no_quals.R \
 #  --input            input.fq.gz \
-#  --nbases           1e6 \
+#  --nbases           1e8 \
 #  --bandsize         16 \
 #  --detectsingletons TRUE \
 #  --omegaA           1e-20 \
@@ -48,7 +48,7 @@ suppressPackageStartupMessages(require(optparse))
 ## Parse arguments
 option_list <- list(
   make_option(c("-i", "--input"),            action="store", default=NA,    type='character', help=""),
-  make_option(c("-n", "--nbases"),           action="store", default=1e6,   type='double', help=""),
+  make_option(c("-n", "--nbases"),           action="store", default=1e8,   type='double', help=""),
   make_option(c("-b", "--bandsize"),         action="store", default=16,    type='double', help=""),
   make_option(c("-s", "--detectsingletons"), action="store", default=TRUE,  type='logical', help=""),
   make_option(c("-A", "--omegaA"),           action="store", default=1e-20, type='double', help=""),
