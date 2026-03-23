@@ -357,6 +357,12 @@
           "enum": ["byrun", "global"],
           "description": "DADA2 pooling strategy"
         },
+        "dada2_error_estimation": {
+          "type": "string",
+          "default": "per_bucket",
+          "enum": ["per_bucket", "shared"],
+          "description": "How DADA2 error rates are estimated for chunked runs: independently per bucket or once from a shared subset"
+        },
         "dada2_nbases": {
           "type": "number",
           "default": 1000000,
