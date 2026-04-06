@@ -928,9 +928,13 @@ workflow S2 {
         shared_dada2_input_ch = prepare_dada2_error_subset.out.subset
           .map { subset_file -> tuple(subset_file.baseName, subset_file) }
         
-        dada2_error_est(shared_dada2_input_ch)
-        
-        CLUSTERING(buckets_ch, dada2_error_est.out.error_model)
+        if(params.dada2_engine == "dada2"){
+          dada2_error_est(shared_dada2_input_ch)
+          CLUSTERING(buckets_ch, dada2_error_est.out.error_model)
+        } else if(params.dada2_engine == "papa2"){
+          papa2_error_est(shared_dada2_input_ch)
+          CLUSTERING(buckets_ch, papa2_error_est.out.error_model)
+        }
       
       } else {
         CLUSTERING(buckets_ch, Channel.empty())
