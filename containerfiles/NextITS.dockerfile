@@ -1,5 +1,5 @@
 # NextITS - Dockerfile, main container
-# Multi-stage build is used to compile Rust-based software
+# Multi-stage build compiles Rust tools (runiq, sd) and papa2 (libpapa2.so)
 # Nextflow is included in the image
 
 ## To build the image, run:
@@ -8,9 +8,20 @@
 ## To run tests during build:
 # docker build --target test --tag nextits-test --file NextITS.dockerfile .
 
-## Build stage 1 (Rust and Cargo)
+## Build stage 1.1 - Rust and Cargo
 FROM rust:1.94.1-slim AS rust
 RUN cargo install runiq sd
+
+## Build stage 1.2 - papa2 (libpapa2.so)
+## need to use rocker image to link against the same glibc as the final image 
+FROM rocker/r-ver:4.5.3 AS papa2_build
+RUN apt-get update -qq \
+  && apt-get -y --no-install-recommends install \
+    ca-certificates git zlib1g-dev build-essential \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/rec3141/papa2.git . \
+  && make libpapa2.so
 
 ## Build stage 2 - Main
 FROM rocker/r-ver:4.5.3 AS main
@@ -27,6 +38,7 @@ RUN apt-get update -qq \
     curl wget git less gawk nano rename bc \
     ca-certificates locales  \
     libtre-dev libtre5 zlib1g zlib1g-dev liblzma-dev libbz2-dev libcurl4-openssl-dev libglpk-dev libglpk40 \
+    libgomp1 \
     build-essential \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
@@ -117,6 +129,21 @@ RUN /opt/software/conda/bin/mamba install -y \
     "mmseqs2" \
   && /opt/software/conda/bin/conda clean --all --yes
 
+## papa2: Python package + libpapa2.so in conda site-packages
+# (avoids pip install . rebuilding native code)
+COPY --from=papa2_build /build/libpapa2.so /tmp/libpapa2.so
+COPY --from=papa2_build /build/papa2 /tmp/papa2_pkg
+RUN SITE=$(/opt/software/conda/bin/python -c "import site; print(site.getsitepackages()[0])") \
+  && /opt/software/conda/bin/pip install --no-cache-dir numpy pandas \
+  && cp -r /tmp/papa2_pkg "$SITE/papa2" \
+  && cp /tmp/libpapa2.so "$SITE/libpapa2.so" \
+  && mkdir -p "$SITE/papa2-0.1.0.dist-info" \
+  && printf 'Metadata-Version: 2.1\nName: papa2\nVersion: 0.1.0\n' > "$SITE/papa2-0.1.0.dist-info/METADATA" \
+  && printf 'papa2\npapa2-0.1.0.dist-info\n' > "$SITE/papa2-0.1.0.dist-info/RECORD" \
+  && cp /tmp/libpapa2.so /usr/local/lib/libpapa2.so \
+  && ldconfig \
+  && rm -rf /tmp/papa2_pkg /tmp/libpapa2.so \
+  && /opt/software/conda/bin/python -c "import papa2; print('papa2 OK', papa2.__version__)"
 
 ## Install cutadapt (with dependencies) from pip - it fails with conda (Python 3.13 confilict)
 # RUN /opt/software/conda/bin/pip install --no-cache-dir \
@@ -267,4 +294,6 @@ RUN echo "=== Testing R installation and packages ===" \
             echo "FAILED - $tool not found in PATH" && exit 1; \
           fi; \
      done \
+  && echo "=== Testing Python / papa2 ===" \
+  && python3 -c "import papa2; print('papa2 version:', papa2.__version__)" \
   && echo "=== All tests passed! Container looks ready for use ==="
