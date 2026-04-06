@@ -619,21 +619,41 @@ workflow CLUSTERING {
             .combine(shared_err_ch)
             .map { input_id, input_file, err_model -> tuple(input_id, input_file, err_model) }
           
-          dada2_inference(shared_dada_input_ch)
+          if(params.dada2_engine == "dada2"){
+            dada2_inference(shared_dada_input_ch)
+          } else if(params.dada2_engine == "papa2"){
+            papa2_inference(shared_dada_input_ch)
+          }
         
         // Estimate error model for each chunk
         } else {
 
-          dada2_error_est(dada_input_ch)
+          if(params.dada2_engine == "dada2"){
+            dada2_error_est(dada_input_ch)
+          
+            // Join input channel with error models (by bucket id, which is the first element of the tuple)
+            dada2_input_with_err_ch = dada_input_ch.join(dada2_error_est.out.error_model_by_id, by: 0)
 
-          // Join input channel with error models (by bucket id, which is the first element of the tuple)
-          dada2_input_with_err_ch = dada_input_ch.join(dada2_error_est.out.error_model_by_id, by: 0)
+            dada2_inference(dada2_input_with_err_ch)
+          
+          } else if(params.dada2_engine == "papa2"){
+            papa2_error_est(dada_input_ch)
+         
+            // Join input channel with error models (by bucket id, which is the first element of the tuple)
+            dada2_input_with_err_ch = dada_input_ch.join(papa2_error_est.out.error_model_by_id, by: 0)
 
-          dada2_inference(dada2_input_with_err_ch)
+            papa2_inference(dada2_input_with_err_ch)
+          }
+
         }
 
-        dada_denoise_ch = dada2_inference.out.dada
-        dada_uc_ch      = dada2_inference.out.dada_uc
+        if(params.dada2_engine == "dada2"){
+          dada_denoise_ch = dada2_inference.out.dada
+          dada_uc_ch      = dada2_inference.out.dada_uc
+        } else if(params.dada2_engine == "papa2"){
+          dada_denoise_ch = papa2_inference.out.dada
+          dada_uc_ch      = papa2_inference.out.dada_uc
+        }
 
         denoise_ch    = dada_denoise_ch
         preclustuc_ch = dada_uc_ch
