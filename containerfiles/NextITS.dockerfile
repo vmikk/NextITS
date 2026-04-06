@@ -9,11 +9,11 @@
 # docker build --target test --tag nextits-test --file NextITS.dockerfile .
 
 ## Build stage 1 (Rust and Cargo)
-FROM rust:1.92.0-slim AS rust
+FROM rust:1.94.1-slim AS rust
 RUN cargo install runiq sd
 
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.5.2 AS main
+FROM rocker/r-ver:4.5.3 AS main
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
