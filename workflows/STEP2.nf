@@ -54,16 +54,14 @@ process aggregate_sequences {
     output:
       path "Seqs.fa.gz",   emit: seqs
       path "Seqs.parquet", emit: seqs_parquet
-      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
-      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
-      tuple val("${task.process}"), val('arrow'), eval('Rscript -e "cat(as.character(packageVersion(\'arrow\')))"'),  topic: versions
-      tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'),  topic: versions
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
+      tuple val("${task.process}"), val('pigz'), eval('pigz --version 2>&1 | head -n 1 | sed "s/pigz //" | cut -d"," -f1'), topic: versions
 
     script:
     """
     echo -e "Aggregating sequences\\n"
     
-    aggregate_sequences.R \
+    aggregate_sequences.sh \
       --seqtabs       . \
       --maxchim       ${params.max_ChimeraScore} \
       --recoverdenovo ${params.recover_denovochimeras} \
