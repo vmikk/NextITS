@@ -363,10 +363,21 @@
           "enum": ["per_bucket", "shared"],
           "description": "How DADA2 error rates are estimated for chunked runs: independently per bucket or once from a shared subset"
         },
+        "dada2_engine": {
+          "type": "string",
+          "default": "papa2",
+          "enum": ["dada2", "papa2"],
+          "description": "DADA2 engine to use: 'dada2' (original R-based implementation) or 'papa2' (Python-based implementation)"
+        },
         "dada2_nbases": {
           "type": "number",
           "default": 1000000,
           "description": "DADA2 number of bases"
+        },
+        "dada2_maxreadsperseq": {
+          "type": "integer",
+          "default": 1000,
+          "description": "Maximum number of reads per sequence for error rate estimation (set to 0 to disable)"
         },
         "dada2_bandsize": {
           "type": "integer",
