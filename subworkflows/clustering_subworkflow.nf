@@ -332,6 +332,67 @@ process papa2_error_est {
 }
 
 
+// PAPA2 - Denoize sequences
+process papa2_inference {
+
+    label "main_container"
+
+    publishDir(
+      "${params.outdir}/02.DADA2",
+      mode: "${params.storagemode}",
+      enabled: params.chunking_n == null || params.chunking_n < 2
+    )
+
+    // cpus 8
+
+    input:
+      tuple val(input_id), path(input), path(errors)
+
+    output:
+      path "DADA2_denoised.fa.gz",        emit: dada
+      path "DADA2_denoised.uc.gz",        emit: dada_uc
+      path "DADA2_denoising_summary.txt", emit: dada_summary
+      // path "DADA2_InferedSeqs_noqualErrfun.pkl.gz"
+      tuple val("${task.process}"), val('Python'), eval('python --version | sed "s/Python //"'),  topic: versions
+      tuple val("${task.process}"), val('papa2'), eval('python3 -c "import papa2; print(papa2.__version__)"'),  topic: versions
+
+    script:
+    """
+    echo -e "Denoizing sequences with PAPA2\\n"
+    echo -e "..Input: ${input}"
+
+    ## DADA2 works with ACGT alphabet only
+    ## 1. So check if there are any sequences with ambiguities
+    ## 2. If any, remove them
+    ## 3. Sort by sequence abundance
+    ## 5. Denoise
+
+    ## Remove sequences with ambiguities
+    echo -e "..Preparing sequences\\n"
+    seqkit seq -w 0 ${input} \
+      | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+      | vsearch --sortbysize - --output - --fasta_width 0 \
+      | pigz -p ${task.cpus} -${params.gzip_compression} > no_ambigs.fa.gz
+
+    echo -e "\\n\\n..Running PAPA2\\n"
+    papa2_no_quals_2_Inference.py \
+      --input            no_ambigs.fa.gz \
+      --errors           ${errors} \
+      --bandsize         ${params.dada2_bandsize} \
+      --detectsingletons ${params.dada2_detectsingletons} \
+      --omegaA           ${params.dada2_omegaA} \
+      --omegaC           ${params.dada2_omegaC} \
+      --omegaP           ${params.dada2_omegaP} \
+      --maxconsist       ${params.dada2_maxconsist} \
+      --match            ${params.dada2_match} \
+      --mismatch         ${params.dada2_mismatch} \
+      --gappenalty       ${params.dada2_gappenalty} \
+      --threads          ${task.cpus}
+
+    echo -e "..Denoizing with DADA2 finished\\n"
+    """
+}
+
 
 // Preclustering with SWARM and d1
 process precluster_swarm {
