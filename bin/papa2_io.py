@@ -4,7 +4,7 @@ with unique sequences sorted by descending abundance
 (same convention as `papa2.derep_fastq`)
 
 Input:
-- NextITS-style dereplicated FASTQ: headers `SeqID;size=ABUNDANCE`
+- NextITS-style dereplicated FASTA/FASTQ: headers `SeqID;size=ABUNDANCE`
 """
 
 from __future__ import annotations
@@ -18,29 +18,29 @@ import numpy as np
 
 @dataclass
 class NextITSRecord:
-    """One FASTQ record after parsing the NextITS header."""
+    """One dereplicated input record after parsing the NextITS header."""
 
     seq_id: str
     abundance: int
     sequence: str
-    qual_ascii: bytes  # raw quality string (same length as sequence)
+    qual_ascii: bytes | None = None
 
 
-def _open_fastq(path: str) -> BinaryIO:
+def _open_input(path: str) -> BinaryIO:
     if path.endswith(".gz"):
         return gzip.open(path, "rb")
     return open(path, "rb")
 
 
 def _parse_header_size(header_line: bytes) -> Tuple[str, int]:
-    """Parse `@SeqID;size=N` or `SeqID;size=N` (strip @)."""
+    """Parse `@SeqID;size=N`, `>SeqID;size=N`, or `SeqID;size=N`."""
     h = header_line.strip()
-    if h.startswith(b"@"):
+    if h.startswith((b"@", b">")):
         h = h[1:]
     text = h.decode("ascii", errors="replace")
     if ";size=" not in text:
         raise ValueError(
-            f"Expected ';size=' in FASTQ header, got: {text[:120]!r}"
+            f"Expected ';size=' in dereplicated header, got: {text[:120]!r}"
         )
     seq_id, rest = text.split(";size=", 1)
     rest = rest.split()[0] if rest.split() else rest
@@ -48,17 +48,42 @@ def _parse_header_size(header_line: bytes) -> Tuple[str, int]:
     return seq_id, abundance
 
 
+def _detect_seq_format(path: str) -> str:
+    with _open_input(path) as fh:
+        while True:
+            line = fh.readline()
+            if not line:
+                raise ValueError(f"Input file is empty: {path}")
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith(b">"):
+                return "fasta"
+            if stripped.startswith(b"@"):
+                return "fastq"
+            raise ValueError(
+                "Could not auto-detect dereplicated input format from the "
+                f"first non-empty line of {path!r}: {stripped[:120]!r}"
+            )
+
+
 def _iter_fastq_records(path: str) -> Iterator[NextITSRecord]:
-    with _open_fastq(path) as fh:
+    with _open_input(path) as fh:
         while True:
             header = fh.readline()
             if not header:
                 break
+            if not header.strip():
+                continue
             seq_line = fh.readline()
             plus = fh.readline()
             qual_line = fh.readline()
             if not qual_line:
-                break
+                raise ValueError("Incomplete FASTQ record at end of file")
+            if not plus.startswith(b"+"):
+                raise ValueError(
+                    f"Expected '+' line in FASTQ record, got: {plus[:120]!r}"
+                )
             seq_id, abundance = _parse_header_size(header)
             seq = seq_line.strip().decode("ascii").upper()
             q = qual_line.rstrip(b"\n\r")
@@ -74,48 +99,98 @@ def _iter_fastq_records(path: str) -> Iterator[NextITSRecord]:
             )
 
 
+def _iter_fasta_records(path: str) -> Iterator[NextITSRecord]:
+    with _open_input(path) as fh:
+        seq_id: str | None = None
+        abundance: int | None = None
+        seq_chunks: List[bytes] = []
+
+        for line in fh:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith(b">"):
+                if seq_id is not None:
+                    sequence = b"".join(seq_chunks).decode("ascii").upper()
+                    yield NextITSRecord(
+                        seq_id=seq_id,
+                        abundance=int(abundance),
+                        sequence=sequence,
+                    )
+                seq_id, abundance = _parse_header_size(stripped)
+                seq_chunks = []
+                continue
+            if seq_id is None:
+                raise ValueError(
+                    f"Expected FASTA header line starting with '>', got: {stripped[:120]!r}"
+                )
+            seq_chunks.append(stripped)
+
+        if seq_id is not None:
+            sequence = b"".join(seq_chunks).decode("ascii").upper()
+            yield NextITSRecord(
+                seq_id=seq_id,
+                abundance=int(abundance),
+                sequence=sequence,
+            )
+
+
 def _qual_bytes_to_floats(q: bytes) -> np.ndarray:
     return np.frombuffer(q, dtype=np.uint8).astype(np.float64) - 33.0
 
 
-def load_nextits_derep_fastq(path: str) -> Tuple[dict, dict]:
-    """Load NextITS dereplicated FASTQ into a papa2 derep dict plus metadata.
+def _empty_nextits_derep() -> Tuple[dict, dict]:
+    empty = {
+        "seqs": [],
+        "abundances": np.array([], dtype=np.int32),
+        "quals": np.zeros((0, 0), dtype=np.float64),
+        "map": np.array([], dtype=np.int32),
+    }
+    meta = {
+        "num_seqs": 0,
+        "num_singl": 0,
+        "num_reads": 0,
+        "perc_nonsingleton": 0.0,
+        "seq_ids_file_order": [],
+        "abundances_file_order": np.array([], dtype=np.int64),
+        "sequences_file_order": [],
+        "unique_index_file_order": np.array([], dtype=np.int32),
+    }
+    return empty, meta
+
+
+def _build_constant_quals(seqs: List[str], q_value: float = 40.0) -> np.ndarray:
+    maxlen = max((len(s) for s in seqs), default=0)
+    quals = np.full((len(seqs), maxlen), np.nan, dtype=np.float64)
+    for i, seq in enumerate(seqs):
+        quals[i, : len(seq)] = q_value
+    return quals
+
+
+def load_nextits_derep(path: str) -> Tuple[dict, dict]:
+    """Load NextITS dereplicated FASTA/FASTQ into a papa2 derep dict plus metadata.
 
     Returns:
         derep: dict with keys ``seqs``, ``abundances``, ``quals``, ``map``.
         meta: dict with:
             - ``num_seqs``, ``num_singl``, ``num_reads``, ``perc_nonsingleton``
-            - ``seq_ids_file_order``: list of SeqID per FASTQ record (file order)
-            - ``abundances_file_order``: np.ndarray abundances per record
-            - ``sequences_file_order``: list of sequences per record
-            - ``unique_index_file_order``: for each file record, index into
+            - ``seq_ids_file_order``: list of SeqID per input record (file order)
+            - ``abundances_file_order``: np.ndarray abundances per input record
+            - ``sequences_file_order``: list of sequences per input record
+            - ``unique_index_file_order``: for each input record, index into
               sorted uniques (after merge + abundance sort)
     """
-    records: List[NextITSRecord] = list(_iter_fastq_records(path))
+    input_format = _detect_seq_format(path)
+    record_iter = _iter_fasta_records if input_format == "fasta" else _iter_fastq_records
+    records: List[NextITSRecord] = list(record_iter(path))
     if not records:
-        empty = {
-            "seqs": [],
-            "abundances": np.array([], dtype=np.int32),
-            "quals": np.zeros((0, 0), dtype=np.float64),
-            "map": np.array([], dtype=np.int32),
-        }
-        meta = {
-            "num_seqs": 0,
-            "num_singl": 0,
-            "num_reads": 0,
-            "perc_nonsingleton": 0.0,
-            "seq_ids_file_order": [],
-            "abundances_file_order": np.array([], dtype=np.int64),
-            "sequences_file_order": [],
-            "unique_index_file_order": np.array([], dtype=np.int32),
-        }
-        return empty, meta
+        return _empty_nextits_derep()
 
     seq_ids_file = [r.seq_id for r in records]
     abunds_file = np.array([r.abundance for r in records], dtype=np.int64)
     seqs_file = [r.sequence for r in records]
 
-    # Stats in R sense: one row per FASTQ record (unique sequence line)
+    # Stats in R sense: one row per input record (unique sequence line)
     num_seqs = len(records)
     num_singl = int(np.sum(abunds_file < 2))
     num_reads = int(abunds_file.sum())
@@ -123,7 +198,7 @@ def load_nextits_derep_fastq(path: str) -> Tuple[dict, dict]:
         round((num_seqs - num_singl) / num_seqs * 100, 2) if num_seqs else 0.0
     )
 
-    # Merge identical sequences (sum abundances, weighted mean qual)
+    # Merge identical sequences (sum abundances, weighted mean qual for FASTQ)
     seq_to_idx: dict = {}
     merged_abund: List[int] = []
     merged_qual_sum: List[np.ndarray] = []
@@ -131,34 +206,42 @@ def load_nextits_derep_fastq(path: str) -> Tuple[dict, dict]:
 
     for r in records:
         s = r.sequence
-        qf = _qual_bytes_to_floats(r.qual_ascii)
         if s not in seq_to_idx:
             idx = len(merged_abund)
             seq_to_idx[s] = idx
             merged_abund.append(0)
-            slen = len(s)
-            merged_qual_sum.append(np.zeros(slen, dtype=np.float64))
-            merged_qual_weight.append(0)
+            if input_format == "fastq":
+                slen = len(s)
+                merged_qual_sum.append(np.zeros(slen, dtype=np.float64))
+                merged_qual_weight.append(0)
         idx = seq_to_idx[s]
         merged_abund[idx] += r.abundance
-        merged_qual_sum[idx][: len(qf)] += qf * r.abundance
-        merged_qual_weight[idx] += r.abundance
+        if input_format == "fastq":
+            qf = _qual_bytes_to_floats(r.qual_ascii or b"")
+            merged_qual_sum[idx][: len(qf)] += qf * r.abundance
+            merged_qual_weight[idx] += r.abundance
 
     n_u = len(merged_abund)
     uniq_seqs = [None] * n_u  # type: ignore
     for s, idx in seq_to_idx.items():
         uniq_seqs[idx] = s
 
-    maxlen = max(len(s) for s in uniq_seqs) if uniq_seqs else 0
-    quals = np.full((n_u, maxlen), np.nan, dtype=np.float64)
     abundances = np.zeros(n_u, dtype=np.int32)
     for i in range(n_u):
         abundances[i] = int(merged_abund[i])
-        slen = len(uniq_seqs[i])
-        if merged_qual_weight[i] > 0:
-            quals[i, :slen] = merged_qual_sum[i][:slen] / merged_qual_weight[i]
-        else:
-            quals[i, :slen] = np.nan
+    if input_format == "fastq":
+        maxlen = max(len(s) for s in uniq_seqs) if uniq_seqs else 0
+        quals = np.full((n_u, maxlen), np.nan, dtype=np.float64)
+        for i in range(n_u):
+            slen = len(uniq_seqs[i])
+            if merged_qual_weight[i] > 0:
+                quals[i, :slen] = (
+                    merged_qual_sum[i][:slen] / merged_qual_weight[i]
+                )
+            else:
+                quals[i, :slen] = np.nan
+    else:
+        quals = _build_constant_quals(uniq_seqs)
 
     # Sort by abundance descending (papa2 / derep_fastq convention)
     order = np.argsort(-abundances, kind="mergesort")

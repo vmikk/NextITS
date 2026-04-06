@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Learn error rates (no-quality model) from NextITS-style dereplicated FASTQ.
+Learn error rates (no-quality model) from NextITS-style dereplicated FASTA/FASTQ.
 
 Outputs:
 - DADA2_ErrorRates_noqualErrfun.npz (NumPy array, compressed)
@@ -55,7 +55,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Learn DADA2 error rates (noqual_errfun) via papa2."
     )
-    p.add_argument("-i", "--input", required=True, help="Input FASTQ (.gz ok)")
+    p.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Input dereplicated FASTA/FASTQ (gzip-compressed data supported)",
+    )
     p.add_argument(
         "-n",
         "--nbases",
@@ -142,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     print("Loading papa2", papa2.__version__)
 
     print("\nLoading input data")
-    derep_full, meta = papa2_io.load_nextits_derep_fastq(args.input)
+    derep_full, meta = papa2_io.load_nextits_derep(args.input)
 
     num_seqs = meta["num_seqs"]
     num_singl = meta["num_singl"]

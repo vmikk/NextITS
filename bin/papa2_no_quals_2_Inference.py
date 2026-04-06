@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Denoise NextITS-style dereplicated FASTQ with a pre-learned error model
+Denoise NextITS-style dereplicated FASTA/FASTQ with a pre-learned error model
 
 Inputs:
-- NextITS-style dereplicated FASTQ: headers `SeqID;size=ABUNDANCE`
+- NextITS-style dereplicated FASTA/FASTQ: headers `SeqID;size=ABUNDANCE`
 - Pre-learned error model: `DADA2_ErrorRates_noqualErrfun.npz`
 
 Outputs:
@@ -54,12 +54,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="DADA2 sample inference (noqual_errfun) via papa2."
     )
-    p.add_argument("-i", "--input", required=True, help="Input FASTQ")
+    p.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="Input dereplicated FASTA/FASTQ (gzip-compressed data supported)",
+    )
     p.add_argument(
         "-e",
         "--errors",
         required=True,
-        help="Error model (.npz from dada2_no_quals_1_ErrorEstimation.py)",
+        help="Error model (.npz from papa2_no_quals_1_ErrorEstimation.py)",
     )
     p.add_argument("-b", "--bandsize", type=float, default=16.0)
     p.add_argument(
@@ -140,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     print("Loading papa2", papa2.__version__)
 
     print("\nLoading input data")
-    derep, meta = papa2_io.load_nextits_derep_fastq(args.input)
+    derep, meta = papa2_io.load_nextits_derep(args.input)
     num_seqs = meta["num_seqs"]
     num_singl = meta["num_singl"]
     num_reads = meta["num_reads"]
@@ -242,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{int(cluster_abunds.sum())}"
     )
 
-    ## Pseudo-UC: one row per FASTQ record (file order)
+    ## Pseudo-UC: one row per input record (file order)
     map_u = np.asarray(dadares["map"], dtype=np.int64)
     uc_pre = []
     for k in range(len(seq_ids_file)):
