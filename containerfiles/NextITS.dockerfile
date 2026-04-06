@@ -19,7 +19,7 @@ ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV SHELL=/bin/bash
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
-LABEL org.opencontainers.image.version="1.2.0"
+LABEL org.opencontainers.image.version="1.2.2"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
@@ -97,23 +97,23 @@ RUN cd /opt/software \
 RUN /opt/software/conda/bin/mamba install -y \
     "lima>=2.13.0" \
     "pbtk>=3.5.0" \
-    "vsearch>=2.30.3" \
+    "vsearch>=2.30.6" \
     "swarm>=3.1.6" \
-    "seqkit>=2.12.0" \
-    "seqfu>=1.23.0" \
-    "fastp>=1.0.1" \
+    "seqkit>=2.13.0" \
+    "seqfu>=1.25.1" \
+    "fastp>=1.3.1" \
     "blast>=2.17.0" \
     "bioawk" \
-    "miller>=6.16.0" \
+    "miller>=6.17.0" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20251122" \
+    "parallel>=20260122" \
     "csvtk>=0.36.0" \
     "cutadapt>=5.2" \
     "itsx>=1.1.3" \
-    "bbmap>=39.52" \
+    "bbmap>=39.81" \
     "ripgrep>=15.1.0" \
-    "fd-find>=10.3.0" \
+    "fd-find>=10.4.2" \
     "mmseqs2" \
   && /opt/software/conda/bin/conda clean --all --yes
 
@@ -178,7 +178,7 @@ RUN cd /opt/software \
 
 ## Install DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.4.4/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.5.1/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
@@ -220,7 +220,7 @@ ENTRYPOINT ["/opt/software/entrypoint.sh"]
 FROM main AS test
 
 # Set environment variable for R version testing
-ENV R_VERSION=4.5.2
+ENV R_VERSION=4.5.3
 
 RUN echo "=== Testing R installation and packages ===" \
   && R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')" \
