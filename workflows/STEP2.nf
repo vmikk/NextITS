@@ -30,7 +30,7 @@ include { CLUSTERING }                from '../subworkflows/clustering_subworkfl
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 
 if(params.preclustering == "dada2" && params.dada2_error_estimation == "shared"){
-  include { dada2_error_est } from '../subworkflows/clustering_subworkflow.nf'
+  include { dada2_error_est, papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
 }
 
 // Directory for storing pipeline information
