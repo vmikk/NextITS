@@ -192,35 +192,59 @@ def load_nextits_derep_fastq(path: str) -> Tuple[dict, dict]:
     return derep, meta
 
 
-def subsample_derep_by_nbases(derep: dict, target_bases: float) -> dict:
+def subsample_derep_by_nbases(
+    derep: dict, target_bases: float, max_reads_per_seq: int = 0
+) -> dict:
     """Take a subset of uniques (highest abundance first) until >= target_bases.
 
     Approximates DADA2 ``learnErrors(..., nbases=...)`` read/budget behavior
     for a single pre-dereplicated sample.
+    Optionally caps the effective abundance of each unique during learning 
+    to avoid the budget being consumed by a handful of extremely abundant sequences.
     """
     seqs = derep["seqs"]
     abunds = derep["abundances"]
     quals = derep["quals"]
     if not seqs:
         return dict(derep)
+    if max_reads_per_seq < 0:
+        raise ValueError("max_reads_per_seq must be >= 0")
+
+    learn_abunds = np.asarray(abunds, dtype=np.int32)
+    if max_reads_per_seq > 0:
+        learn_abunds = np.minimum(learn_abunds, int(max_reads_per_seq)).astype(
+            np.int32, copy=False
+        )
 
     total_bases = float(
-        sum(int(abunds[i]) * len(seqs[i]) for i in range(len(seqs)))
+        sum(int(learn_abunds[i]) * len(seqs[i]) for i in range(len(seqs)))
     )
     if total_bases <= target_bases:
-        return dict(derep)
+        max_col = max(len(s) for s in seqs)
+        new_quals = np.asarray(quals, dtype=np.float64)
+        if new_quals.shape[1] > max_col:
+            new_quals = new_quals[:, :max_col]
+        elif new_quals.shape[1] < max_col:
+            pad = max_col - new_quals.shape[1]
+            new_quals = np.hstack(
+                [new_quals, np.full((new_quals.shape[0], pad), np.nan)]
+            )
+        return {
+            "seqs": list(seqs),
+            "abundances": np.asarray(learn_abunds, dtype=np.int32),
+            "quals": new_quals,
+            "map": np.arange(len(seqs), dtype=np.int32),
+        }
 
-    order = np.argsort(-abunds, kind="mergesort")
     cum = 0
     keep_idx: List[int] = []
-    for j in order:
-        cum += int(abunds[j]) * len(seqs[j])
-        keep_idx.append(int(j))
+    for i, seq in enumerate(seqs):
+        cum += int(learn_abunds[i]) * len(seq)
+        keep_idx.append(i)
         if cum >= target_bases:
             break
-    keep_idx = sorted(keep_idx, key=lambda i: -int(abunds[i]))
     new_seqs = [seqs[i] for i in keep_idx]
-    new_abunds = np.array([int(abunds[i]) for i in keep_idx], dtype=np.int32)
+    new_abunds = np.array([int(learn_abunds[i]) for i in keep_idx], dtype=np.int32)
     new_quals = np.asarray(quals[keep_idx, :], dtype=np.float64)
     if new_seqs:
         max_col = max(len(s) for s in new_seqs)

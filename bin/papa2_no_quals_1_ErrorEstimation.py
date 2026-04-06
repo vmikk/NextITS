@@ -42,6 +42,15 @@ def _parse_hpgap(s: str | None):
     return float(s)
 
 
+def _parse_nonnegative_int(s: str) -> int:
+    value = int(s)
+    if value < 0:
+        raise argparse.ArgumentTypeError(
+            f"Expected a non-negative integer, got {s!r}"
+        )
+    return value
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Learn DADA2 error rates (noqual_errfun) via papa2."
@@ -70,6 +79,15 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--mismatch", type=float, default=-5.0)
     p.add_argument("--gappenalty", type=float, default=-8.0)
     p.add_argument("--hpgap", type=_parse_hpgap, default=None)
+    p.add_argument(
+        "--maxreadsperseq",
+        type=_parse_nonnegative_int,
+        default=1000,
+        help=(
+            "Maximum effective reads per unique sequence during error learning "
+            "(0 disables capping; default: 1000)"
+        ),
+    )
     p.add_argument(
         "-t",
         "--threads",
@@ -103,6 +121,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Alignment for mismatches: {args.mismatch}")
     print(f"Gap penalty: {args.gappenalty}")
     print(f"Homopolymer gap penalty: {args.hpgap}")
+    print(
+        "Maximum effective reads per unique for error learning: "
+        f"{args.maxreadsperseq}"
+    )
     print(f"Number of CPU threads to use: {args.threads}")
     print()
 
@@ -141,15 +163,19 @@ def main(argv: list[str] | None = None) -> int:
 
     print("\nPreparing derep-class object (papa2 dict)")
     derep_learn = papa2_io.subsample_derep_by_nbases(
-        derep_full, float(args.nbases)
+        derep_full,
+        float(args.nbases),
+        max_reads_per_seq=int(args.maxreadsperseq),
     )
+    learn_reads = int(np.asarray(derep_learn["abundances"], dtype=np.int64).sum())
     bases_used = sum(
         int(derep_learn["abundances"][i]) * len(derep_learn["seqs"][i])
         for i in range(len(derep_learn["seqs"]))
     )
     print(
         f"Learning subset: {len(derep_learn['seqs'])} uniques, "
-        f"~{bases_used} bases (target nbases={args.nbases})"
+        f"{learn_reads} effective reads, "
+        f"~{bases_used} effective bases (target nbases={args.nbases})"
     )
 
     # NW / gap scores are integers in the C API (ctypes c_int); argparse gives float.
@@ -190,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
         str(out_npz),
         err=err,
         nbases=np.array([args.nbases]),
+        maxreadsperseq=np.array([args.maxreadsperseq], dtype=np.int64),
         input_path=np.array([args.input], dtype=object),
     )
 
