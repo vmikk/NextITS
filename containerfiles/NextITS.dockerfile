@@ -63,7 +63,7 @@ RUN    install2.r --error --skipinstalled \
           if (!ok || !requireNamespace("speedyseq", quietly=TRUE)) quit(status=1)' \
     && R -e 'ok <- tryCatch({ remotes::install_github("vmikk/metagMisc"); TRUE }, error=function(e){ message(e); FALSE }); \
           if (!ok || !requireNamespace("metagMisc", quietly=TRUE)) quit(status=1)' \
-    && R -e 'ok <- tryCatch({ remotes::install_cran("qs", type = "source", configure.args = "--with-simd=AVX2"); TRUE }, error=function(e){ message(e); FALSE }); \
+    && R -e 'ok <- tryCatch({ remotes::install_github("qsbase/qs", configure.args = "--with-simd=AVX2"); TRUE }, error=function(e){ message(e); FALSE }); \
           if (!ok || !requireNamespace("qs", quietly=TRUE)) quit(status=1)' \
     && rm -rf /tmp/downloaded_packages
 
