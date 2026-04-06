@@ -1,5 +1,10 @@
 # NextITS - Singularity definition file, main container
 
+## NB! This definition file is deprecated (and may be outdated)
+# Use the Docker image directly instead.
+# To convert Docker image to Singularity use:
+# singularity pull vmiks-nextits-nextits-1-2-0.img docker://vmikk/nextits:1.2.0 
+
 ## To avoid GitHub API limits, use `SINGULARITYENV_GITHUB_PAT=[token]` with Singularity
 ## to specify the GITHUB_PAT token (the token will be available only during the `%post` section of the build)
 
