@@ -280,6 +280,58 @@ process dada2_inference {
 
 
 
+// PAPA2 - Estimate error rates
+process papa2_error_est {
+
+    label "main_container"
+
+    // cpus 8
+
+    input:
+      tuple val(input_id), path(input)
+
+    output:
+      tuple val(input_id), path("DADA2_ErrorRates_noqualErrfun.npz"), emit: error_model_by_id
+      path "DADA2_ErrorRates_noqualErrfun.npz", emit: error_model
+      tuple val("${task.process}"), val('Python'), eval('python --version | sed "s/Python //"'),  topic: versions
+      tuple val("${task.process}"), val('papa2'), eval('python3 -c "import papa2; print(papa2.__version__)"'),  topic: versions
+
+    script:
+    """
+    echo -e "Estimating error rates with PAPA2\\n"
+
+    ## DADA2 works with ACGT alphabet only
+    ## 1. So check if there are any sequences with ambiguities
+    ## 2. If any, remove them
+    ## 3. Sort by sequence abundance
+
+    echo -e "..Preparing sequences\\n"
+    seqkit seq -w 0 ${input} \
+      | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+      | vsearch --sortbysize - --output - --fasta_width 0 \
+      | pigz -p ${task.cpus} -${params.gzip_compression} > no_ambigs.fa.gz
+
+    echo -e "\\n..Running PAPA2 error estimation\\n"
+    papa2_no_quals_1_ErrorEstimation.py \
+      --input            no_ambigs.fa.gz \
+      --nbases           ${params.dada2_nbases} \
+      --bandsize         ${params.dada2_bandsize} \
+      --detectsingletons ${params.dada2_detectsingletons} \
+      --omegaA           ${params.dada2_omegaA} \
+      --omegaC           ${params.dada2_omegaC} \
+      --omegaP           ${params.dada2_omegaP} \
+      --maxconsist       ${params.dada2_maxconsist} \
+      --match            ${params.dada2_match} \
+      --mismatch         ${params.dada2_mismatch} \
+      --gappenalty       ${params.dada2_gappenalty} \
+      --maxreadsperseq   ${params.dada2_maxreadsperseq} \
+      --threads          ${task.cpus}
+
+    echo -e "..DADA2 error estimation finished\\n"
+    """
+}
+
+
 
 // Preclustering with SWARM and d1
 process precluster_swarm {
