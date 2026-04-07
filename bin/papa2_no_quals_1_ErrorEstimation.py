@@ -24,6 +24,15 @@ import numpy as np
 import papa2_io
 
 
+def _configure_stdio() -> None:
+    """Force line-buffered console output for batch/HPC log files."""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(line_buffering=True, write_through=True)
+
+
 def _parse_bool(s: str) -> bool:
     x = str(s).strip().upper()
     if x in ("TRUE", "T", "1", "YES"):
@@ -104,6 +113,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _configure_stdio()
     args = _build_parser().parse_args(argv)
     start = time.time()
 
