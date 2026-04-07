@@ -6,13 +6,21 @@
 ## Number of buckets can be automatically selected
 ## (e.g., to avoid the DADA2s' error message `long vectors not supported yet`, related with > 2^31 elements)
 
+## Notes - allocating large number of CPUs will not add much (used only for data.table).
+#  Currently, exporting FASTA files is single-threaded
+#  (with multi-threaded export, RAM usage will high, as for each thread full sequnece list will be duplicated)
+
 ## Usage examples:
 # bucketize_db.R \
-#  --db         stat_clusters.txt \
+#  --db         Cluster_Membership.txt \
 #  --fasta      Input.fa.gz \
 #  --summary    bucket_summary.txt \
 #  --numbuckets 10 \
 #  --threads    10
+
+## Input data:
+# - DB: TSV, no header, two columns (ClusterID, QueryID)
+# - FASTA file with sequences, header format: >QueryID;size=Abundance
 
 
 ## Check time
@@ -66,6 +74,15 @@ cat(paste("CPU threads: ",                THREADS,  "\n", sep = ""))
 cat("\n")
 
 
+############################################## Data for debugging
+
+# DATABASE <- "DB_clu.tsv"
+# FASTA    <- "Dereplicated.fa.gz"
+# SUMMARY  <- "bucket_summary.txt"
+# NBUCKETS <- 400
+# THREADS  <- 10
+
+
 ############################################## Load packages
 
 cat("Loading R packages...\n")
@@ -77,34 +94,77 @@ load_pckg <- function(pkg = "data.table"){
 
 load_pckg("data.table")
 load_pckg("Biostrings")
-load_pckg("plyr")
 
 if(THREADS < 1){ THREADS <- 1 }
-if(THREADS > 1){
-  cat("Preparing multi-threaded setup\n")
-
-  load_pckg("doFuture")
-  registerDoFuture()
-  plan(multicore, workers = THREADS)
-  options(future.globals.maxSize = 6e10)  # 60GB
-  
-  setDTthreads(threads = THREADS)         # for data.table
-
-  parall <- TRUE
-
-} else {
-  parall <- FALSE
-  setDTthreads(threads = 1)
-}
+setDTthreads(threads = THREADS)
 
 cat("\n")
 
 
 ############################################## Workflow
 
+## Function to extract sequence size from sequence IDs
+extract_seq_size <- function(seq_ids){
+  size_field <- tstrsplit(seq_ids, split = ";", fixed = TRUE, keep = 2L)[[1L]]
+  size_num <- suppressWarnings(as.numeric(sub(pattern = "^size=", replacement = "", x = size_field)))
+  size_num[ is.na(size_num) ] <- 0
+  size_num
+}
+
+## Helper function for exporting FASTA files
+## it opens the output file once, then writes many small DNAStringSet chunks into that same open handle
+## The main idea is to avoid the full-bucket allocation, which can be problematic for large data
+write_bucket_fasta <- function(seq_index, filepath, seqs, chunk_nseq){
+  # seq_index  = indices of the sequences to export
+  # filepath   = path to the output file
+  # seqs       = DNAStringSet object with all sequences
+  # chunk_nseq = number of sequences to write in each chunk
+  
+  nseq <- length(seq_index)
+  
+  ## Open a compressed file handle
+  filexp_list <- XVector:::open_output_file(
+    filepath = filepath,
+    append   = FALSE,
+    compress = TRUE,
+    compression_level = NA)
+  on.exit(Biostrings:::.close_filexp_list(filexp_list), add = TRUE)
+
+  ## If there are no sequences to export, write an empty DNAStringSet
+  if(nseq == 0L){
+    Biostrings:::.write_XStringSet_to_fasta(
+      x = seqs[integer()],
+      filexp_list = filexp_list,
+      width = 9999)
+
+    return(invisible(NULL))
+  }
+
+  ## Write chunks of sequences to the compressed file handle
+  for(chunk_start in seq.int(1L, nseq, by = chunk_nseq)){
+    chunk_end <- min(chunk_start + chunk_nseq - 1L, nseq)
+
+    Biostrings:::.write_XStringSet_to_fasta(
+      x = seqs[ seq_index[chunk_start:chunk_end] ],
+      filexp_list = filexp_list,
+      width = 9999)
+  }
+
+  invisible(NULL)
+}
+
 ## Load seq stats
 cat("..Loading input sequences\n")
 seqs <- readDNAStringSet(filepath = FASTA)
+seq_names     <- names(seqs)
+seq_widths    <- width(seqs)
+max_seq_width <- max(seq_widths)
+
+## Bound per-write allocations during FASTA export
+EXPORT_CHUNK_BASES <- 5e7
+EXPORT_CHUNK_NSEQ <- max(1L, as.integer(floor(EXPORT_CHUNK_BASES / max_seq_width)))
+
+cat("..FASTA export chunk size: up to ", format(EXPORT_CHUNK_NSEQ, big.mark = ","), " sequences per write\n", sep = "")
 
 ## Load clustering file
 cat("..Loading clustering file\n")
@@ -112,11 +172,25 @@ DB <- fread(file = DATABASE,
   sep = "\t", header = FALSE,
   col.names = c("Cluster", "Member"))
 
-## Estimate sequence length
+## Match clustering members to FASTA entries
+cat("..Matching clustering members to FASTA entries\n")
+DB[ , SeqIndex := match(Member, seq_names) ]
+
+if(anyNA(DB$SeqIndex)){
+  missing_ids <- DB[ is.na(SeqIndex), head(Member, 5L) ]
+  stop(
+    "Could not match ", sum(is.na(DB$SeqIndex)),
+    " clustering members to FASTA entries. Examples: ",
+    paste(missing_ids, collapse = ", "),
+    "\n")
+}
+
+## Estimate sequence length and size
 cat("..Estimating total length of the sequences\n")
-seqt <- data.table(Member = names(seqs), Len = width(seqs))
-DB <- merge(x = DB, y = seqt, by = "Member", all.x = TRUE)
-rm(seqt)
+DB[ , Len := seq_widths[SeqIndex] ]
+DB[ , Size := extract_seq_size(Member) ]
+rm(seq_names, seq_widths)
+invisible(gc(FALSE))
 
 ## Estimate number of sequences per cluster and the total length of sequences
 cat("..Estimating cluster sizes\n")
@@ -125,6 +199,9 @@ datt <- DB[ , .(num_seqs = .N, sum_len = sum(Len, na.rm = TRUE)), by = "Cluster"
 ## Sort clusters by the number of sequenes in descending order
 cat("..Sorting clusters\n")
 setorder(datt, -sum_len, -num_seqs)
+cluster_ids      <- datt[[ "Cluster"  ]]
+cluster_num_seqs <- datt[[ "num_seqs" ]]
+cluster_sum_len  <- datt[[ "sum_len"  ]]
 
 
 cat("..Bucketizing\n")
@@ -137,7 +214,7 @@ if(is.na(NBUCKETS)){
   ## Meaning that `num_seq * len_seq` must be < 2^31
 
   ## Calculate approximate estimate for the maximum number of sequences per bucket
-  maxseqs <- 2^31 / max(DB$Len)   # quantile(x = DB$Len, probs = 0.99)
+  maxseqs <- 2^31 / max_seq_width   # quantile(x = DB$Len, probs = 0.99)
 
   ## Number of buckets
   NBUCKETS <- ceiling(nrow(DB) / maxseqs)
@@ -146,28 +223,25 @@ if(is.na(NBUCKETS)){
 }
 
 
-## Initializing buckets and bucket sizes
-buckets <- vector("list", length = NBUCKETS)
+## Initializing bucket assignments and bucket sizes
+cluster_bucket      <- integer(nrow(datt))
 bucket_size_numseqs <- numeric(NBUCKETS)
 bucket_size_lenseqs <- numeric(NBUCKETS)
 
 ## Distributing files into buckets
 ## By starting with the largest files and placing each one in the currently smallest bucket, 
 ## we try to prevent any single bucket from becoming significantly larger than the others
-for (i in 1:nrow(datt)) {
+for (i in seq_len(nrow(datt))) {
   
   ## Find the bucket with the minimum total sequence length
   min_bucket_index <- which.min(bucket_size_lenseqs)
   
-  ## Add the cluster ID to the chosen bucket
-  buckets[[ min_bucket_index ]] <- c(
-    buckets[[ min_bucket_index ]],
-    datt[i, ]$Cluster
-    )
+  ## Assign the cluster to the chosen bucket
+  cluster_bucket[i] <- min_bucket_index
   
   # Updating the total sequence length of the chosen bucket
-  bucket_size_lenseqs[ min_bucket_index ] <- bucket_size_lenseqs[min_bucket_index] + datt[i, ]$sum_len
-  bucket_size_numseqs[ min_bucket_index ] <- bucket_size_numseqs[min_bucket_index] + datt[i, ]$num_seqs
+  bucket_size_lenseqs[ min_bucket_index ] <- bucket_size_lenseqs[min_bucket_index] + cluster_sum_len[i]
+  bucket_size_numseqs[ min_bucket_index ] <- bucket_size_numseqs[min_bucket_index] + cluster_num_seqs[i]
 
 }
 
@@ -175,8 +249,8 @@ cat("..Bucket summary:\n\n")
 
 ## Prepare bucket summary
 smr <- data.table(
-    BucketID     = 1:length(buckets),
-    Num_clusters = laply(.data = buckets, .fun = function(x){ length(x) }),
+    BucketID     = seq_len(NBUCKETS),
+    Num_clusters = tabulate(cluster_bucket, nbins = NBUCKETS),
     sum_len      = bucket_size_lenseqs,
     num_seqs     = bucket_size_numseqs)
 
@@ -187,48 +261,57 @@ smr[ , NumClust_Percent := round(Num_clusters / sum(Num_clusters) * 100, 2) ]
 smr[ , TotLen_Percent   := round(sum_len   / sum(sum_len)   * 100, 2) ]
 smr[ , TotSeqs_Percent  := round(num_seqs  / sum(num_seqs)  * 100, 2) ]
 
+## Bucket summary
+cat("..Exporting bucket summary\n")
+fwrite(x = smr, file = SUMMARY, sep = "\t", col.names = TRUE)
+
 
 cat("\n\n..Exporting FASTA file for each bucket\n")
+
+## Prepare export index once instead of scanning DB for every bucket
+cat("..Preparing export index\n")
+cluster_bucket_dt <- data.table(Cluster = cluster_ids, BucketID = cluster_bucket)
+DB[ cluster_bucket_dt, on = "Cluster", BucketID := i.BucketID ]
+DB[ , c("Cluster", "Member", "Len") := NULL ]
+setcolorder(DB, c("BucketID", "Size", "SeqIndex"))
+setorder(DB, BucketID, -Size, SeqIndex)
+
+export_ranges <- DB[ , .(start = .I[1L], end = .I[.N]), by = BucketID ]
+export_start <- integer(NBUCKETS)
+export_end   <- integer(NBUCKETS)
+export_start[ export_ranges$BucketID ] <- export_ranges$start
+export_end[ export_ranges$BucketID ]   <- export_ranges$end
+export_seq_idx <- DB[["SeqIndex"]]
+
+rm(DB, datt, cluster_bucket, cluster_bucket_dt, export_ranges, cluster_ids, cluster_num_seqs, cluster_sum_len)
+invisible(gc(FALSE))
 
 ## Exporting function
 export_bucket <- function(clustnum = 1){
 
   cat("...Bucket ", clustnum, "\n")
 
-  ## IDs of cluster representatives
-  clustids <- buckets[[ clustnum ]]
-
-  ## Find sequence IDs to export
-  ids <- data.table(SeqID = DB[ Cluster %in% clustids ]$Member)
-
-  ## Sort sequences by size
-  ids[ , Size := tstrsplit(SeqID, split = ";", keep = 2) ]
-  ids[ , Size := as.numeric( sub(pattern = "size=", replacement = "", x = Size) ) ]
-  setorder(ids, -Size, SeqID)
-
   ## Cluster ID with leading zero
   cl <- sprintf(paste0("%0", nchar(NBUCKETS), "d"), clustnum)
 
-  ## Extract and export
-  writeXStringSet(
-    x = seqs[ ids$SeqID ],
-    filepath = paste0("bucket_", cl, ".fa.gz"),
-    compress = TRUE,
-    format = "fasta",
-    width = 9999)
+  ## Extract and export in bounded chunks
+  row_start <- export_start[clustnum]
+  row_end   <- export_end[clustnum]
+  seq_index <- if(row_start > 0L) export_seq_idx[ row_start:row_end ] else integer()
+
+  write_bucket_fasta(
+    seq_index  = seq_index,
+    filepath   = paste0("bucket_", cl, ".fa.gz"),
+    seqs       = seqs,
+    chunk_nseq = EXPORT_CHUNK_NSEQ)
+
+  invisible(gc(FALSE))
 
 }
 
-a_ply(
-  .data     = seq_along(buckets),
-  .margins  = 1,
-  .fun      = export_bucket,
-  .parallel = parall)
-
-
-## Bucket summary
-cat("..Exporting bucket summary\n")
-fwrite(x = smr, file = SUMMARY, sep = "\t", col.names = TRUE)
+for(clustnum in seq_len(NBUCKETS)){
+  export_bucket(clustnum)
+}
 
 
 cat("\nAll done.\n")
