@@ -291,8 +291,7 @@ if(n_cll < 50000000){
   cat("..Merging data into a single wide table\n")
 
   ## Merge chunks into a single wide table
-  merge_dt <- function(x,y){ data.table::merge.data.table(x, y, by = "OTU", all = TRUE) }
-  REW <- Reduce(f = merge_dt, x = REWL)
+  REW <- mergelist(l = REWL, on = "OTU", how = "full", mult = "error")
   cat("...Merging finished\n")
 
   ## Clean up
