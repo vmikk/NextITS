@@ -614,7 +614,7 @@ process summarize {
       | duckdb -c "
     COPY (
       SELECT
-        regexp_replace(column0, ';size=.*$', '') AS SeqID,
+        regexp_replace(column0, ';size=.*\$', '') AS SeqID,
         TRY_CAST(regexp_extract(column0, ';size=([0-9]+)', 1) AS INTEGER) AS Abundance,
         column1 AS Sequence
       FROM read_csv(
