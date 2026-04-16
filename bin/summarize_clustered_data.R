@@ -157,8 +157,8 @@ cat("\n..Loading sequence tables\n")
 TAB <- arrow::read_parquet(SEQTAB)
 setDT(TAB)
 cat("... Total number of records: ",             nrow(TAB), "\n")
-cat("... Total number unique sequences: ",       length(unique(TAB$Sequence)), "\n")
-cat("... Total number unique samples (files): ", length(unique(TAB$SampleID)), "\n")
+cat("... Total number unique sequences: ",       uniqueN(TAB$Sequence), "\n")
+cat("... Total number unique samples (files): ", uniqueN(TAB$SampleID), "\n")
 
 ## Load UC file for globally dereplicated sequences
 cat("..Loading pooled UC file\n")
@@ -234,8 +234,8 @@ if(MERGE_SAMPLES == TRUE){
 cat("\nReshaping table into wide format\n")
 
 ## Check if we can reshape the table in a single pass
-n_otu <- length(unique(RES$OTU))
-n_smp <- length(unique(RES$SampleID))
+n_otu <- uniqueN(RES$OTU)
+n_smp <- uniqueN(RES$SampleID)
 n_cll <- as.numeric(n_otu) * as.numeric(n_smp)
 cat("...In total, there are ", n_otu, " OTUs and ",  n_smp, " samples\n")
 cat("...The total number of cells in the wide table will be ", n_cll, "\n")
