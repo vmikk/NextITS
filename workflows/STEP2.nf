@@ -609,15 +609,36 @@ process summarize {
     """
     echo -e "Summarizing clustered data\\n"
 
+    echo -e "..Converting OTU FASTA file to parquet format\\n"
+    seqkit fx2tab -i -Q "${otus_fasta}" \
+      | duckdb -c "
+    COPY (
+      SELECT
+        regexp_replace(column0, ';size=.*$', '') AS SeqID,
+        TRY_CAST(regexp_extract(column0, ';size=([0-9]+)', 1) AS INTEGER) AS Abundance,
+        column1 AS Sequence
+      FROM read_csv(
+        '/dev/stdin',
+        header = false, delim = '\t',
+        columns = {
+          'column0': 'VARCHAR',
+          'column1': 'VARCHAR'
+        }
+      )
+    ) TO 'tmp_OTUs.parquet' (FORMAT PARQUET, COMPRESSION 'ZSTD', COMPRESSION_LEVEL 5);"
+
+    echo -e "..Preparing OTU tables\\n"
     summarize_clustered_data.R \
       --seqtab         ${seqtab} \
       --uc             ${uc_parquet} \
-      --otus           ${otus_fasta} \
+      --otus           tmp_OTUs.parquet \
       --maxmeep        ${params.max_MEEP} \
       --recoversinglet ${params.recover_lowqsingletons} \
       --mergesamples   ${params.merge_replicates} \
       --threads        ${task.cpus}
 
+    echo -e "..Removing temporary files\\n"
+    rm tmp_OTUs.parquet
     """
 }
 
