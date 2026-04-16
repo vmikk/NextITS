@@ -259,7 +259,7 @@ build_dense_wide <- function(res, otu_order, sample_order, max_cells = 5e7){
   dense
 }
 
-export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_size = 50000L){
+export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_size = 10000L){
   con <- DBI::dbConnect(duckdb::duckdb())
   result <- NULL
   out_con <- NULL
@@ -282,53 +282,84 @@ export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_
     con,
     normalizePath(otus_parquet, mustWork = TRUE, winslash = "/")))
 
-  invisible(DBI::dbExecute(con, sprintf("
-    CREATE OR REPLACE TEMP TABLE otus_raw AS
-    SELECT
-      ROW_NUMBER() OVER () AS input_row_num,
-      SeqID,
-      Sequence
-    FROM parquet_scan(%s)
-  ", otus_sql)))
-
   otu_export <- data.frame(
     SeqID = otu_order,
     OTU_rank = seq_along(otu_order),
     stringsAsFactors = FALSE)
   DBI::dbWriteTable(con, "otu_export", otu_export, temporary = TRUE, overwrite = TRUE)
 
-  input_stats <- DBI::dbGetQuery(con, "
+  input_stats <- DBI::dbGetQuery(con, sprintf("
     SELECT
       COUNT(*) AS n_input_rows,
       COUNT(DISTINCT SeqID) AS n_input_unique
-    FROM otus_raw
-  ")
+    FROM parquet_scan(%s)
+  ", otus_sql))
 
-  dup_stats <- DBI::dbGetQuery(con, "
+  dup_stats <- DBI::dbGetQuery(con, sprintf("
     SELECT COUNT(*) AS n_dup_ids
     FROM (
       SELECT SeqID
-      FROM otus_raw
+      FROM parquet_scan(%s)
       GROUP BY SeqID
       HAVING COUNT(*) > 1
     )
-  ")
+  ", otus_sql))
 
-  invisible(DBI::dbExecute(con, "
-    CREATE OR REPLACE TEMP VIEW otus_dedup AS
-    SELECT
-      SeqID,
-      Sequence
-    FROM otus_raw
-    QUALIFY ROW_NUMBER() OVER (PARTITION BY SeqID ORDER BY input_row_num) = 1
-  "))
+  has_duplicate_ids <- dup_stats$n_dup_ids[[1]] > 0
 
-  export_stats <- DBI::dbGetQuery(con, "
-    SELECT
-      (SELECT COUNT(*) FROM otu_export) AS n_requested,
-      (SELECT COUNT(*) FROM otu_export e INNER JOIN otus_dedup o USING (SeqID)) AS n_exported,
-      (SELECT COUNT(*) FROM otu_export e LEFT JOIN otus_dedup o USING (SeqID) WHERE o.SeqID IS NULL) AS n_missing
-  ")
+  if(has_duplicate_ids){
+    cat("... Duplicated OTU SeqIDs detected in the input parquet - using deduplication export path\n")
+
+    invisible(DBI::dbExecute(con, sprintf("
+      CREATE OR REPLACE TEMP VIEW otus_indexed AS
+      SELECT
+        ROW_NUMBER() OVER () AS input_row_num,
+        SeqID,
+        Sequence
+      FROM parquet_scan(%s)
+    ", otus_sql)))
+
+    invisible(DBI::dbExecute(con, "
+      CREATE OR REPLACE TEMP VIEW otus_dedup AS
+      SELECT
+        SeqID,
+        Sequence
+      FROM otus_indexed
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY SeqID ORDER BY input_row_num) = 1
+    "))
+
+    export_stats <- DBI::dbGetQuery(con, "
+      SELECT
+        (SELECT COUNT(*) FROM otu_export) AS n_requested,
+        (SELECT COUNT(*) FROM otu_export e INNER JOIN otus_dedup o USING (SeqID)) AS n_exported,
+        (SELECT COUNT(*) FROM otu_export e LEFT JOIN otus_dedup o USING (SeqID) WHERE o.SeqID IS NULL) AS n_missing
+    ")
+
+    export_query <- "
+      SELECT
+        '>' || e.SeqID || chr(10) || o.Sequence AS fasta_record
+      FROM otu_export e
+      INNER JOIN otus_dedup o USING (SeqID)
+      ORDER BY e.OTU_rank
+    "
+  } else {
+    cat("... OTU parquet has unique SeqIDs - using direct parquet export path\n")
+
+    export_stats <- DBI::dbGetQuery(con, sprintf("
+      SELECT
+        (SELECT COUNT(*) FROM otu_export) AS n_requested,
+        (SELECT COUNT(*) FROM otu_export e INNER JOIN parquet_scan(%s) o USING (SeqID)) AS n_exported,
+        (SELECT COUNT(*) FROM otu_export e LEFT JOIN parquet_scan(%s) o USING (SeqID) WHERE o.SeqID IS NULL) AS n_missing
+    ", otus_sql, otus_sql))
+
+    export_query <- sprintf("
+      SELECT
+        '>' || e.SeqID || chr(10) || o.Sequence AS fasta_record
+      FROM otu_export e
+      INNER JOIN parquet_scan(%s) o USING (SeqID)
+      ORDER BY e.OTU_rank
+    ", otus_sql)
+  }
 
   cat("... Total number of OTU rows in input parquet: ", input_stats$n_input_rows[[1]], "\n")
   cat("... Total number unique OTU SeqIDs in input parquet: ", input_stats$n_input_unique[[1]], "\n")
@@ -351,20 +382,14 @@ export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_
       shQuote(normalizePath(file, mustWork = FALSE, winslash = "/"))),
     "wt")
 
-  result <- DBI::dbSendQuery(con, "
-    SELECT
-      '>' || e.SeqID || chr(10) || o.Sequence AS fasta_record
-    FROM otu_export e
-    INNER JOIN otus_dedup o USING (SeqID)
-    ORDER BY e.OTU_rank
-  ")
+  result <- DBI::dbSendQuery(con, export_query)
 
   repeat {
     chunk <- DBI::dbFetch(result, n = as.integer(chunk_size))
     if(nrow(chunk) == 0L){
       break
     }
-    writeLines(chunk$fasta_record, out_con)
+    writeLines(chunk[[1L]], out_con)
   }
 }
 
