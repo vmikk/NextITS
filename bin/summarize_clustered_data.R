@@ -278,9 +278,7 @@ export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_
 
   invisible(DBI::dbExecute(con, sprintf("SET threads TO %d", as.integer(threads))))
 
-  otus_sql <- as.character(DBI::dbQuoteString(
-    con,
-    normalizePath(otus_parquet, mustWork = TRUE, winslash = "/")))
+  otus_sql <- as.character(DBI::dbQuoteString(con, otus_parquet))
 
   otu_export <- data.frame(
     SeqID = otu_order,
@@ -379,7 +377,7 @@ export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_
   out_con <- pipe(
     sprintf("pigz -p%d > %s",
       as.integer(threads),
-      shQuote(normalizePath(file, mustWork = FALSE, winslash = "/"))),
+      shQuote(file)),
     "wt")
 
   result <- DBI::dbSendQuery(con, export_query)
@@ -408,8 +406,8 @@ on.exit({
 
 invisible(dbExecute(con, sprintf("SET threads TO %d", as.integer(CPUTHREADS))))
 
-seqtab_sql <- as.character(DBI::dbQuoteString(con, normalizePath(SEQTAB, mustWork = TRUE, winslash = "/")))
-uc_sql     <- as.character(DBI::dbQuoteString(con, normalizePath(UCF,    mustWork = TRUE, winslash = "/")))
+seqtab_sql <- as.character(DBI::dbQuoteString(con, SEQTAB))
+uc_sql     <- as.character(DBI::dbQuoteString(con, UCF   ))
 
 cat("\n..Registering Parquet inputs\n")
 invisible(dbExecute(con, sprintf("
