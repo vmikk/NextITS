@@ -5,7 +5,7 @@
 # Input:
 #   1. Sequence tables in long format with de novo chimeras removed (`Seqs.parquet`)
 #   2. UC file                         (`UC_Pooled.parquet`)
-#   3. FASTA file with OTU sequences   (`Clustered.fa.gz`)
+#   3. OTU sequence table in Parquet format (`OTUs.parquet`)
 #   4. Max MEEP score
 
 # Outputs:
@@ -17,7 +17,7 @@
 # ./summarize_clustered_data.R \
 #    --seqtab  "Seqs.parquet" \
 #    --uc      "UC_Pooled.parquet" \
-#    --otus    "Clustered.fa.gz" \
+#    --otus    "OTUs.parquet" \
 #    --maxmeep 0.6 \
 #    --recoversinglet TRUE \
 #    --mergesamples TRUE \
@@ -32,6 +32,8 @@
 # If enabled, then singleton OTUs with MEEP score <= 0.6 & will be preserved
 # Otherwise, singleton OTUs will be removed
 
+## TODO:
+# - add option to keep singletons
 
 ############################################## Parse input parameters
 
@@ -47,7 +49,7 @@ suppressPackageStartupMessages(require(optparse))
 option_list <- list(
   make_option("--seqtab",  action = "store", default = NA,  type = "character", help = "Sequence tables in long format with de novo chimeras removed (Parquet format)"),
   make_option("--uc",      action = "store", default = NA,  type = "character", help = "UC file (Parquet format)"),
-  make_option("--otus",    action = "store", default = NA,  type = "character", help = "FASTA file with OTU sequences"),
+  make_option("--otus",    action = "store", default = NA,  type = "character", help = "OTU sequences in Parquet format"),
   make_option("--maxmeep", action = "store", default = 0.5, type = "double", help = "Max MEEP score"),
   make_option("--recoversinglet", action = "store", default = TRUE, type = "logical", help = "Recover singletons"),
   make_option(c("-m", "--mergesamples"), action = "store", default = FALSE, type = "logical", help = "Merge sample replicates (default, false)"),
@@ -76,7 +78,7 @@ if(is.na(opt$uc)){
   stop()
 }
 if(is.na(opt$otus)){
-  cat("Input file is not specified: FASTA file with OTU sequences.\n", file = stderr())
+  cat("Input file is not specified: OTU sequence table in Parquet format.\n", file = stderr())
   stop()
 }
 if(opt$recoversinglet == TRUE && is.na(opt$maxmeep)){
@@ -90,7 +92,7 @@ UCF               <- opt$uc
 MAXMEEP           <- as.numeric(opt$maxmeep)
 RECOV_SINGLET     <- as.logical(opt$recoversinglet)
 MERGE_SAMPLES     <- as.logical(opt$mergesamples)
-OTUS              <- opt$otus
+OTUS_PQ           <- opt$otus
 WIDE_RDATA_FORMAT <- tolower(as.character(opt$`wide-rdata-format`))
 CPUTHREADS        <- as.numeric(opt$threads)
 
@@ -104,7 +106,7 @@ cat(paste("UC file (Parquet format): ",         UCF,               "\n", sep = "
 cat(paste("Max MEEP score: ",                   MAXMEEP,           "\n", sep = ""))
 cat(paste("Low-quality singleton recovery: ",   RECOV_SINGLET,     "\n", sep = ""))
 cat(paste("Merge sample replicates: ",          MERGE_SAMPLES,     "\n", sep = ""))
-cat(paste("OTU sequences: ",                    OTUS,              "\n", sep = ""))
+cat(paste("OTU sequences (Parquet format): ",   OTUS_PQ,           "\n", sep = ""))
 cat(paste("Wide RData format: ",                WIDE_RDATA_FORMAT, "\n", sep = ""))
 cat(paste("Number of CPU threads to use: ",     CPUTHREADS,        "\n", sep = ""))
 
@@ -118,7 +120,7 @@ cat("\n")
 # MAXMEEP           <- 0.5
 # RECOV_SINGLET     <- TRUE
 # MERGE_SAMPLES     <- TRUE
-# OTUS              <- "Clustered.fa.gz"
+# OTUS_PQ           <- "OTUs.parquet"
 # WIDE_RDATA_FORMAT <- "sparse"
 # CPUTHREADS        <- 4
 
@@ -136,8 +138,6 @@ load_pckg("data.table")
 load_pckg("DBI")
 load_pckg("duckdb")
 load_pckg("Matrix")
-load_pckg("Biostrings")
-
 cat("\n")
 
 ## Set CPU thread number
@@ -257,6 +257,115 @@ build_dense_wide <- function(res, otu_order, sample_order, max_cells = 5e7){
   }
 
   dense
+}
+
+export_otu_fasta <- function(otus_parquet, otu_order, file, threads = 1L, chunk_size = 50000L){
+  con <- DBI::dbConnect(duckdb::duckdb())
+  result <- NULL
+  out_con <- NULL
+
+  on.exit({
+    if(!is.null(result)){
+      try(DBI::dbClearResult(result), silent = TRUE)
+    }
+    if(!is.null(out_con)){
+      try(close(out_con), silent = TRUE)
+    }
+    if(!is.null(con)){
+      try(DBI::dbDisconnect(con, shutdown = TRUE), silent = TRUE)
+    }
+  }, add = TRUE)
+
+  invisible(DBI::dbExecute(con, sprintf("SET threads TO %d", as.integer(threads))))
+
+  otus_sql <- as.character(DBI::dbQuoteString(
+    con,
+    normalizePath(otus_parquet, mustWork = TRUE, winslash = "/")))
+
+  invisible(DBI::dbExecute(con, sprintf("
+    CREATE OR REPLACE TEMP TABLE otus_raw AS
+    SELECT
+      ROW_NUMBER() OVER () AS input_row_num,
+      SeqID,
+      Sequence
+    FROM parquet_scan(%s)
+  ", otus_sql)))
+
+  otu_export <- data.frame(
+    SeqID = otu_order,
+    OTU_rank = seq_along(otu_order),
+    stringsAsFactors = FALSE)
+  DBI::dbWriteTable(con, "otu_export", otu_export, temporary = TRUE, overwrite = TRUE)
+
+  input_stats <- DBI::dbGetQuery(con, "
+    SELECT
+      COUNT(*) AS n_input_rows,
+      COUNT(DISTINCT SeqID) AS n_input_unique
+    FROM otus_raw
+  ")
+
+  dup_stats <- DBI::dbGetQuery(con, "
+    SELECT COUNT(*) AS n_dup_ids
+    FROM (
+      SELECT SeqID
+      FROM otus_raw
+      GROUP BY SeqID
+      HAVING COUNT(*) > 1
+    )
+  ")
+
+  invisible(DBI::dbExecute(con, "
+    CREATE OR REPLACE TEMP VIEW otus_dedup AS
+    SELECT
+      SeqID,
+      Sequence
+    FROM otus_raw
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY SeqID ORDER BY input_row_num) = 1
+  "))
+
+  export_stats <- DBI::dbGetQuery(con, "
+    SELECT
+      (SELECT COUNT(*) FROM otu_export) AS n_requested,
+      (SELECT COUNT(*) FROM otu_export e INNER JOIN otus_dedup o USING (SeqID)) AS n_exported,
+      (SELECT COUNT(*) FROM otu_export e LEFT JOIN otus_dedup o USING (SeqID) WHERE o.SeqID IS NULL) AS n_missing
+  ")
+
+  cat("... Total number of OTU rows in input parquet: ", input_stats$n_input_rows[[1]], "\n")
+  cat("... Total number unique OTU SeqIDs in input parquet: ", input_stats$n_input_unique[[1]], "\n")
+  cat("... Number of OTUs requested from the OTU table: ", export_stats$n_requested[[1]], "\n")
+  cat("... Number of OTUs to export: ", export_stats$n_exported[[1]], "\n")
+  cat("... Number of OTUs missing from the OTU parquet: ", export_stats$n_missing[[1]], "\n")
+
+  if(dup_stats$n_dup_ids[[1]] > 0){
+    cat("WARNING: duplicated OTU SeqIDs detected in the input parquet - keeping the first row for ",
+        dup_stats$n_dup_ids[[1]], " SeqIDs\n", sep = "")
+  }
+
+  if(export_stats$n_missing[[1]] > 0){
+    cat("WARNING: not all OTUs from the OTU table were found in the input parquet\n")
+  }
+
+  out_con <- pipe(
+    sprintf("pigz -p%d > %s",
+      as.integer(threads),
+      shQuote(normalizePath(file, mustWork = FALSE, winslash = "/"))),
+    "wt")
+
+  result <- DBI::dbSendQuery(con, "
+    SELECT
+      '>' || e.SeqID || chr(10) || o.Sequence AS fasta_record
+    FROM otu_export e
+    INNER JOIN otus_dedup o USING (SeqID)
+    ORDER BY e.OTU_rank
+  ")
+
+  repeat {
+    chunk <- DBI::dbFetch(result, n = as.integer(chunk_size))
+    if(nrow(chunk) == 0L){
+      break
+    }
+    writeLines(chunk$fasta_record, out_con)
+  }
 }
 
 
@@ -506,35 +615,12 @@ saveRDS.gz(
 
 cat("\nExporting OTU sequences to FASTA\n")
 cat("..Preparing sequences\n")
-
-cat("... Loading FASTA file\n")
-SQS <- readDNAStringSet(filepath = OTUS, format = "fasta")
-cat("... Extracting sequence IDs\n")
-names(SQS) <- tstrsplit(x = names(SQS), split = ";", keep = 1)[[1]]
-
-if(any(duplicated(names(SQS)))){
-  cat("WARNING: duplicated OTU names detected!\n")
-}
-
-cat("... Subsetting OTUs\n")
-otu_export_ids <- otu_order[otu_order %in% names(SQS)]
-SQF <- SQS[otu_export_ids]
-
-cat("....Total number of OTUs in input sequences: ", length(SQS),       "\n")
-cat("....Number of OTUs to export: ",                length(SQF),       "\n")
-cat("....Number of OTUs in the OTU table: ",         length(otu_order), "\n")
-
-if(length(SQF) != length(otu_order)){
-  cat("WARNING: not all OTUs from the OTU table were found in the input FASTA\n")
-}
-
-cat("... Writing FASTA file\n")
-writeXStringSet(
-  x = SQF,
-  filepath = "OTUs.fa.gz",
-  compress = TRUE,
-  format = "fasta",
-  width = 9999)
+cat("... Exporting OTUs from parquet with DuckDB\n")
+export_otu_fasta(
+  otus_parquet = OTUS_PQ,
+  otu_order = otu_order,
+  file = "OTUs.fa.gz",
+  threads = CPUTHREADS)
 
 
 cat("\nAll done.\n")
