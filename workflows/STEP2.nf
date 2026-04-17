@@ -653,7 +653,7 @@ process summarize_dereplicated_data {
     input:
       path(seqtab)          // Sequence tables in long format, parquet
       path(uc_derep)        // UC file from dereplication
-      path(fasta)           // FASTA file with sequences
+      path(seqs_fasta)      // FASTA file with dereplicated sequences
 
     output:
       path "UC_Pooled.parquet", emit: uc
@@ -670,22 +670,43 @@ process summarize_dereplicated_data {
 
     script:
     """
-    echo -e "Summarizing clustered data\\n"
+    echo -e "Summarizing dereplicated data\\n"
 
     ## Parse UC file from dereplication
     echo -e "..Parsing dereplicated UC file"
     ucs --input ${uc_derep} --output UC_Pooled.parquet
+
+    echo -e "..Converting dereplicated FASTA file to parquet format\\n"
+    seqkit fx2tab -i -Q "${seqs_fasta}" \
+      | duckdb -c "
+    COPY (
+      SELECT
+        regexp_replace(column0, ';size=.*\$', '') AS SeqID,
+        TRY_CAST(regexp_extract(column0, ';size=([0-9]+)', 1) AS INTEGER) AS Abundance,
+        column1 AS Sequence
+      FROM read_csv(
+        '/dev/stdin',
+        header = false, delim = '\t',
+        columns = {
+          'column0': 'VARCHAR',
+          'column1': 'VARCHAR'
+        }
+      )
+    ) TO 'tmp_Seqs.parquet' (FORMAT PARQUET, COMPRESSION 'ZSTD', COMPRESSION_LEVEL 5);"
 
     ## Summarize sequence abundance by OTU and sample
     echo -e "\\n..Summarizing sequence abundance by OTU and sample\\n"
     summarize_dereplicated_data.R \
       --seqtab         ${seqtab} \
       --uc             UC_Pooled.parquet \
-      --seqs           ${fasta} \
+      --seqs           tmp_Seqs.parquet \
       --maxmeep        ${params.max_MEEP} \
       --recoversinglet ${params.recover_lowqsingletons} \
       --mergesamples   ${params.merge_replicates} \
       --threads        ${task.cpus}
+
+    echo -e "..Removing temporary files\\n"
+    rm tmp_Seqs.parquet
 
     """
 }
