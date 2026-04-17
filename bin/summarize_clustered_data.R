@@ -571,7 +571,7 @@ con <- NULL
 ###################################### Prepare long and wide outputs
 ######################################
 
-setorder(RES, OTU, SampleID)
+setorder(RES, SampleID, -Abundance, OTU)
 setattr(x = RES, name = "Samples_merged", value = MERGE_SAMPLES)
 
 cat("\nPreparing wide output metadata\n")
