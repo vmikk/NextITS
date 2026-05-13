@@ -9,12 +9,12 @@
 # docker build --target test --tag nextits-test --file NextITS.dockerfile .
 
 ## Build stage 1.1 - Rust and Cargo
-FROM rust:1.94.1-slim AS rust
+FROM rust:1.95.0-slim AS rust
 RUN cargo install runiq sd
 
 ## Build stage 1.2 - papa2 (libpapa2.so)
 ## need to use rocker image to link against the same glibc as the final image 
-FROM rocker/r-ver:4.5.3 AS papa2_build
+FROM rocker/r-ver:4.6.0 AS papa2_build
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
     ca-certificates git zlib1g-dev build-essential \
@@ -24,7 +24,7 @@ RUN git clone --depth 1 https://github.com/rec3141/papa2.git . \
   && make libpapa2.so
 
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.5.3 AS main
+FROM rocker/r-ver:4.6.0 AS main
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
