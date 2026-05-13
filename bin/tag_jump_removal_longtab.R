@@ -177,10 +177,14 @@ setcolorder(OTUTAB,
 setorder(OTUTAB, OTU, -Abundance, SampleID)
 
 cat("..Exporting tag-jump scores\n")
-qs::qsave(OTUTAB,
-  "TagJump_scores.qs",
-  preset = "custom", algorithm = "zstd", compress_level = 5L, nthreads = 1L)
 
+# qs::qsave(OTUTAB,
+#   "TagJump_scores.qs",
+#   preset = "custom", algorithm = "zstd", compress_level = 5L, nthreads = 1L)
+
+qs2::qs_save(object = OTUTAB,
+  file = "TagJump_scores.qs",
+  compress_level = 5L, nthreads = 1L)
 
 ## Plot
 cat("..Making a plot\n")
