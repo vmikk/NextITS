@@ -30,7 +30,7 @@ ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV SHELL=/bin/bash
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
-LABEL org.opencontainers.image.version="1.2.2"
+LABEL org.opencontainers.image.version="1.2.3"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
@@ -108,18 +108,18 @@ RUN cd /opt/software \
 RUN /opt/software/conda/bin/mamba install -y \
     "lima>=2.13.0" \
     "pbtk>=3.5.0" \
-    "vsearch>=2.30.6" \
+    "vsearch>=2.31.0" \
     "swarm>=3.1.6" \
     "seqkit>=2.13.0" \
-    "seqfu>=1.25.1" \
-    "fastp>=1.3.1" \
+    "seqfu>=1.26.0" \
+    "fastp>=1.3.3" \
     "blast>=2.17.0" \
     "bioawk" \
-    "miller>=6.17.0" \
+    "miller>=6.18.1" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20260122" \
-    "csvtk>=0.36.0" \
+    "parallel>=20260422" \
+    "csvtk>=0.37.0" \
     "cutadapt>=5.2" \
     "itsx>=1.1.3" \
     "bbmap>=39.81" \
@@ -169,7 +169,7 @@ RUN git clone --depth 1 https://github.com/indraniel/fqgrep \
   && rm -r fqgrep
 
 ## rush
-RUN wget https://github.com/shenwei356/rush/releases/download/v0.8.0/rush_linux_amd64.tar.gz \
+RUN wget https://github.com/shenwei356/rush/releases/download/v0.9.0/rush_linux_amd64.tar.gz \
   && tar -xzf rush_linux_amd64.tar.gz \
   && mv rush /opt/software/conda/bin/ \
   && rm rush_linux_amd64.tar.gz
@@ -204,7 +204,7 @@ RUN cd /opt/software \
 
 ## Install DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.5.1/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.5.2/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
@@ -246,7 +246,7 @@ ENTRYPOINT ["/opt/software/entrypoint.sh"]
 FROM main AS test
 
 # Set environment variable for R version testing
-ENV R_VERSION=4.5.3
+ENV R_VERSION=4.6.0
 
 RUN echo "=== Testing R installation and packages ===" \
   && R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')" \
