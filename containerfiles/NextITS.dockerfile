@@ -57,7 +57,8 @@ RUN install2.r --error --skipinstalled --ncpus -1 \
     ggplot2 \
     doFuture \
     openxlsx \
-    yaml
+    yaml \
+    qs2
 
 RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("ShortRead",  ask = FALSE)' \
@@ -75,8 +76,6 @@ RUN    install2.r --error --skipinstalled \
           if (!ok || !requireNamespace("speedyseq", quietly=TRUE)) quit(status=1)' \
     && R -e 'ok <- tryCatch({ remotes::install_github("vmikk/metagMisc"); TRUE }, error=function(e){ message(e); FALSE }); \
           if (!ok || !requireNamespace("metagMisc", quietly=TRUE)) quit(status=1)' \
-    && R -e 'ok <- tryCatch({ remotes::install_github("qsbase/qs", configure.args = "--with-simd=AVX2"); TRUE }, error=function(e){ message(e); FALSE }); \
-          if (!ok || !requireNamespace("qs", quietly=TRUE)) quit(status=1)' \
     && rm -rf /tmp/downloaded_packages
 
 ## Install conda
@@ -256,7 +255,7 @@ RUN echo "=== Testing R installation and packages ===" \
     'required_packages <- c("optparse", "data.table", "arrow", "duckdb",' \
     '                      "plyr", "dplyr", "ggplot2", "openxlsx", "yaml",' \
     '                      "Biostrings", "DECIPHER", "dada2", "phyloseq",' \
-    '                      "metagMisc", "qs")' \
+    '                      "metagMisc", "qs2")' \
     '' \
     'for(pkg in required_packages) {' \
     '  cat("Testing package:", pkg, "... ")' \
