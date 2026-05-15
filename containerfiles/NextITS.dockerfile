@@ -86,7 +86,8 @@ RUN mkdir -p /opt/software \
   && rm Miniforge3-Linux-x86_64.sh \
   && /opt/software/conda/bin/conda config --add channels bioconda \
   && /opt/software/conda/bin/mamba update -y --all \
-  && /opt/software/conda/bin/mamba clean --all --yes
+  && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes \
+  && /opt/software/conda/bin/conda clean -afy
 
 ## Create conda initialization script (for Singularity compatibility)
 RUN cd /opt/software \
@@ -126,7 +127,8 @@ RUN /opt/software/conda/bin/mamba install -y \
     "ripgrep>=15.1.0" \
     "fd-find>=10.4.2" \
     "mmseqs2" \
-  && /opt/software/conda/bin/conda clean --all --yes
+  && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes \
+  && /opt/software/conda/bin/conda clean -afy
 
 ## papa2: Python package + libpapa2.so in conda site-packages
 # (avoids pip install . rebuilding native code)
