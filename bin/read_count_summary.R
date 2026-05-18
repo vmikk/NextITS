@@ -197,7 +197,8 @@ SEQKITCOUNTS$CHIMRECOVU <- fread(CHIMRECOVU)
 
 if(!is.na(TJ) && TJ != "no_tj" && file.exists(TJ)){
   cat("..Loading tag-jump filtration data\n")
-  TJ <- qs::qread(TJ)
+  # TJ <- qs::qread(TJ)          # old qs version, deprecated
+  TJ <- qs2::qs_read(file = TJ)
   tjdata <- TRUE
 } else {
   cat("..No tag-jump filtration data found\n")
