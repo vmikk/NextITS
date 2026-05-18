@@ -341,6 +341,11 @@ PER_SAMPLE_COUNTS_merged[ ,
   2)
  ]
 
+PER_SAMPLE_COUNTS_merged[ 
+  PrimerChecked_Reads == 0 & PrimerArtefacts_Reads > 0,    # no good reads
+  PrimerArtefacts_Percent := 100
+]
+
 ## Estimate tag-jump stats
 if(tjdata == TRUE){
   cat("Estimating tag-jump removal yields\n")
