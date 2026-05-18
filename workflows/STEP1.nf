@@ -79,7 +79,7 @@ process qc_se {
 
     label "main_container"
 
-    // cpus 10
+    // cpus 8
 
     // Add file ID to the log file
     tag "${input.getSimpleName()}"
@@ -98,6 +98,21 @@ process qc_se {
     """
     echo -e "QC\\n"
     echo -e "Input file: " ${input}
+    echo -e "Homopolymer length to remove: " ${params.qc_maxhomopolymerlen}
+
+    ## Split the number of CPUs into two (for seqkit and pigz)
+    ## NB! vsearch currently does not suppot multithreading for `--fastq_filter`
+    ## see https://github.com/torognes/vsearch/issues/466
+    total_cpus=${task.cpus}
+    half_cpus=\$(( (total_cpus + 1) / 2 ))
+    (( half_cpus < 1 )) && half_cpus=1
+    (( half_cpus > total_cpus )) && half_cpus=\$total_cpus
+
+    ## Instead of using regex (e.g., "(A{25,}|C{25,}|T{25,}|G{25,})"), create fixed patterns
+    A_run=\$(printf '%*s' "${params.qc_maxhomopolymerlen}" '' | tr ' ' 'A')
+    C_run=\$(printf '%*s' "${params.qc_maxhomopolymerlen}" '' | tr ' ' 'C')
+    G_run=\$(printf '%*s' "${params.qc_maxhomopolymerlen}" '' | tr ' ' 'G')
+    T_run=\$(printf '%*s' "${params.qc_maxhomopolymerlen}" '' | tr ' ' 'T')
 
     ## We do not need to change the file name (output name should be the same as input)
     ## Therefore, temporary rename input
@@ -109,16 +124,18 @@ process qc_se {
       ${filter_maxee} \
       ${filter_maxeerate} \
       --fastq_maxns ${params.qc_maxn} \
-      --threads ${task.cpus} \
+      --threads 1 \
+      --no_progress \
       --fastqout - \
     | seqkit grep \
-      --by-seq --ignore-case --invert-match --only-positive-strand --use-regexp -w 0 \
-      --pattern '"(A{${params.qc_maxhomopolymerlen},}|C{${params.qc_maxhomopolymerlen},}|T{${params.qc_maxhomopolymerlen},}|G{${params.qc_maxhomopolymerlen},})"' \
-    | gzip -${params.gzip_compression} \
+      --by-seq --ignore-case --invert-match --only-positive-strand -w 0 \
+      --threads \$half_cpus \
+      --pattern "\$A_run" \
+      --pattern "\$C_run" \
+      --pattern "\$G_run" \
+      --pattern "\$T_run" \
+    | pigz -p \$half_cpus -${params.gzip_compression} \
     > "${input.getSimpleName()}.fq.gz"
-
-    ## qc_maxhomopolymerlen
-    # e.g. "(A{26,}|C{26,}|T{26,}|G{26,})"
 
     echo -e "\\nQC finished"
     """
