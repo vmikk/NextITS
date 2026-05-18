@@ -187,6 +187,11 @@ PER_SAMPLE_COUNTS_merged[ ,
   2)
  ]
 
+PER_SAMPLE_COUNTS_merged[ 
+  PrimerChecked_Reads == 0 & PrimerArtefacts_Reads > 0,    # no good reads
+  PrimerArtefacts_Percent := 100
+]
+
 
 ### ... update
 # .. replace NAs with zero
