@@ -17,9 +17,6 @@
 //  - UDB for chimera identification
 
 
-// Enable DSL2 syntax
-nextflow.enable.dsl = 2
-
 // Print the version and exit
 if (params.version) {
   ver = "NextITS " + workflow.manifest.version

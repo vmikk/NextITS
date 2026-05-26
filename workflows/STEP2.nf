@@ -22,9 +22,6 @@
 
 
 
-// Enable DSL2 syntax
-nextflow.enable.dsl = 2
-
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { CLUSTERING }                from '../subworkflows/clustering_subworkflow.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
