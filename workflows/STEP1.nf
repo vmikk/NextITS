@@ -10,7 +10,6 @@
 
 // ---- Step-1 workflow ----
 
-
 // Include functions
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
@@ -20,32 +19,11 @@ include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subw
 include { qc_pe; merge_pe; demux_pe; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
 
 
-// Define output paths for different steps
-out_0_bam    = params.outdir + "/00_BAM2FASTQ"
-out_1_demux  = params.outdir + "/01_Demux"
-out_1_joinPE = params.outdir + "/01_JoinedPE"
-out_2_primer = params.outdir + "/02_PrimerCheck"
-out_3_itsx   = params.outdir + "/03_ITSx"
-out_3_itsxp  = params.outdir + "/03_ITSx_PooledParts"
-out_3_trim   = params.outdir + "/03_PrimerTrim"
-out_3_trimPE = params.outdir + "/03_PrimerTrim_NotMerged"
-out_4_homop  = params.outdir + "/04_Homopolymer"
-// out_5_chim   = params.outdir + "/05_Chimera"
-out_6_tj     = params.outdir + "/06_TagJumpFiltration"
-out_7_seq    = params.outdir + "/07_SeqTable"
-out_8_smr    = params.outdir + "/08_RunSummary"
-out_9_db     = params.outdir + "/09_DB"
-out_tracedir = params.tracedir
-
-// Sub-workflow-specific outputs
-out_3_quickstats = params.outdir + "/03_Stats"
-
-
 // Convert BAM to FASTQ
 process bam2fastq {
 
     label "main_container"
-    publishDir "${out_0_bam}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/00_BAM2FASTQ", mode: "${params.storagemode}"
 
     // cpus 2
 
@@ -147,7 +125,7 @@ process tag_validation {
     label "main_container"
     // cpus 1
 
-    publishDir "${out_1_demux}", pattern: "tag_names_renamed.tsv", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/01_Demux", pattern: "tag_names_renamed.tsv", mode: "${params.storagemode}"
 
     input:
       path barcodes
@@ -184,7 +162,7 @@ process demux {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: "${params.storagemode}"  // , saveAs: { filename -> "foo_$filename" }
+    publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"  // , saveAs: { filename -> "foo_$filename" }
     // cpus 10
 
     input:
@@ -432,7 +410,7 @@ process prep_barcodes {
 
     label "main_container"
 
-    // publishDir "${out_1_demux}", mode: "${params.storagemode}"
+    // publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -462,7 +440,7 @@ process demux_se {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -511,7 +489,7 @@ process disambiguate {
 
     label "main_container"
 
-    // publishDir "${out_2_primer}", mode: "${params.storagemode}"
+    // publishDir "${params.outdir}/02_PrimerCheck", mode: "${params.storagemode}"
     // cpus 1
 
     output:
@@ -553,7 +531,7 @@ process primer_check {
 
     label "main_container"
 
-    publishDir "${out_2_primer}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/02_PrimerCheck", mode: "${params.storagemode}"
 
     // cpus 1
 
@@ -723,7 +701,7 @@ process itsx {
 
     label "main_container"
 
-    publishDir "${out_3_itsx}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/03_ITSx", mode: "${params.storagemode}"
     // cpus 2
 
     // Add sample ID to the log file
@@ -950,7 +928,7 @@ process itsx_collect {
 
     label "main_container"
 
-    publishDir "${out_3_itsxp}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/03_ITSx_PooledParts", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -1062,7 +1040,7 @@ process trim_primers {
 
     label "main_container"
 
-    publishDir "${out_3_trim}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/03_PrimerTrim", mode: "${params.storagemode}"
     // cpus 2
 
     // Add sample ID to the log file
@@ -1174,7 +1152,7 @@ process assemble_its {
 
     label "main_container"
 
-    publishDir "${out_3_itsx}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/03_ITSx", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1244,7 +1222,7 @@ process seq_qual {
 
     label "main_container"
 
-    publishDir "${out_9_db}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/09_DB", mode: "${params.storagemode}"
     // cpus 4
 
     input:
@@ -1275,7 +1253,7 @@ process homopolymer {
 
     label "main_container"
 
-    publishDir "${out_4_homop}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/04_Homopolymer", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1370,7 +1348,7 @@ process just_derep {
 
     label "main_container"
 
-    // publishDir "${out_4_homop}", mode: "${params.storagemode}"
+    // publishDir "${params.outdir}/04_Homopolymer", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -1410,7 +1388,7 @@ process pool_seqs {
 
     label "main_container"
     
-    // publishDir "${out_6_tj}", mode: "${params.storagemode}"
+    // publishDir "${params.outdir}/06_TagJumpFiltration", mode: "${params.storagemode}"
     // cpus 2
 
     input:
@@ -1462,7 +1440,7 @@ process tj_preclust {
 
     label "main_container"
 
-    // publishDir "${out_6_tj}", mode: "${params.storagemode}"
+    // publishDir "${params.outdir}/06_TagJumpFiltration", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -1556,7 +1534,7 @@ process tj {
 
     label "main_container"
 
-    publishDir "${out_6_tj}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/06_TagJumpFiltration", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -1597,7 +1575,7 @@ process prep_seqtab {
 
     label "main_container"
 
-    publishDir "${out_7_seq}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/07_SeqTable", mode: "${params.storagemode}"
     // cpus 4
 
     input:
@@ -1645,8 +1623,8 @@ process read_counts {
 
     label "main_container"
 
-    publishDir "${out_8_smr}",                 mode: "${params.storagemode}", pattern: "*.xlsx"
-    publishDir "${out_8_smr}/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
+    publishDir "${params.outdir}/08_RunSummary",                 mode: "${params.storagemode}", pattern: "*.xlsx"
+    publishDir "${params.outdir}/08_RunSummary/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
     // cpus 4
 
     input:
@@ -1841,8 +1819,8 @@ process quick_stats {
 
     label "main_container"
 
-    publishDir "${out_3_quickstats}",                 mode: "${params.storagemode}", pattern: "*.xlsx"
-    publishDir "${out_3_quickstats}/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
+    publishDir "${params.outdir}/03_Stats",                 mode: "${params.storagemode}", pattern: "*.xlsx"
+    publishDir "${params.outdir}/03_Stats/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
     // cpus 5
 
     input:
@@ -1926,7 +1904,7 @@ process document_analysis_s1 {
 
     label "main_container"
 
-    publishDir "${out_tracedir}", mode: 'copy', overwrite: true
+    publishDir "${params.tracedir}", mode: 'copy', overwrite: true
     // cpus 1
 
     input:
