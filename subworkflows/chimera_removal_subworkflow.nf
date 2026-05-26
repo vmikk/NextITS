@@ -267,8 +267,8 @@ workflow CHIMERA_REMOVAL {
       rescued = chimera_rescue.out.rescuedchimeric
     } else {
       nonchim = seqs
-      chim    = Channel.empty()
-      rescued = Channel.empty()
+      chim    = channel.empty()
+      rescued = channel.empty()
     }
 
     if( doDenovo ) {
@@ -280,7 +280,7 @@ workflow CHIMERA_REMOVAL {
       chimera_denovo_agg(chimera_denovo.out.denovochim.collect())
       dnvAgg = chimera_denovo_agg.out.alldenovochim
     } else {
-      dnvAgg = Channel.empty()
+      dnvAgg = channel.empty()
     }
 
     // Final sequences for downstream pooling
