@@ -27,14 +27,6 @@ if (params.version) {
 
 // Note: nf-schema plugin handles --help automatically via configuration in nextflow.config
 
-// Show a custom help message and exit
-if (params.helpMsg){
-  include { helpMsg } from './modules/help_message.nf'
-  helpMsg()
-  exit(0)
-}
-
-
 // Enable topic channels
 // nextflow.preview.topic = true   // Nextflow < 25.04.0
 
@@ -42,6 +34,9 @@ if (params.helpMsg){
 
 // nf-schema functions for parameter validation
 include { validateParameters } from 'plugin/nf-schema'
+
+// Include custom help message function
+include { helpMsg } from './modules/help_message.nf'
 
 // Include custom parameter summary function
 include { paramSummary } from './modules/parameter_summary'
@@ -54,6 +49,13 @@ include { getColors; colorize; colorizeMultiple; errorMsg; warningMsg; infoMsg; 
 include { S1 } from './workflows/STEP1.nf'
 include { S2 } from './workflows/STEP2.nf'
 include { seqstats } from './workflows/STEP1.nf'
+
+
+// Show a custom help message and exit
+if (params.helpMsg){
+  helpMsg()
+  exit(0)
+}
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  VALIDATE INPUTS
