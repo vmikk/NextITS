@@ -191,8 +191,8 @@ if( params.step == "Step1" ) {
     }
 
     // Detect duplicates
-    itsx_items = itsx_items.collect { it.trim() }
-    def dups = itsx_items.countBy { it }.findAll { k, v -> v > 1 }.keySet().toList()
+    itsx_items = itsx_items.collect { s -> s.trim() }
+    def dups = itsx_items.countBy { s -> s }.findAll { k, v -> v > 1 }.keySet().toList()
     if (dups) {
       println( errorMsg("Parameter --ITSx_tax: duplicated profile names are not allowed: ${dups.join(', ')}", params.monochrome_logs) )
       exit(1)
