@@ -26,11 +26,7 @@ if (params.version) {
 }
 
 // Note: nf-schema plugin handles --help automatically via configuration in nextflow.config
-
-// Enable topic channels
-// nextflow.preview.topic = true   // Nextflow < 25.04.0
-
-
+// if (params.help) { ... }
 
 // nf-schema functions for parameter validation
 include { validateParameters } from 'plugin/nf-schema'
