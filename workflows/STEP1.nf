@@ -1970,7 +1970,7 @@ workflow S1 {
   if( params.demultiplexed == false ){
     
     // Input file with barcodes (FASTA)
-    ch_barcodes = Channel.value(params.barcodes)
+    ch_barcodes = channel.value(params.barcodes)
 
     // Validate tags
     tag_validation(ch_barcodes)
@@ -1979,7 +1979,7 @@ workflow S1 {
     if ( params.seqplatform == "PacBio" ) {
       
       // Input file with multiplexed reads (FASTQ.gz or BAM)
-      ch_input = Channel.value(params.input)
+      ch_input = channel.value(params.input)
 
       // Check the extension of input
       input_type = file(params.input).getExtension() =~ /bam|BAM/ ? "bam" : "oth"
@@ -2035,8 +2035,8 @@ workflow S1 {
     if ( params.seqplatform == "Illumina" ) {
       
       // Input file with multiplexed pair-end reads (FASTQ.gz)
-      ch_inputR1 = Channel.value(params.input_R1)
-      ch_inputR2 = Channel.value(params.input_R2)
+      ch_inputR1 = channel.value(params.input_R1)
+      ch_inputR2 = channel.value(params.input_R2)
 
       // Initial QC
       qc_pe(ch_inputR1, ch_inputR2)
@@ -2111,7 +2111,7 @@ workflow S1 {
   if( params.demultiplexed == true ){
 
     // Input files with demultiplexed reads (FASTQ.gz)
-    ch_input = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' )
+    ch_input = channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' )
 
     // Check if the input channel is empty
     ch_input
@@ -2332,7 +2332,7 @@ workflow S1 {
 
 
   // Chimera removal (optional)
-  ch_chimerabd = Channel.value(params.chimera_db)
+  ch_chimerabd = channel.value(params.chimera_db)
 
   // Input depends on the selected workflow
   if(params.hp == true){
@@ -2427,7 +2427,7 @@ workflow S1 {
     ch_counts_1 = ch_input.flatten().collect()
     ch_counts_2 = qc_se.out.filtered.flatten().collect()
 
-    ch_all_demux = Channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
+    ch_all_demux = channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
   }
   
 
@@ -2514,7 +2514,7 @@ workflow S1 {
 
   
   // Dump the software versions to a file
-  ch_versions_yml = software_versions_to_yaml(Channel.topic('versions'))
+  ch_versions_yml = software_versions_to_yaml(channel.topic('versions'))
       .collectFile(
           storeDir: "${params.tracedir}",
           name:     'software_versions.yml',
@@ -2551,10 +2551,10 @@ workflow seqstats {
   disambiguate()
 
   // Input file with barcodes (FASTA)
-  ch_barcodes = Channel.value(params.barcodes)
+  ch_barcodes = channel.value(params.barcodes)
 
   // Input file with multiplexed reads (FASTQ.gz)
-  ch_input = Channel.value(params.input)
+  ch_input = channel.value(params.input)
 
   // Initial QC
   qc_se(ch_input)
