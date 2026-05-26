@@ -3,7 +3,7 @@
 
 def software_versions_to_yaml(versions) {
     
-    def workflow_info = Channel.of(
+    def workflow_info = channel.of(
         "NextITS:\n" +
         "    version: ${workflow.manifest.version}\n" +
         (workflow.commitId ? "    revision: ${workflow.commitId.substring(0,7)}\n" : "") +
