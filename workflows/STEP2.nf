@@ -20,18 +20,12 @@
 // - LULU (via MUMU implementation)
 // - Prepare OTU table (wide, aggregate sequence abundance by ASV/OTU/Swarm cluster)
 
-
-
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { CLUSTERING }                from '../subworkflows/clustering_subworkflow.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 
 // DADA2 with shared error estimation module
 include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
-
-// Directory for storing pipeline information
-out_tracedir = params.tracedir
-
 
 
 
@@ -830,7 +824,7 @@ process document_analysis_s2 {
 
     label "main_container"
 
-    publishDir "${out_tracedir}", mode: 'copy', overwrite: true
+    publishDir "${params.tracedir}", mode: 'copy', overwrite: true
     // cpus 1
 
     input:
