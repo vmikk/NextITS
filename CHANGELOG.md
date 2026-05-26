@@ -9,6 +9,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 ## [1.2.0] - 2026-XX-XX
 - Fixed a bug with demultiplexing using dual tags (sometimes files were named as unknown tag combinations)  
 - Add automatic detection of "single-library" results in Step-2  
+- Migrated to Nextflow v26 strict syntax parser  
 
 
 
