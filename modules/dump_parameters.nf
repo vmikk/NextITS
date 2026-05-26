@@ -11,7 +11,7 @@ def flattenMap(Map m, String prefix = '') {
     m.each { k, v ->
         def key = prefix ? "${prefix}.${k}" : (k as String)
         if( v instanceof Map )
-            out.addAll( flattenMap((Map)v, key) )
+            out.addAll( flattenMap(v as Map, key) )
         else
             out << [ key, v ]
     }
@@ -39,7 +39,7 @@ def tsvValue(Object v) {
  */
 def dumpParamsTsv() {
     assert params instanceof Map : 'params must be map-like'
-    def pairs = flattenMap((Map)params).sort { a, b -> a[0] <=> b[0] }
+    def pairs = flattenMap(params as Map).sort { a, b -> a[0] <=> b[0] }
     // If you want a header, uncomment the next line
     // def lines = ['param\tvalue'] + pairs.collect { k,v -> "${k}\t${tsvValue(v)}" }
     def lines = pairs.collect { k,v -> "${k}\t${tsvValue(v)}" }
