@@ -2117,7 +2117,7 @@ workflow S1 {
     ch_input
       .ifEmpty {
           error("ERROR: No FASTQ files found in the input directory: ${params.input}")
-          exit 1
+          exit(1)
       }   
 
     // QC

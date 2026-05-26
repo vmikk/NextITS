@@ -115,7 +115,7 @@ if( params.step == "Step1" ) {
     if (!(params.chimera_db.toLowerCase().endsWith('.udb'))) {
         println( errorMsg("The reference database file specified with `--chimera_db` parameter must be in UDB format.", params.monochrome_logs))
         println( colorize("       See https://Next-ITS.github.io/installation/#databases for more information.", 'red', params.monochrome_logs))
-        exit 1
+        exit(1)
     }
   }
 
