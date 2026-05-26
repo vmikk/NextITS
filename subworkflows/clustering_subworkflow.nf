@@ -580,7 +580,7 @@ workflow CLUSTERING {
 
     take:
       derep_ch       // channel of dereplicated sequences in FASTA format
-      shared_err_ch  // for DADA2, shared error model for all chunks; can be `Channel.empty()` if not needed
+      shared_err_ch  // for DADA2, shared error model for all chunks; can be `channel.empty()` if not needed
 
     main:
 
