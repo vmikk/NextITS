@@ -866,10 +866,10 @@ workflow S2 {
     
     if( singleParquet.exists() ) {
         log.info "Single-library analysis"
-        ch_seqtabs = Channel.value([ singleParquet ])
+        ch_seqtabs = channel.value([ singleParquet ])
     } else {
         log.info "Multi-library analysis"
-        ch_seqtabs = Channel.fromPath(
+        ch_seqtabs = channel.fromPath(
           "${base}/*/07_SeqTable/Seqs.parquet",
           checkIfExists: true,
           maxDepth: 2).collect()
@@ -924,7 +924,7 @@ workflow S2 {
     // No chunking (process all sequences at once)
     if(params.chunking_n == null || params.chunking_n < 2){
 
-      CLUSTERING(derep_ch, Channel.empty())  // second channel is used for DADA2
+      CLUSTERING(derep_ch, channel.empty())  // second channel is used for DADA2
 
       preclustuc_ch = CLUSTERING.out.preclustuc_ch
       cluster_ch    = CLUSTERING.out.cluster_ch
@@ -958,7 +958,7 @@ workflow S2 {
         }
       
       } else {
-        CLUSTERING(buckets_ch, Channel.empty())
+        CLUSTERING(buckets_ch, channel.empty())
       }
 
       // collect UC and FASTA files from all chunks
@@ -1018,7 +1018,7 @@ workflow S2 {
   // run_summary()
 
   // Dump the software versions to a file
-  ch_versions_yml = software_versions_to_yaml(Channel.topic('versions'))
+  ch_versions_yml = software_versions_to_yaml(channel.topic('versions'))
       .collectFile(
           storeDir: "${params.tracedir}",
           name:     'software_versions.yml',
