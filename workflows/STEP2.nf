@@ -26,9 +26,8 @@ include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { CLUSTERING }                from '../subworkflows/clustering_subworkflow.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 
-if(params.preclustering == "dada2" && params.dada2_error_estimation == "shared"){
-  include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
-}
+// DADA2 with shared error estimation module
+include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
 
 // Directory for storing pipeline information
 out_tracedir = params.tracedir

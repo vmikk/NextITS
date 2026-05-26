@@ -16,9 +16,8 @@ include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
-if ( params.seqplatform == "Illumina" ){
-  include { qc_pe; merge_pe; demux_pe; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
-}
+// Illumina-specific module
+include { qc_pe; merge_pe; demux_pe; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
 
 
 // Define output paths for different steps
