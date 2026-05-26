@@ -341,24 +341,20 @@ process merge_buckets {
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "homopolymer" && params.clustering != "none",
                pattern: "PreClustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "PreClustered.fa.gz": return "HomopolymerCompressed.fa.gz"
-                       case "PreClustered.uc.gz": return "HomopolymerCompressed.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "PreClustered.fa.gz") return "HomopolymerCompressed.fa.gz"
+                   else if (filename == "PreClustered.uc.gz") return "HomopolymerCompressed.uc.gz"
+                   else return null
                }
     // Homopolymer correction (pre-clustering) without clustering
     publishDir "${params.outdir}/02.Homopolymer", 
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "homopolymer" && params.clustering == "none",
                pattern: "Clustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "Clustered.fa.gz": return "HomopolymerCompressed.fa.gz"
-                       case "Clustered.uc.gz": return "HomopolymerCompressed.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "Clustered.fa.gz") return "HomopolymerCompressed.fa.gz"
+                   else if (filename == "Clustered.uc.gz") return "HomopolymerCompressed.uc.gz"
+                   else return null
                }
 
     // UNOISE with clustering
@@ -366,24 +362,20 @@ process merge_buckets {
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "unoise" && params.clustering != "none",
                pattern: "PreClustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "PreClustered.fa.gz": return "UNOISE.fa.gz"
-                       case "PreClustered.uc.gz": return "UNOISE.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "PreClustered.fa.gz") return "UNOISE.fa.gz"
+                   else if (filename == "PreClustered.uc.gz") return "UNOISE.uc.gz"
+                   else return null
                }
     // UNOISE without clustering
     publishDir "${params.outdir}/02.UNOISE", 
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "unoise" && params.clustering == "none",
                pattern: "Clustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "Clustered.fa.gz": return "UNOISE.fa.gz"
-                       case "Clustered.uc.gz": return "UNOISE.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "Clustered.fa.gz") return "UNOISE.fa.gz"
+                   else if (filename == "Clustered.uc.gz") return "UNOISE.uc.gz"
+                   else return null
                }
 
     // DADA2 with clustering               
@@ -391,24 +383,20 @@ process merge_buckets {
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "dada2" && params.clustering != "none",
                pattern: "PreClustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "PreClustered.fa.gz": return "DADA2_denoised.fa.gz"
-                       case "PreClustered.uc.gz": return "DADA2_denoised.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "PreClustered.fa.gz") return "DADA2_denoised.fa.gz"
+                   else if (filename == "PreClustered.uc.gz") return "DADA2_denoised.uc.gz"
+                   else return null
                }
     // DADA2 with clustering               
     publishDir "${params.outdir}/02.DADA2", 
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "dada2" && params.clustering == "none",
                pattern: "Clustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "Clustered.fa.gz": return "DADA2_denoised.fa.gz"
-                       case "Clustered.uc.gz": return "DADA2_denoised.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "Clustered.fa.gz") return "DADA2_denoised.fa.gz"
+                   else if (filename == "Clustered.uc.gz") return "DADA2_denoised.uc.gz"
+                   else return null
                }
 
     // SWARM with clustering           
@@ -416,24 +404,20 @@ process merge_buckets {
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "swarm_d1" && params.clustering != "none",
                pattern: "PreClustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "PreClustered.fa.gz": return "SWARM.fa.gz"
-                       case "PreClustered.uc.gz": return "SWARM.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "PreClustered.fa.gz") return "SWARM.fa.gz"
+                   else if (filename == "PreClustered.uc.gz") return "SWARM.uc.gz"
+                   else return null
                }
     // SWARM without clustering           
     publishDir "${params.outdir}/02.Preclustered_SWARM_d1", 
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.preclustering == "swarm_d1" && params.clustering == "none",
                pattern: "Clustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "Clustered.fa.gz": return "SWARM.fa.gz"
-                       case "Clustered.uc.gz": return "SWARM.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "Clustered.fa.gz") return "SWARM.fa.gz"
+                   else if (filename == "Clustered.uc.gz") return "SWARM.uc.gz"
+                   else return null
                }
 
 
@@ -448,12 +432,10 @@ process merge_buckets {
                mode: "${params.storagemode}",
                enabled: (params.chunking_n != null && params.chunking_n >= 2) && params.clustering == "swarm",
                pattern: "Clustered.{fa,uc}.gz",
-               saveAs: { filename -> 
-                   switch(filename) {
-                       case "Clustered.fa.gz": return "SWARM_representatives.fa.gz"
-                       case "Clustered.uc.gz": return "SWARM.uc.gz"
-                       default: return null
-                   }
+               saveAs: { filename ->
+                   if      (filename == "Clustered.fa.gz") return "SWARM_representatives.fa.gz"
+                   else if (filename == "Clustered.uc.gz") return "SWARM.uc.gz"
+                   else return null
                }
     
 
