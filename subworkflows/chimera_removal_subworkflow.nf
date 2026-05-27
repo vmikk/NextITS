@@ -10,15 +10,13 @@
 
 // Subworkflow for chimera removal (reference-based and de novo)
 
-// Path to the output results
-out_5_chim   = params.outdir + "/05_Chimera"
 
 // Reference-based chimera removal
 process chimera_ref {
 
     label "main_container"
 
-    publishDir "${out_5_chim}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/05_Chimera", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
@@ -96,7 +94,7 @@ process chimera_rescue {
 
     label "main_container"
 
-    publishDir "${out_5_chim}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/05_Chimera", mode: "${params.storagemode}"
     // cpus 1
 
     input:
@@ -164,7 +162,7 @@ process chimera_denovo {
 
     label "main_container"
 
-    publishDir "${out_5_chim}", mode: "${params.storagemode}"
+    publishDir "${params.outdir}/05_Chimera", mode: "${params.storagemode}"
     // cpus 1
 
     // Add sample ID to the log file
