@@ -480,6 +480,20 @@
           "default": "2I/1E",
           "description": "VSEARCH gap extension penalties"
         },
+        "unite_querycov": {
+          "type": "number",
+          "default": 0.96,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum query coverage for UNITE-style dereplication"
+        },
+        "unite_targetcov": {
+          "type": "number",
+          "default": 0.96,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum target coverage for UNITE-style dereplication"
+        },
         "max_MEEP": {
           "type": "number",
           "default": 0.5,
