@@ -254,8 +254,11 @@ ${logoColors.dim}----------------------------------------------------${logoColor
   }
 
   workflow.onComplete = {
-    println "Pipeline completed at : $workflow.complete"
+    def completion_time = workflow.complete.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX"))
+
+    println "Pipeline completed at : ${completion_time}"
     println "Duration              : ${workflow.duration}"
+    println "CPU hours             : ${workflow.stats.getComputeTimeFmt()}"
     println "Execution status      : ${workflow.success ? 'All done!' : 'Failed' }"
   }
 
