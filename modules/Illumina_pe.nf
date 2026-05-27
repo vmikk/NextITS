@@ -57,7 +57,7 @@ process merge_pe {
 
     label "main_container"
 
-    // publishDir "${out_1_demux}", mode: "${params.storagemode}"
+    // publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
     // cpus 10
 
     input:
@@ -122,7 +122,7 @@ process demux_pe {
 
     label "main_container"
 
-    publishDir "${out_1_demux}", mode: 'symlink'
+    publishDir "${params.outdir}/01_Demux", mode: 'symlink'
     // cpus 20
 
     input:
@@ -211,7 +211,7 @@ process trim_primers_pe {
 
     label "main_container"
 
-    publishDir "${out_3_trimPE}", mode: 'symlink'
+    publishDir "${params.outdir}/03_PrimerTrim", mode: 'symlink'
     // cpus 2
 
     // Add sample ID to the log file
