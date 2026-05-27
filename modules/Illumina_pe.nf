@@ -126,12 +126,12 @@ process demux_pe {
     // cpus 20
 
     input:
-      path input_R1
-      path input_R2
+      tuple path(input_R1), path(input_R2)
       path barcodes   // barcodes_modified.fa (e.g., XN{30})
 
     output:
-      path "*.fq.gz", emit: samples_demux
+      tuple path("Combined/*.R1.fastq.gz"), path("Combined/*.R2.fastq.gz"), emit: demux_pe, optional: true
+      path "NonMerged_samples.txt", emit: samples_nonm_pe, optional: true
 
     script:
     """
@@ -183,16 +183,28 @@ process demux_pe {
 
     ## Combine sequences from round 1 and round 2 for each sample
     echo -e "\nCombining sequences from round 1 and round 2 for each sample"
-    
-    mkdir -p Combined
-    
-    find . -name "round*.R1.fastq.gz" | sort | parallel -j1 \
-      "cat {} >> Combined/{= s/round1-//; s/round2-// =}"
 
-    find . -name "round*.R2.fastq.gz" | sort | parallel -j1 \
-      "cat {} >> Combined/{= s/round1-//; s/round2-// =}"
+    if test -n "\$(find . -maxdepth 1 -name 'round*.fastq.gz' -print -quit)"
+    then
 
-    echo -e "..Done"
+      mkdir -p Combined
+
+      find . -name "round*.R1.fastq.gz" | sort | parallel -j1 \
+        "cat {} >> Combined/{= s/round1-//; s/round2-// =}"
+
+      find . -name "round*.R2.fastq.gz" | sort | parallel -j1 \
+        "cat {} >> Combined/{= s/round1-//; s/round2-// =}"
+
+      ## Write sample names to the file
+      find Combined -name "*.R1.fastq.gz" \
+        | sed 's/Combined\\///; s/\\.R1\\.fastq\\.gz//' \
+        > NonMerged_samples.txt
+
+      echo -e "..Done"
+
+    else
+      echo "..No files"
+    fi
 
     ## Clean up
     echo -e "..Removing temporary files"
