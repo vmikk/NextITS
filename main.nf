@@ -13,8 +13,8 @@
 // - provide absolute paths to the input data (e.g. --input and --barcodes)
 // - File names should not contain period (.) characters (except for extensions)
 
-// nf-schema functions for parameter validation
-include { validateParameters } from 'plugin/nf-schema'
+// nf-schema functions for parameter validation and help
+include { validateParameters; paramsHelp } from 'plugin/nf-schema'
 
 // Include custom help message function
 include { helpMsg } from './modules/help_message.nf'
@@ -35,6 +35,21 @@ include { seqstats } from './workflows/STEP1.nf'
 // Entry workflow
 workflow {
 
+  // Schema-based help (--help, --helpFull, --help <param>)
+  if (params.help) {
+    if (params.help == true || params.help.toString() == 'true') {
+      log.info paramsHelp(hideWarning: true)
+    } else {
+      log.info paramsHelp(params.help.toString(), hideWarning: true)
+    }
+    exit 0
+  }
+
+  if (params.helpFull == true || params.helpFull?.toString() == 'true') {
+    log.info paramsHelp(fullHelp: true, hideWarning: true)
+    exit 0
+  }
+
   // Print the version and exit
   if (params.version) {
     def ver = "NextITS " + workflow.manifest.version
@@ -42,9 +57,6 @@ workflow {
     println "${ver}\n"
     exit(0)
   }
-
-  // Note: nf-schema plugin handles --help automatically via configuration in nextflow.config
-  // if (params.help) { ... }
 
   // Show a custom help message and exit
   if (params.helpMsg) {
