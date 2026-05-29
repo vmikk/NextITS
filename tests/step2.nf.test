@@ -1,0 +1,26 @@
+nextflow_pipeline {
+
+    name    "Step2"
+    script  "../main.nf"
+    tag     "step2"
+    profile "+test2,+docker"
+
+    test("Step2 VSEARCH clustering") {
+        tag "step2_vsearch"
+        options Workdirs.options("step2_vsearch")
+
+        when {
+            params {
+                outdir        = "$outputDir"
+                preclustering = "none"
+                clustering    = "vsearch"
+                otu_id        = 0.98
+                lulu          = false
+            }
+        }
+
+        then {
+            assert workflow.success
+        }
+    }
+}
