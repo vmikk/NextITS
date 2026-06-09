@@ -24,4 +24,30 @@ nextflow_pipeline {
             assert path("${params.outdir}/01.Dereplicated/Dereplicated.fa.gz").exists()
             assert path("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz").exists()
             Assertions.assertFastaCount("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz", 57)
+
+    test("Step2 UNOISE + VSEARCH + amplicon length filter") {
+        tag "step2_unoise_vsearch"
+        options Workdirs.options("step2_unoise_vsearch")
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                ampliconlen_min = 50
+                ampliconlen_max = 2000
+                preclustering   = "unoise"
+                unoise_alpha    = 2
+                unoise_minsize  = 1
+                clustering      = "vsearch"
+                otu_id          = 0.98
+                lulu            = false
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert path("${params.outdir}/02.UNOISE").exists()
+            assert path("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz").exists()
+            Assertions.assertStep2Pooled(params.outdir)
+        }
+    }
 }
