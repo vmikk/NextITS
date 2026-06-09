@@ -46,4 +46,23 @@ class Assertions {
     */
 
 
+    // TSV file assertions
+    static void assertTableHeader(String gzPath, String expectedHeader) {
+        def header = path(gzPath).grepLineGzip(0)
+        assert header == expectedHeader : "Unexpected OTU table header: ${header}"
+    }
+
+    static long countTxtRows(def txtPath) {
+        def p = path(txtPath)
+        def fileName = txtPath.toString()
+        def lines = fileName.endsWith(".gz") ? p.linesGzip : p.lines
+        return lines.count { true } as long
+    }
+
+    static void assertTxtRowCount(def txtPath, long expected) {
+        def n = countTxtRows(txtPath)
+        assert n == expected : "Expected ${expected} rows in ${txtPath}, found ${n}"
+    }
+
+
 }
