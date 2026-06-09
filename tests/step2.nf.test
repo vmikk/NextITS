@@ -23,7 +23,14 @@ nextflow_pipeline {
             assert workflow.success
             assert path("${params.outdir}/01.Dereplicated/Dereplicated.fa.gz").exists()
             assert path("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz").exists()
+            Assertions.assertStep2Pooled(params.outdir)
             Assertions.assertFastaCount("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz", 57)
+            Assertions.assertTableHeader(
+                "${params.outdir}/04.PooledResults/OTU_table_wide.txt.gz",
+                "OTU\tTest__A1\tTest__B1\tTest__B3"
+            )
+        }
+    }
 
     test("Step2 UNOISE + VSEARCH + amplicon length filter") {
         tag "step2_unoise_vsearch"
