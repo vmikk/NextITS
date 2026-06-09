@@ -21,4 +21,29 @@ class Assertions {
         assert path("${outdir}/pipeline_info/README_Step2_Methods.txt").exists()
     }
 
+    // FASTA file assertions
+    static int countFastaHeaders(def gzPath) {
+        path(gzPath).linesGzip.count { it.startsWith(">") }
+    }
+
+    static void assertFastaCount(String gzPath, int expected) {
+        def n = countFastaHeaders(gzPath)
+        assert n == expected : "Expected ${expected} OTUs in ${gzPath}, found ${n}"
+    }
+
+    /*
+    // using nft-fasta plugin
+    // (but it reads the file into a map, which is not good for large files; and also will return wrong count if there are duplicate sequence IDs?)
+    static long countFastaSequences(def fastaPath) {
+        def fasta = path(fastaPath).fasta
+        return fasta.size() as long
+    }
+    
+    static void assertFastaCount(def fastaPath, long expected) {
+        def n = countFastaSequences(fastaPath)
+        assert n == expected : "Expected ${expected} sequences in ${fastaPath}, found ${n}"
+    }
+    */
+
+
 }
