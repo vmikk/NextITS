@@ -23,4 +23,5 @@ nextflow_pipeline {
             assert workflow.success
             assert path("${params.outdir}/01.Dereplicated/Dereplicated.fa.gz").exists()
             assert path("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz").exists()
+            Assertions.assertFastaCount("${params.outdir}/03.Clustered_VSEARCH/Clustered.fa.gz", 57)
 }
