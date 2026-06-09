@@ -13,4 +13,12 @@ class Assertions {
         assert path("${outdir}/pipeline_info/README_Step1_Methods.txt").exists()
     }
 
+    static void assertStep2Pooled(String outdir) {
+        assert path("${outdir}/04.PooledResults/OTUs.fa.gz").exists()
+        assert path("${outdir}/04.PooledResults/UC_Pooled.parquet").exists()
+        assert path("${outdir}/04.PooledResults/OTU_table_wide.txt.gz").exists()
+        assert path("${outdir}/04.PooledResults/OTU_table_long.txt.gz").exists()
+        assert path("${outdir}/pipeline_info/README_Step2_Methods.txt").exists()
+    }
+
 }
