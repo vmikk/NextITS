@@ -1935,6 +1935,9 @@ process document_analysis_s1 {
 workflow S1 {
 
   is_demultiplexed = parseBooleanParam(params.demultiplexed, 'demultiplexed')
+  keep_notmerged = parseBooleanParam(params.illumina_keep_notmerged, 'illumina_keep_notmerged')
+  run_hp = parseBooleanParam(params.hp, 'hp')
+  run_tj = parseBooleanParam(params.tj, 'tj')
 
   // Primer disambiguation
   disambiguate()
@@ -2031,7 +2034,7 @@ workflow S1 {
       ch_demux_merged = demux_se.out.samples_demux.flatten()
 
       // Illumina nonmerged PE reads sub-workflow (optional)
-      if(params.illumina_keep_notmerged == true){
+      if(keep_notmerged){
 
         // Demultiplexing non-merged reads
         demux_pe(
@@ -2064,7 +2067,7 @@ workflow S1 {
         // Channel with demultiplexed reads
         ch_demuxed = ch_demux_merged
 
-      }
+      }  // end of Illumina keep_notmerged == true
 
       // Channel to use for primer checking
       ch_for_primer_check = ch_demuxed
@@ -2193,7 +2196,7 @@ workflow S1 {
   */
 
   // Homopolymer compression
-  if(params.hp == true){
+  if(run_hp){
 
     // --Full-length ITS sequences
     if(params.its_region == "full"){
@@ -2302,7 +2305,7 @@ workflow S1 {
   ch_chimerabd = channel.value(params.chimera_db)
 
   // Input depends on the selected workflow
-  if(params.hp == true){
+  if(run_hp){
 
     ch_input_for_chim = homopolymer.out.hc
 
@@ -2332,7 +2335,7 @@ workflow S1 {
   pool_seqs(CHIMERA_REMOVAL.out.filtered)
 
   // Tag-jump removal
-  if(params.tj == true){
+  if(run_tj){
 
     // Pre-clustering prior to tag-jump removal
     tj_preclust(pool_seqs.out.seqsnf)
@@ -2442,7 +2445,7 @@ workflow S1 {
   }
 
   // Homopolymer-correction channel
-  if(params.hp == true){
+  if(run_hp){
     ch_homopolymers = homopolymer.out.uch.flatten().collect().ifEmpty(file("no_homopolymer"))
   } else {
     ch_homopolymers = file("no_homopolymer")
