@@ -23,6 +23,7 @@
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { CLUSTERING }                from '../subworkflows/clustering_subworkflow.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
+include { parseBooleanParam }         from '../modules/param_utils.nf'
 
 // DADA2 with shared error estimation module
 include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
@@ -853,6 +854,8 @@ process document_analysis_s2 {
 // Step-2 workflow
 workflow S2 {
 
+    run_lulu = parseBooleanParam(params.lulu, 'lulu')
+
     // Find quality-filtered sequence tables
     def base = params.data_path
     def singleParquet = file("${base}/07_SeqTable/Seqs.parquet")
@@ -996,7 +999,7 @@ workflow S2 {
     )
 
     // Post-clustering curation with LULU
-    if ( params.lulu == true ) {
+    if ( run_lulu ) {
       lulu(
         summarize.out.otutabwide,
         summarize.out.seqs
