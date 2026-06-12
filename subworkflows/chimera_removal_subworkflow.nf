@@ -54,14 +54,26 @@ process chimera_ref {
     # --selfid = ignore reference sequences that are 100% identical to the query
     echo -e "..Done"
 
+    ## Remove empty files
+    if [ -f borderline.fasta ] && [ ! -s borderline.fasta ]
+    then
+      echo -e "\\nNo sequences in borderline chimeras - removing the file"
+      rm borderline.fasta
+    fi
+
+    if [ -f chimeras.fasta ] && [ ! -s chimeras.fasta ]
+    then
+      echo -e "\\nNo chimeras found - removing the file"
+      rm chimeras.fasta
+    fi
 
     ## Add borderline sequences to non-chimeric sequences
     if [ -e borderline.fasta ]
     then
-        echo -e "\\nBorderline sequences were added to non-chimeric sequences"
-        cat borderline.fasta nonchimeras.fasta > nc_bo.fasta
-        mv nc_bo.fasta nonchimeras.fasta
-        rm borderline.fasta
+      echo -e "\\nBorderline sequences were added to non-chimeric sequences"
+      cat borderline.fasta nonchimeras.fasta > nc_bo.fasta
+      mv nc_bo.fasta nonchimeras.fasta
+      rm borderline.fasta
     fi
 
     ## Chimeric sequences
