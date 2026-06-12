@@ -246,8 +246,9 @@ ${logoColors.dim}----------------------------------------------------${logoColor
 
   // Additional parameter validation for Step-2
   if (params.step == "Step2") {
+    def run_lulu = parseBooleanParam(params.lulu, 'lulu')
 
-    if (params.preclustering == "none" && params.clustering == "none" && params.lulu == true) {
+    if (params.preclustering == "none" && params.clustering == "none" && run_lulu) {
       println errorMsg("LULU can not be applied when pre-clustering and clustering are set to 'none'", params.monochrome_logs)
       exit(1)
     }
