@@ -13,6 +13,7 @@
 // Include functions
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
+include { parseBooleanParam }         from '../modules/param_utils.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
 // Illumina-specific module
@@ -1933,6 +1934,8 @@ process document_analysis_s1 {
 //  The default workflow - Step-1
 workflow S1 {
 
+  is_demultiplexed = parseBooleanParam(params.demultiplexed, 'demultiplexed')
+
   // Primer disambiguation
   disambiguate()
 
@@ -1944,7 +1947,7 @@ workflow S1 {
   */
 
   // Run demultiplexing
-  if( params.demultiplexed == false ){
+  if( !is_demultiplexed ){
     
     // Input file with barcodes (FASTA)
     ch_barcodes = channel.value(params.barcodes)
@@ -1997,14 +2000,8 @@ workflow S1 {
         ch_file_renaming,
         ch_unknown_combs)
 
-      // Check primers
-      primer_check(
-        demux.out.samples_demux.flatten(),
-        disambiguate.out.F,
-        disambiguate.out.R,
-        disambiguate.out.Fr,
-        disambiguate.out.Rr
-        )
+      // Channel to use for primer checking
+      ch_for_primer_check = demux.out.samples_demux.flatten()
 
     } // end of PacBio-specific tasks
 
@@ -2069,23 +2066,13 @@ workflow S1 {
 
       }
 
-      // Check primers
-      primer_check(
-        ch_demuxed,
-        disambiguate.out.F,
-        disambiguate.out.R,
-        disambiguate.out.Fr,
-        disambiguate.out.Rr
-        )
+      // Channel to use for primer checking
+      ch_for_primer_check = ch_demuxed
 
     } // end of Illumina-specific tasks
 
-  }   // end of demultiplexing
-
-
-
+  } else {
   // If samples were already demuliplexed
-  if( params.demultiplexed == true ){
 
     // Input files with demultiplexed reads (FASTQ.gz)
     ch_input = channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' )
@@ -2100,16 +2087,19 @@ workflow S1 {
     // QC
     qc_se(ch_input)
 
-    // Check primers
-    primer_check(
-      qc_se.out.filtered,
-      disambiguate.out.F,
-      disambiguate.out.R,
-      disambiguate.out.Fr,
-      disambiguate.out.Rr
-      )
+    // Channel to use for primer checking
+    ch_for_primer_check = qc_se.out.filtered
 
   }  // end of pre-demultiplexed branch
+
+  // Check primers
+  primer_check_out = primer_check(
+    ch_for_primer_check,
+    disambiguate.out.F,
+    disambiguate.out.R,
+    disambiguate.out.Fr,
+    disambiguate.out.Rr
+    )
 
 
   /*
@@ -2122,7 +2112,7 @@ workflow S1 {
   if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU"){
 
     // Run ITSx
-    itsx(primer_check.out.fq_primer_checked)
+    itsx(primer_check_out.fq_primer_checked)
 
     // Merge tables with sequence qualities
     seq_qual(itsx.out.hashes.collect())
@@ -2132,7 +2122,7 @@ workflow S1 {
   if(params.its_region == "none"){
       
     // Trim primers with cutadapt
-    trim_primers(primer_check.out.fq_primer_checked)
+    trim_primers(primer_check_out.fq_primer_checked)
 
     // Merge tables with sequence qualities
     seq_qual(trim_primers.out.hashes.collect())
@@ -2142,7 +2132,7 @@ workflow S1 {
   if(params.its_region == "ITS1_5.8S_ITS2"){
 
     // Run ITSx
-    itsx(primer_check.out.fq_primer_checked)
+    itsx(primer_check_out.fq_primer_checked)
 
     // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
     if (params.ITSx_partial == 0) {
@@ -2383,7 +2373,7 @@ workflow S1 {
   */
  
   // Initial data - Per-sample input channels
-  if( params.demultiplexed == false ){
+  if( !is_demultiplexed ){
 
     if(params.seqplatform == "PacBio"){
 
@@ -2409,8 +2399,8 @@ workflow S1 {
   
 
   // Primer-checked and multiprimer sequences
-  ch_all_primerchecked = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
-  ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
+  ch_all_primerchecked = primer_check_out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
+  ch_all_primerartefacts = primer_check_out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
       
   // ITSx and primer trimming channel
   if(params.its_region == "full"){
@@ -2578,4 +2568,3 @@ workflow seqstats {
       )
 
 } // end of `seqstats` subworkflow
-
