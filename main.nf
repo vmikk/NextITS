@@ -25,6 +25,9 @@ include { paramSummary } from './modules/parameter_summary'
 // Include color utilities
 include { getColors; colorize; colorizeMultiple; errorMsg; warningMsg; infoMsg; successMsg } from './modules/colors'
 
+// Include parameter utilities - (TODO - deprecated after migration to typed `params {}`)
+include { parseBooleanParam } from './modules/param_utils.nf'
+
 // Include workflows
 // NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
 include { S1 } from './workflows/STEP1.nf'
@@ -90,12 +93,17 @@ ${logoColors.dim}----------------------------------------------------${logoColor
   paramSummary(workflow, params)
   validateParameters()
 
+  def is_demultiplexed = false
+  def run_hp = true
+  def keep_notmerged = false
+
   // Additional runtime parameter validation
   // These checks are performed after schema validation and handle
   // conditional logic and file existence checks that cannot be expressed in JSON Schema
 
   // Additional parameter validation for Step-1
   if (params.step == "Step1" || params.step == "seqstats") {
+    is_demultiplexed = parseBooleanParam(params.demultiplexed, 'demultiplexed')
 
     if (params.input == false && params.seqplatform == "PacBio") {
         println( errorMsg("Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.", params.monochrome_logs))
@@ -105,13 +113,15 @@ ${logoColors.dim}----------------------------------------------------${logoColor
         println( errorMsg("Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.", params.monochrome_logs))
         exit(1)
     }
-    if (params.barcodes == false && params.demultiplexed == false) {
+    if (params.barcodes == false && !is_demultiplexed) {
         println( errorMsg("Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.", params.monochrome_logs))
         exit(1)
     }
   }
 
   if (params.step == "Step1") {
+    run_hp = parseBooleanParam(params.hp, 'hp')
+    keep_notmerged = parseBooleanParam(params.illumina_keep_notmerged, 'illumina_keep_notmerged')
 
     // Reference-based chimera removal
     if (params.chimera_methods && params.chimera_methods.toLowerCase().split(',').contains('ref')) {
@@ -128,16 +138,16 @@ ${logoColors.dim}----------------------------------------------------${logoColor
       }
     }
 
-    if (params.hp == true && params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true) {
+    if (run_hp && params.seqplatform == "Illumina" && keep_notmerged) {
         println( errorMsg("Homopolymer compression is not implemented for Illumina non-merged reads (add `--hp false` to your command).", params.monochrome_logs))
         exit(1)
     }
-    if (params.seqplatform == "Illumina" && params.demultiplexed == true) {
+    if (params.seqplatform == "Illumina" && is_demultiplexed) {
         println( errorMsg("Handling demultiplexed data for Illumina is not implemented yet.", params.monochrome_logs))
         exit(1)
     }
 
-    if (params.seqplatform == "Illumina" && params.illumina_keep_notmerged == true && params.its_region != "none") {
+    if (params.seqplatform == "Illumina" && keep_notmerged && params.its_region != "none") {
         println( warningMsg("Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.", params.monochrome_logs))
     }
 
