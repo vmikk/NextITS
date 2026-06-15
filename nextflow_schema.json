@@ -191,6 +191,12 @@
           "fa_icon": "fas fa-arrows-alt-h",
           "description": "Min length cutoff for partial ITS sequences to keep (0 = disabled, default)"
         },
+        "ITSx_heuristics": {
+          "type": "boolean",
+          "default": false,
+          "fa_icon": "fas fa-arrows-alt-h",
+          "description": "Use HMM filtering heuristics (default, disabled)"
+        },
         "ITSx_to_parquet": {
           "type": "boolean",
           "default": true,
