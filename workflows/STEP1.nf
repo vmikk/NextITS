@@ -745,6 +745,7 @@ process itsx {
     script:
     
     sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
+    itsx_heuristics = params.ITSx_heuristics ? "--heuristics T" : "--heuristics F"
 
     // Allow inclusion of sequences that only find a single domain, given that they meet the given E-value and score thresholds, on with parameters 1e-9,0 by default
     // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
@@ -829,6 +830,7 @@ process itsx {
       --not_found T \
       -E ${params.ITSx_evalue} \
       -t ${params.ITSx_tax} \
+      ${itsx_heuristics} \
       --partial ${params.ITSx_partial} \
       --cpu ${task.cpus} \
       --preserve T \
