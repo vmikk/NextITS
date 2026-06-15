@@ -744,8 +744,10 @@ process itsx {
 
     script:
     
-    sampID="${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}"
-    itsx_heuristics = params.ITSx_heuristics ? "--heuristics T" : "--heuristics F"
+    def sampID = input.getSimpleName().replaceAll(/_PrimerChecked/, '')
+    def itsx_heuristics = parseBooleanParam(params.ITSx_heuristics, 'ITSx_heuristics')
+        ? '--heuristics T'
+        : '--heuristics F'
 
     // Allow inclusion of sequences that only find a single domain, given that they meet the given E-value and score thresholds, on with parameters 1e-9,0 by default
     // singledomain = params.ITSx_singledomain ? "--allow_single_domain 1e-9,0" : ""
