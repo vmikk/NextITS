@@ -46,6 +46,30 @@ class Assertions {
     */
 
 
+    // FASTQ file assertions
+    /*
+    // using nft-fastq plugin - this does not work with gz-compressed files?
+    static long countFastqRecords(def fastqPath) {
+        def fastqFile = path(fastqPath).fastq
+        return fastqFile.getNumberOfRecords() as long
+    }
+    */
+
+    static long countFastqRecords(def fastqPath) {
+        def p = path(fastqPath)
+        def name = fastqPath.toString().toLowerCase()
+        def lines = name.endsWith(".gz") ? p.linesGzip : p.lines
+        long nLines = lines.count { true } as long
+        assert nLines % 4 == 0 : "Invalid FASTQ file ${fastqPath}: ${nLines} lines is not divisible by 4"
+        return (nLines / 4) as long
+    }
+
+    static void assertFastqCount(def fastqPath, long expected) {
+        def n = countFastqRecords(fastqPath)
+        assert n == expected : "Expected ${expected} sequences in ${fastqPath}, found ${n}"
+    }
+
+
     // TSV file assertions
     static void assertTableHeader(String gzPath, String expectedHeader) {
         def header = path(gzPath).grepLineGzip(0)
