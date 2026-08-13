@@ -1153,6 +1153,7 @@ process trim_primers {
 
 
 // Assemble near-full-length ITS from ITSx output
+// NOTES: deprected -> use get_its
 process assemble_its {
 
     label "main_container"
@@ -1217,6 +1218,63 @@ process assemble_its {
       echo -e "\\n..Skipping ITS assembly for this sample"
     fi
 
+    """
+}
+
+
+
+// Get near-full-length ITS from ITSx output (based on positions file)
+process get_its {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03_ITSx", mode: "${params.storagemode}"
+    // cpus 1
+
+    // Add sample ID to the log file
+    tag "${input.getSimpleName()}"
+
+    input:
+      path input       // primer-trimmed sequences used as ITSx input
+      path positions   // results of ITSx (region coordinates)
+
+    output:
+      path "${input.getSimpleName()}_ITS1_58S_ITS2.fasta.gz", emit: itsnf, optional: true
+      // path "${input.getSimpleName()}.extraction.tsv.gz", emit: itsx_extraction_report, optional: true
+
+    script:
+    sampID="${input.getSimpleName()}"
+
+    """
+    echo -e "Extracting ITS1-5.8S-ITS2 region"
+
+    ## Dereplicate at sample level (use quality-sorted sequences to make sure that the representative sequence is with the highest quality)
+    echo -e "\\nDereplicating at sample level"
+    seqkit fq2fa -w 0 ${input} \
+      | vsearch \
+        --derep_fulllength - \
+        --output - \
+        --strand both \
+        --fasta_width 0 \
+        --threads 1 \
+        --relabel_sha1 \
+        --sizein --sizeout \
+        --minseqlength ${params.trim_minlen} \
+        --quiet \
+      > derep.fasta
+    echo -e "..Done"
+
+    ## Run extraction (+ validation and exclusion of problematic sequences)
+    echo -e "\\nExtracting sequences"
+    extract_itsx_regions.R \
+      --fasta     derep.fasta \
+      --positions ${positions} \
+      --region    ITS \
+      --output    ${sampID}_ITS1_58S_ITS2.fasta.gz \
+      --report    ${sampID}.extraction.tsv.gz
+    
+    ## Remove temporary file
+    rm derep.fasta
     """
 }
 
