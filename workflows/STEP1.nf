@@ -1232,18 +1232,18 @@ process get_its {
     // cpus 1
 
     // Add sample ID to the log file
-    tag "${input.getSimpleName()}"
+    tag "${input.getSimpleName().replaceAll(/_primertrimmed_sorted/, '')}"
 
     input:
       path input       // primer-trimmed sequences used as ITSx input
       path positions   // results of ITSx (region coordinates)
 
     output:
-      path "${input.getSimpleName()}_ITS1_58S_ITS2.fasta.gz", emit: itsnf, optional: true
+      path "${input.getSimpleName().replaceAll(/_primertrimmed_sorted/, '')}_ITS1_58S_ITS2.fasta.gz", emit: itsnf, optional: true
       // path "${input.getSimpleName()}.extraction.tsv.gz", emit: itsx_extraction_report, optional: true
 
     script:
-    sampID="${input.getSimpleName()}"
+    sampID="${input.getSimpleName().replaceAll(/_primertrimmed_sorted/, '')}"
 
     """
     echo -e "Extracting ITS1-5.8S-ITS2 region"
