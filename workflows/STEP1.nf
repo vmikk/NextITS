@@ -2199,18 +2199,22 @@ workflow S1 {
     // Run ITSx
     itsx(primer_check_out.fq_primer_checked)
 
-    // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
-    if (params.ITSx_partial == 0) {
-      assemble_its(
-        itsx.out.itsx_its1,
-        itsx.out.itsx_58s,
-        itsx.out.itsx_its2)
-    } else {
-      assemble_its(
-        itsx.out.itsx_its1_part,
-        itsx.out.itsx_58s,
-        itsx.out.itsx_its2_part)
-    }
+    // // Assemble ITS1-5.8S-ITS2 from ITSx-extracted parts
+    // if (params.ITSx_partial == 0) {
+    //   assemble_its(
+    //     itsx.out.itsx_its1,
+    //     itsx.out.itsx_58s,
+    //     itsx.out.itsx_its2)
+    // } else {
+    //   assemble_its(
+    //     itsx.out.itsx_its1_part,
+    //     itsx.out.itsx_58s,
+    //     itsx.out.itsx_its2_part)
+    // }
+
+    get_its(
+      itsx.out.trimmed_seqs,
+      itsx.out.itsx_positions)
 
     // Merge tables with sequence qualities
     seq_qual(itsx.out.hashes.collect())
@@ -2303,7 +2307,8 @@ workflow S1 {
     }
     // Near-full-length ITS
     if(params.its_region == "ITS1_5.8S_ITS2"){
-      homopolymer(assemble_its.out.itsnf)
+      // homopolymer(assemble_its.out.itsnf)
+      homopolymer(get_its.out.itsnf)
     }
 
 
@@ -2376,7 +2381,8 @@ workflow S1 {
     if(params.its_region == "none"){
       ch_input_for_chim = trim_primers.out.primertrimmed_fa
     } else if(params.its_region == "ITS1_5.8S_ITS2"){
-      ch_input_for_chim = assemble_its.out.itsnf
+      // ch_input_for_chim = assemble_its.out.itsnf
+      ch_input_for_chim = get_its.out.itsnf
     } else {
       ch_input_for_chim = just_derep.out.nhc
     }
@@ -2500,7 +2506,8 @@ workflow S1 {
     }
   }
   if(params.its_region == "ITS1_5.8S_ITS2"){
-    ch_all_trim = assemble_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
+    // ch_all_trim = assemble_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
+    ch_all_trim = get_its.out.itsnf.flatten().collect().ifEmpty(file("no_itsx"))
   }
   if(params.its_region == "none"){
     ch_all_trim = trim_primers.out.primertrimmed_fq.flatten().collect().ifEmpty(file("no_primertrim"))
