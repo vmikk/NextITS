@@ -720,7 +720,7 @@ process itsx {
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.5_8S.fasta.gz", emit: itsx_58s,  optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.ITS2.fasta.gz", emit: itsx_its2, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.LSU.fasta.gz",  emit: itsx_lsu,  optional: true
-      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.positions.txt",   optional: true
+      path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.positions.txt", emit: itsx_positions, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.problematic.txt", optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}_no_detections.fasta.gz", emit: itsx_nondetects, optional: true
       path "${input.getSimpleName().replaceAll(/_PrimerChecked/, '')}.summary.txt",        emit: itsx_summary, optional: true
