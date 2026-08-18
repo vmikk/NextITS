@@ -831,4 +831,61 @@ workflow ITSx {
 
 
 
+  // Collect ITSx-extracted sequences
+  if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU" || params.its_region == "ITS1_5.8S_ITS2"){
+
+    // Collect rRNA parts into separate channels (+ drop metadata)
+    ch_cc_full = itsx.out.itsx_full.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOFULL"))
+    ch_cc_ssu  = itsx.out.itsx_ssu.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOSSU"))
+    ch_cc_its1 = itsx.out.itsx_its1.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS1"))
+    ch_cc_58s  = itsx.out.itsx_58s.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NO58S"))
+    ch_cc_its2 = itsx.out.itsx_its2.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS2"))
+    ch_cc_lsu  = itsx.out.itsx_lsu.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOLSU"))
+    
+    ch_cc_ssu_part  = itsx.out.itsx_ssu_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOSSUPART"))
+    ch_cc_its1_part = itsx.out.itsx_its1_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS1PART"))
+    ch_cc_58s_part  = itsx.out.itsx_58s_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NO58SPART"))
+    ch_cc_its2_part = itsx.out.itsx_its2_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS2PART"))
+    ch_cc_lsu_part  = itsx.out.itsx_lsu_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOLSUPART"))
+
+    itsx_collect(
+      ch_cc_full,
+      ch_cc_ssu,
+      ch_cc_its1,
+      ch_cc_58s,
+      ch_cc_its2,
+      ch_cc_lsu,
+      ch_cc_ssu_part,
+      ch_cc_its1_part,
+      ch_cc_58s_part,
+      ch_cc_its2_part,
+      ch_cc_lsu_part
+      )
+
+  } // end of collection of ITSx-extracted sequences
+
+
+  emit:
+    hashes           = primer_trim.out.hashes.map { meta, file -> file }
+    uc               = primer_trim.out.uc.map { meta, file -> file }
+    trimmed_seqs     = primer_trim.out.trimmed_seqs.map { meta, file -> file }
+    itsx_full        = ch_res_itsx_full
+    itsx_ssu         = ch_res_itsx_ssu
+    itsx_its1        = ch_res_itsx_its1
+    itsx_58s         = ch_res_itsx_58s
+    itsx_its2        = ch_res_itsx_its2
+    itsx_lsu         = ch_res_itsx_lsu
+    itsx_positions   = ch_res_itsx_positions
+    itsx_problematic = ch_res_itsx_problematic
+    itsx_nondetects  = ch_res_itsx_nondetects
+    itsx_summary     = ch_res_itsx_summary
+    itsx_details     = ch_res_itsx_details
+    itsx_ssu_part    = ch_res_itsx_ssu_part
+    itsx_its1_part   = ch_res_itsx_its1_part
+    itsx_58s_part    = ch_res_itsx_58s_part
+    itsx_its2_part   = ch_res_itsx_its2_part
+    itsx_lsu_part    = ch_res_itsx_lsu_part
+    parquet          = ch_res_parquet
+
+
 } // end of ITSx workflow
