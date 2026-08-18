@@ -738,6 +738,97 @@ workflow ITSx {
     // Run ITSx
     itsx(chunks_ch)
 
+    // For single-chunk workflow, concatenate all chunks for each sample
+    if(params.ITSx_chunk_size == 0){
+
+        // Fetch results from the ITSx
+        ch_res_itsx_full        = itsx.out.itsx_full
+        ch_res_itsx_ssu         = itsx.out.itsx_ssu
+        ch_res_itsx_its1        = itsx.out.itsx_its1
+        ch_res_itsx_58s         = itsx.out.itsx_58s
+        ch_res_itsx_its2        = itsx.out.itsx_its2
+        ch_res_itsx_lsu         = itsx.out.itsx_lsu
+        ch_res_itsx_positions   = itsx.out.itsx_positions
+        ch_res_itsx_problematic = itsx.out.itsx_problematic
+        ch_res_itsx_nondetects  = itsx.out.itsx_nondetects
+        ch_res_itsx_summary     = itsx.out.itsx_summary
+        ch_res_itsx_details     = itsx.out.itsx_details
+        ch_res_itsx_ssu_part    = itsx.out.itsx_ssu_part
+        ch_res_itsx_its1_part   = itsx.out.itsx_its1_part
+        ch_res_itsx_58s_part    = itsx.out.itsx_58s_part
+        ch_res_itsx_its2_part   = itsx.out.itsx_its2_part
+        ch_res_itsx_lsu_part    = itsx.out.itsx_lsu_part
+        
+        if(params.ITSx_to_parquet == true ){
+          itsx_to_parquet(
+            itsx.out.itsx_full,
+            itsx.out.itsx_ssu,
+            itsx.out.itsx_its1,
+            itsx.out.itsx_58s,
+            itsx.out.itsx_its2,
+            itsx.out.itsx_lsu
+          )
+          ch_res_parquet = itsx_to_parquet.out.parquet
+        } else {
+          ch_res_parquet = channel.empty()
+        }
+
+    } else {
+    // For multi-chunk workflow, we need to pool the chunks per sample
+
+      // Group all ITSx chunk outputs back by sample ID and concatenate
+      itsx_all_chunks = itsx.out.itsx_full
+          .mix(
+            itsx.out.itsx_ssu,
+            itsx.out.itsx_its1,
+            itsx.out.itsx_58s,
+            itsx.out.itsx_its2,
+            itsx.out.itsx_lsu,
+            itsx.out.itsx_nondetects,
+            itsx.out.itsx_summary,
+            itsx.out.itsx_details,
+            itsx.out.itsx_positions,
+            itsx.out.itsx_problematic,
+            itsx.out.itsx_ssu_part,
+            itsx.out.itsx_its1_part,
+            itsx.out.itsx_58s_part,
+            itsx.out.itsx_its2_part,
+            itsx.out.itsx_lsu_part
+          )
+
+        concatenated_ch = itsx_all_chunks
+          .map { meta, file ->
+              [meta.id, meta, file]
+          }
+          .groupTuple(by: 0)
+          .map { sample_id, metas, files ->
+              [metas[0], files]
+          }
+    
+        // Concatenate all chunks for each sample (no-op if channel is empty)
+        itsx_concatenate(concatenated_ch)
+
+        // Fetch results from the concatenated channel
+        ch_res_itsx_full        = itsx_concatenate.out.itsx_full
+        ch_res_itsx_ssu         = itsx_concatenate.out.itsx_ssu
+        ch_res_itsx_its1        = itsx_concatenate.out.itsx_its1
+        ch_res_itsx_58s         = itsx_concatenate.out.itsx_58s
+        ch_res_itsx_its2        = itsx_concatenate.out.itsx_its2
+        ch_res_itsx_lsu         = itsx_concatenate.out.itsx_lsu
+        ch_res_itsx_positions   = itsx_concatenate.out.itsx_positions
+        ch_res_itsx_problematic = itsx_concatenate.out.itsx_problematic
+        ch_res_itsx_nondetects  = itsx_concatenate.out.itsx_nondetects
+        ch_res_itsx_summary     = itsx_concatenate.out.itsx_summary
+        ch_res_itsx_details     = itsx_concatenate.out.itsx_details
+        ch_res_itsx_ssu_part    = itsx_concatenate.out.itsx_ssu_part
+        ch_res_itsx_its1_part   = itsx_concatenate.out.itsx_its1_part
+        ch_res_itsx_58s_part    = itsx_concatenate.out.itsx_58s_part
+        ch_res_itsx_its2_part   = itsx_concatenate.out.itsx_its2_part
+        ch_res_itsx_lsu_part    = itsx_concatenate.out.itsx_lsu_part
+        ch_res_parquet          = itsx_concatenate.out.parquet
+    }
+
+
 
 
 } // end of ITSx workflow
