@@ -528,7 +528,7 @@ process cluster_swarm {
       tuple val("${task.process}"), val('swarm'), eval('swarm --version 2>&1 | head -n 1 | sed "s/Swarm //"'), topic: versions
 
     script:
-    def fastidious = (params.swarm_fastidious.toBoolean() == true & params.swarm_d.toInteger() == 1) ? "--fastidious --boundary ${params.swarm_d1boundary}" : ""
+    def fastidious = (params.swarm_fastidious && params.swarm_d == 1) ? "--fastidious --boundary ${params.swarm_d1boundary}" : ""
     // println("swarm_fastidious: ${params.swarm_fastidious}, swarm_d: ${params.swarm_d}")
     // println("fastid option:  ${fastidious}")
 

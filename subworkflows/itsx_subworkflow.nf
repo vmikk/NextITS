@@ -16,8 +16,6 @@
 //   3. Run ITSx on each chunk
 //   4. Group results back by original sample ID and concatenate + convert ITSx output to Parquet
 
-include { parseBooleanParam } from '../modules/param_utils.nf'
-
 // Path to the output results
 out_3_itsx   = params.outdir + "/03_ITSx"
 out_3_itsxp  = params.outdir + "/03_ITSx_PooledParts"
@@ -185,7 +183,7 @@ process itsx {
     script:
     def sampID = meta.id
     def chunkPrefix = "${meta.id}_chunk${meta.chunk_id}"
-    def itsx_heuristics = parseBooleanParam(params.ITSx_heuristics, 'ITSx_heuristics')
+    def itsx_heuristics = params.ITSx_heuristics
         ? '--heuristics T'
         : '--heuristics F'
 
