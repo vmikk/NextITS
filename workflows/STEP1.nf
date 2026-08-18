@@ -13,7 +13,6 @@
 // Include functions
 include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
-include { parseBooleanParam }         from '../modules/param_utils.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 
 // Illumina-specific module
@@ -745,7 +744,7 @@ process itsx {
     script:
     
     def sampID = input.getSimpleName().replaceAll(/_PrimerChecked/, '')
-    def itsx_heuristics = parseBooleanParam(params.ITSx_heuristics, 'ITSx_heuristics')
+    def itsx_heuristics = params.ITSx_heuristics
         ? '--heuristics T'
         : '--heuristics F'
 
@@ -1996,10 +1995,10 @@ process document_analysis_s1 {
 //  The default workflow - Step-1
 workflow S1 {
 
-  is_demultiplexed = parseBooleanParam(params.demultiplexed, 'demultiplexed')
-  keep_notmerged = parseBooleanParam(params.illumina_keep_notmerged, 'illumina_keep_notmerged')
-  run_hp = parseBooleanParam(params.hp, 'hp')
-  run_tj = parseBooleanParam(params.tj, 'tj')
+  is_demultiplexed = params.demultiplexed
+  keep_notmerged = params.illumina_keep_notmerged
+  run_hp = params.hp
+  run_tj = params.tj
 
   // Primer disambiguation
   disambiguate()
