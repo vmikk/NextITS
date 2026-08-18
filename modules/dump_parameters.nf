@@ -38,7 +38,6 @@ def tsvValue(Object v) {
  * Return a channel emitting one string per line:  "param\tvalue"
  */
 def dumpParamsTsv() {
-    assert params instanceof Map : 'params must be map-like'
     def pairs = flattenMap(params as Map).sort { a, b -> a[0] <=> b[0] }
     // If you want a header, uncomment the next line
     // def lines = ['param\tvalue'] + pairs.collect { k,v -> "${k}\t${tsvValue(v)}" }
