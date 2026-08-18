@@ -359,13 +359,13 @@
         },
         "dada2_pooling": {
           "type": "string",
-          "default": "byrun",
+          "default": "global",
           "enum": ["byrun", "global"],
           "description": "DADA2 pooling strategy"
         },
         "dada2_error_estimation": {
           "type": "string",
-          "default": "per_bucket",
+          "default": "shared",
           "enum": ["per_bucket", "shared"],
           "description": "How DADA2 error rates are estimated for chunked runs: independently per bucket or once from a shared subset"
         },
@@ -377,7 +377,7 @@
         },
         "dada2_nbases": {
           "type": "number",
-          "default": 1000000,
+          "default": 100000000,
           "description": "DADA2 number of bases"
         },
         "dada2_maxreadsperseq": {
@@ -526,13 +526,13 @@
           "description": "Post-clustering curation using LULU algorithm"
         },
         "lulu_match": {
-          "type": "integer",
-          "default": 95,
+          "type": "number",
+          "default": 95.0,
           "description": "Minimum sequence similarity threshold for LULU"
         },
         "lulu_ratio": {
-          "type": "integer",
-          "default": 1,
+          "type": "number",
+          "default": 1.0,
           "description": "Minimum sequence abundance ratio for LULU"
         },
         "lulu_ratiotype": {
@@ -576,7 +576,7 @@
           "format": "directory-path",
           "description": "Path to the directory where the analysis results will be saved.",
           "fa_icon": "fas fa-folder-open",
-          "default": "Step2_Results"
+          "default": "results"
         },
         "step": {
           "type": "string",
@@ -637,9 +637,14 @@
           "hidden": true
         },
         "help": {
+          "type": "string",
+          "description": "Display help text (optionally for a specific parameter, e.g. --help chimera_db)",
+          "fa_icon": "fas fa-question-circle",
+          "hidden": true
+        },
+        "helpFull": {
           "type": "boolean",
-          "default": false,
-          "description": "Display help text",
+          "description": "Display the full help text",
           "fa_icon": "fas fa-question-circle",
           "hidden": true
         },
@@ -647,6 +652,12 @@
           "type": "boolean",
           "fa_icon": "far fa-question-circle",
           "description": "Custom help message"
+        },
+        "showHidden": {
+          "type": "boolean",
+          "description": "Show hidden parameters in help output",
+          "fa_icon": "fas fa-eye",
+          "hidden": true
         },
         "monochrome_logs": {
           "type": "boolean",
@@ -700,8 +711,8 @@
           "description": "File with R2 reads for Illumina"
         },
         "qc_avgphred": {
-          "type": "boolean",
-          "description": "Average Phred score (for Illumina PE reads only)"
+          "type": "integer",
+          "description": "Average Phred score threshold (for Illumina PE reads only)"
         },
         "qc_twocolor": {
           "type": "boolean",
