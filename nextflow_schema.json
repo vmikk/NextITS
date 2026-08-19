@@ -13,12 +13,13 @@
           "type": "string",
           "format": "path",
           "exists": true,
-          "mimetype": "text/csv",
           "description": "Path to input data: either a single FASTQ or BAM file containing multiplexed sequences, or a directory containing pre-demultiplexed FASTQ files.",
-          "fa_icon": "fas fa-file-csv"
+          "errorMessage": "Provide an existing FASTQ/BAM file or a directory of pre-demultiplexed FASTQ files.",
+          "fa_icon": "fas fa-file"
         },
         "barcodes": {
           "type": "string",
+          "format": "file-path",
           "fa_icon": "fas fa-barcode",
           "description": "Path to the file with barcodes (in FASTA format) used for demultiplexing the input data."
         },
@@ -138,14 +139,12 @@
         "primer_foverlap": {
           "type": "integer",
           "fa_icon": "fas fa-angle-right",
-          "description": "Minimum overlap for the forward primer.",
-          "default": null
+          "description": "Minimum overlap for the forward primer."
         },
         "primer_roverlap": {
           "type": "integer",
           "fa_icon": "fas fa-angle-left",
-          "description": "Minimum overlap for the reverse primer.",
-          "default": null
+          "description": "Minimum overlap for the reverse primer."
         },
         "its_region": {
           "type": "string",
@@ -593,7 +592,7 @@
           "description": "How to store output files: 'symlink' for symbolic links, 'copy' to copy files, 'move' to move files, 'rellink' for relative links, 'link' for hard links"
         },
         "gzip_compression": {
-          "type": "number",
+          "type": "integer",
           "default": 7,
           "minimum": 1,
           "maximum": 9,
@@ -602,7 +601,7 @@
         },
         "max_cpus": {
           "type": "integer",
-          "default": 40,
+          "default": 80,
           "fa_icon": "fas fa-microchip",
           "description": "Maximum number of CPUs that can be requested (for any single job).",
           "help_text": "Use to set an upper-limit for the CPU requirement for each process. Should be an integer e.g. `--max_cpus 1`",
