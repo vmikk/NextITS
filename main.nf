@@ -261,8 +261,9 @@ params {
 
 }
 
-// nf-schema functions for parameter validation and help
-include { validateParameters; paramsHelp } from 'plugin/nf-schema'
+// nf-schema functions for parameter validation
+// --help / --helpFull / --help <param> are handled by nf-schema HelpObserver
+include { validateParameters } from 'plugin/nf-schema'
 
 // Include custom help message function
 include { helpMsg } from './modules/help_message.nf'
@@ -283,18 +284,8 @@ include { seqstats } from './workflows/STEP1.nf'
 // Entry workflow
 workflow {
 
-  // Schema-based help (--help, --helpFull, --help <param>)
-  if (params.help) {
-    if (params.help == 'true') {
-      log.info paramsHelp(hideWarning: true)
-    } else {
-      log.info paramsHelp(params.help, hideWarning: true)
-    }
-    exit 0
-  }
-
-  if (params.helpFull) {
-    log.info paramsHelp(fullHelp: true, hideWarning: true)
+  // nf-schema HelpObserver prints --help / --helpFull
+  if (params.help || params.helpFull) {
     exit 0
   }
 
@@ -336,7 +327,9 @@ ${logoColors.dim}----------------------------------------------------${logoColor
 
   // Print step-specific parameter summary
   paramSummary(workflow, params)
-  validateParameters()
+  if (params.validate_params) {
+    validateParameters(monochrome_logs: params.monochrome_logs)
+  }
 
   def is_demultiplexed = false
   def run_hp = true
