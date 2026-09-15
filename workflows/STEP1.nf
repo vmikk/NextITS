@@ -1685,7 +1685,7 @@ process read_counts {
 
     label "main_container"
 
-    publishDir "${params.outdir}/08_RunSummary",                 mode: "${params.storagemode}", pattern: "*.xlsx"
+    publishDir "${params.outdir}/08_RunSummary",                 mode: "${params.storagemode}", pattern: "*.{xlsx,tsv}"
     publishDir "${params.outdir}/08_RunSummary/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
     // cpus 4
 
@@ -1705,6 +1705,8 @@ process read_counts {
 
     output:
       path "Run_summary.xlsx",                  emit: xlsx
+      path "per_sample.tsv",                    emit: per_sample
+      path "per_run.tsv",                       emit: per_run
       path "Counts_1.RawData.txt",              emit: counts_1_raw
       path "Counts_2.QC.txt",                   emit: counts_2_qc
       path "Counts_3.Demux.txt",                emit: counts_3_demux,        optional: true
