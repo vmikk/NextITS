@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 
-## Aim - evenly distribute sequence clusters across a specified number of buckets.
-## The goal is to have the total length of sequences in each bucket as equal as possible.
+## Aim - evenly distribute sequence clusters across a specified number of buckets
+## The goal is to have the total length (and the number) of sequences in each bucket as equal as possible
+## Members of the same cluster should be in the same bucket
 
 ## Number of buckets can be automatically selected
 ## (e.g., to avoid the DADA2s' error message `long vectors not supported yet`, related with > 2^31 elements)
@@ -164,8 +165,6 @@ max_seq_width <- max(seq_widths)
 EXPORT_CHUNK_BASES <- 5e7
 EXPORT_CHUNK_NSEQ <- max(1L, as.integer(floor(EXPORT_CHUNK_BASES / max_seq_width)))
 
-cat("..FASTA export chunk size: up to ", format(EXPORT_CHUNK_NSEQ, big.mark = ","), " sequences per write\n", sep = "")
-
 ## Load clustering file
 cat("..Loading clustering file\n")
 DB <- fread(file = DATABASE,
@@ -267,6 +266,7 @@ fwrite(x = smr, file = SUMMARY, sep = "\t", col.names = TRUE)
 
 
 cat("\n\n..Exporting FASTA file for each bucket\n")
+cat("...FASTA export chunk size: up to ", format(EXPORT_CHUNK_NSEQ, big.mark = ","), " sequences per write\n", sep = "")
 
 ## Prepare export index once instead of scanning DB for every bucket
 cat("..Preparing export index\n")
