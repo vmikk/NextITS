@@ -222,6 +222,7 @@ process itsx {
       --not_found T \
       -E ${params.ITSx_evalue} \
       -t ${params.ITSx_tax} \
+      ${itsx_heuristics} \
       --partial ${params.ITSx_partial} \
       --cpu ${task.cpus} \
       --preserve T \
