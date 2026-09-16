@@ -1779,7 +1779,7 @@ process read_counts {
       echo -e "... No files found"
       touch Counts_5.ITSx_or_PrimTrim.txt
     else
-      find 5_itsxtrim -name "*.fasta.gz" \
+      find 5_itsxtrim \\( -name "*.fasta.gz" -o -name "*.fa.gz" \\) \
         | parallel -j ${task.cpus} "count_number_of_reads.sh {} {/.}" \
         | sed '1i SampleID\tNumReads' \
         > Counts_5.ITSx_or_PrimTrim.txt
