@@ -41,9 +41,9 @@ process bam2fastq {
     echo -e "Input file: " ${input}
     echo -e "BAM index: "  ${bam_index}
 
-    bam2fastq \
-      -c ${params.gzip_compression} \
-      --num-threads ${task.cpus} \
+    bam2fastq \\
+      -c ${params.gzip_compression} \\
+      --num-threads ${task.cpus} \\
       ${input}
 
     echo -e "\\nConvertion finished"
@@ -95,23 +95,23 @@ process qc_se {
     ## Therefore, temporary rename input
     mv ${input} inp.fq.gz
 
-    vsearch \
-      --fastq_filter inp.fq.gz \
-      --fastq_qmax 93 \
-      ${filter_maxee} \
-      ${filter_maxeerate} \
-      --fastq_maxns ${params.qc_maxn} \
-      --threads 1 \
-      --no_progress \
-      --fastqout - \
-    | seqkit grep \
-      --by-seq --ignore-case --invert-match --only-positive-strand -w 0 \
-      --threads \$half_cpus \
-      --pattern "\$A_run" \
-      --pattern "\$C_run" \
-      --pattern "\$G_run" \
-      --pattern "\$T_run" \
-    | pigz -p \$half_cpus -${params.gzip_compression} \
+    vsearch \\
+      --fastq_filter inp.fq.gz \\
+      --fastq_qmax 93 \\
+      ${filter_maxee} \\
+      ${filter_maxeerate} \\
+      --fastq_maxns ${params.qc_maxn} \\
+      --threads 1 \\
+      --no_progress \\
+      --fastqout - \\
+    | seqkit grep \\
+      --by-seq --ignore-case --invert-match --only-positive-strand -w 0 \\
+      --threads \$half_cpus \\
+      --pattern "\$A_run" \\
+      --pattern "\$C_run" \\
+      --pattern "\$G_run" \\
+      --pattern "\$T_run" \\
+    | pigz -p \$half_cpus -${params.gzip_compression} \\
     > "${input.getSimpleName()}.fq.gz"
 
     echo -e "\\nQC finished"
@@ -147,8 +147,8 @@ process tag_validation {
     LC_ALL=C sed -i 's/\r\$//g' ${barcodes}
 
     ## Perform tag validation
-    validate_tags.R \
-      --tags   ${barcodes} \
+    validate_tags.R \\
+      --tags   ${barcodes} \\
       --output barcodes_validated.fasta
 
     echo -e "\\nTag validation finished"
