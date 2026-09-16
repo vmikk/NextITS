@@ -1,5 +1,9 @@
 #!/usr/bin/env Rscript
 
+## Aim - extract SSU, ITS, or LSU sequences using coordinates reported by ITSx
+## Chimeras, non-detections, malformed coordinates, and coordinate artefacts are excluded
+## The complete original FASTA headers are preserved in the extracted sequences
+
 ## Usage example:
 # extract_itsx_regions.R \
 #   --fasta     Dereplicated.fa.gz \
