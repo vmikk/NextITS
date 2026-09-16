@@ -20,7 +20,9 @@ option_list <- list(
   make_option("--params",      type = "character", default = NULL, help = "pipeline_params.tsv"),
   make_option("--versions",    type = "character", default = NULL, help = "software_versions.yml"),
   make_option("--methods",     type = "character", default = NULL, help = "README_Step2_Methods.txt"),
-  make_option("--schema",      type = "character", default = NULL, help = "nextflow_schema.json"),
+  make_option("--command",     type = "character", default = NULL, help = "execution_command.txt"),
+  make_option("--logo",        type = "character", default = NULL, help = "NextITS logo (SVG or PNG)"),
+  make_option("--trace-stamp", type = "character", default = NULL, help = "Timestamp Nextflow stamped into pipeline_info filenames"),
   make_option("--assets",      type = "character", default = "assets", help = "Report asset directory [%default]"),
   make_option("--out",         type = "character", default = "Step2_report.html", help = "Output HTML [%default]"),
   make_option("--summary-tsv", type = "character", default = "Step2_summary.tsv", help = "Per-sample summary TSV [%default]"),
@@ -153,24 +155,33 @@ funnel <- NULL
 if (is_usable_file(opt$`uc-pooled`) && requireNamespace("arrow", quietly = TRUE)) {
   uc <- tryCatch(as.data.table(arrow::read_parquet(opt$`uc-pooled`)), error = function(e) NULL)
   if (!is.null(uc) && nrow(uc) > 0L) {
+    ## Each step carries the label for the sequences it folds away, so the sankey branches can be named after what actually merged them
     steps <- list(
-      c("SeqID",        "Input sequences"),
-      c("DerepID",      "Dereplicated"),
-      c("PreclusterID", if (grepl("unoise", preclust)) "Denoised (UNOISE)" else if (grepl("dada2", preclust)) "Denoised (DADA2)" else "Pre-clustered"),
-      c("OTU",          if (clustering == "none") "Final sequences" else paste0("Clustered (", clustering, ")")))
+      list("SeqID",        "Input sequences", NA_character_),
+      list("DerepID",      "Dereplicated",    "Identical sequences"),
+      list("PreclusterID",
+           if (grepl("unoise", preclust)) "Denoised (UNOISE)"
+           else if (grepl("dada2", preclust)) "Denoised (DADA2)"
+           else "Pre-clustered",
+           if (grepl("unoise|dada2", preclust)) "Merged by denoising" else "Merged by pre-clustering"),
+      list("OTU",
+           if (clustering == "none") "Final sequences" else paste0("Clustered (", clustering, ")"),
+           if (clustering == "none") "Collapsed" else "Merged by clustering"))
     funnel <- rbindlist(lapply(steps, function(s) {
       if (!s[[1L]] %in% names(uc)) return(NULL)
-      data.table(Stage = s[[2L]], N = uniqueN(uc[[s[[1L]]]]))
+      data.table(Stage = s[[2L]], N = uniqueN(uc[[s[[1L]]]]), Loss = s[[3L]])
     }), fill = TRUE)
     ## Pre-clustering and clustering can both be off, leaving identical counts.
     if (!is.null(funnel)) funnel <- funnel[!duplicated(funnel$N) | seq_len(.N) == 1L]
   }
 }
 if (!is.null(funnel) && nrow(funnel) > 0L && funnel$N[[nrow(funnel)]] != n_otu) {
-  funnel <- rbind(funnel, data.table(Stage = "In OTU table", N = n_otu))
+  funnel <- rbind(funnel,
+    data.table(Stage = "In OTU table", N = n_otu, Loss = "No reads left"), fill = TRUE)
 }
 if (!is.null(funnel) && is.finite(n_lulu)) {
-  funnel <- rbind(funnel, data.table(Stage = "LULU-curated", N = n_lulu))
+  funnel <- rbind(funnel,
+    data.table(Stage = "LULU-curated", N = n_lulu, Loss = "Merged by LULU"), fill = TRUE)
 }
 if (!is.null(funnel) && nrow(funnel) > 0L) {
   funnel[, Retained := safe_pct(N, N[[1L]])]
@@ -178,11 +189,32 @@ if (!is.null(funnel) && nrow(funnel) > 0L) {
 }
 
 funnel_fig <- if (!is.null(funnel) && nrow(funnel) > 1L) {
-  o <- bar_option(funnel$Stage, funnel$N, y_name = paste0("Distinct sequences / ", unit))
-  o$xAxis$axisLabel$rotate <- 0
-  echart(o, height = 300, title = "Clustering funnel",
-    caption = paste0("Distinct sequences remaining after each collapsing step, traced through the ",
-                     "SeqID \u2192 DerepID \u2192 PreclusterID \u2192 OTU lineage in UC_Pooled.parquet."))
+  ## Each step keeps some sequences and folds the rest into their parents
+  ## the folded ones branch off so the widths add up at every stage
+  lk <- data.table(source = character(), target = character(), value = numeric())
+  cols <- c(setNames(rep("#2e7d4f", nrow(funnel)), funnel$Stage))
+  for (i in seq_len(nrow(funnel) - 1L)) {
+    from <- funnel$Stage[[i]]
+    to   <- funnel$Stage[[i + 1L]]
+    kept <- funnel$N[[i + 1L]]
+    gone <- funnel$N[[i]] - kept
+    lk <- rbind(lk, data.table(source = from, target = to, value = kept))
+    if (gone > 0) {
+      lab <- funnel$Loss[[i + 1L]]
+      if (is.na(lab) || !nzchar(lab)) lab <- paste0("Removed before ", to)
+      ## Sankey node names must be unique.
+      while (lab %in% names(cols)) lab <- paste0(lab, " ")
+      lk <- rbind(lk, data.table(source = from, target = lab, value = gone))
+      cols[[lab]] <- "#adbcb1"
+    }
+  }
+  if (nrow(lk) > 0L) {
+    echart(sankey_option(unique(c(lk$source, lk$target)), lk, colours = cols),
+      height = 340, title = "Clustering funnel",
+      caption = paste0("Where each distinct sequence ended up, traced through the ",
+                       "SeqID \u2192 DerepID \u2192 PreclusterID \u2192 OTU lineage in ",
+                       "UC_Pooled.parquet. Grey branches are sequences folded into a parent."))
+  }
 }
 
 ## ------------------------------------------------------------ per-sample
@@ -283,9 +315,13 @@ len_fig <- if (is_usable_file(opt$otus) && requireNamespace("Biostrings", quietl
     if (is.null(ml)) ml <- bin_markline(w, 40L, hi, paste0("ampliconlen_max = ", hi))
     o <- hist_option(w, bins = 40L, x_name = "Sequence length, bp",
                      y_name = paste0(unit, " count"), marklines = ml)
+    bounds <- paste(na.omit(c(
+      if (is.finite(lo)) paste0("ampliconlen_min = ", lo),
+      if (is.finite(hi)) paste0("ampliconlen_max = ", hi))), collapse = ", ")
     if (!is.null(o)) echart(o, height = 300, title = paste0(unit, " length distribution"),
       caption = paste0("Length of the ", fmt_int(length(sq)), " representative sequences. ",
-                       "A secondary mode well away from the target amplicon usually means off-target amplification."))
+                       "A secondary mode well away from the target amplicon usually means off-target amplification.",
+                       if (nzchar(bounds)) paste0(" Dashed line: ", bounds, ".") else ""))
   }
 }
 
@@ -343,7 +379,7 @@ lulu_section <- if (!is.null(lulu_wide)) {
 ## -------------------------------------------------------------- assemble
 
 meta <- c(
-  "NextITS"  = version_label(versions, "NextITS"),
+  "NextITS"  = nextits_version_label(versions),
   "Nextflow" = version_label(versions, "Nextflow"),
   "Samples"  = fmt_int(n_samples),
   setNames(fmt_int(n_otu), unit))
@@ -357,14 +393,15 @@ sections <- list(
       funnel_fig,
       if (!is.null(funnel) && nrow(funnel) > 1L) tagList(
         subhead("overview-funnel", "Sequence collapsing"),
-        dt_table(funnel, labels = c("Stage", "Distinct", "Retained %", "Merged away"),
+        dt_table(funnel, cols = c("Stage", "N", "Retained", "Merged"),
+                 labels = c("Stage", "Distinct", "Retained %", "Merged away"),
                  fmt = list(N = "int", Retained = "pct", Merged = "int"),
                  bar_cols = "N", search = FALSE, cols_menu = FALSE,
                  download = "step2_clustering_funnel.tsv")),
       subhead("overview-stats", "Overall statistics"),
       dt_table(overall_tbl, fmt = list(Value = "int"), search = FALSE, cols_menu = FALSE,
                download = "step2_overall_stats.tsv"),
-      pipeline_links(),
+      pipeline_links(stamp = opt$`trace-stamp`),
       subs = list(c("overview-stats", "Overall statistics"))),
 
   sec("samples", "Per-sample",
@@ -384,8 +421,14 @@ sections <- list(
   if (!is.null(lulu_section)) sec("lulu", "LULU curation", lulu_section),
 
   sec("settings", "Run settings",
-      params_panel(params, opt$schema,
-                   only_groups = c("step_2_specific_parameters", "common_parameters"))),
+      command_panel(opt$command, extra = c(
+        "Pre-clustering"  = getp(params, "preclustering", "\u2014"),
+        "Clustering"      = getp(params, "clustering", "\u2014"),
+        "OTU identity"    = getp(params, "otu_id", "\u2014"),
+        "LULU curation"   = getp(params, "lulu", "\u2014"))),
+      p(class = "hint", HTML(paste0(
+        "Every resolved parameter, including defaults, is listed in ",
+        '<a href="../pipeline_info/pipeline_params.tsv">pipeline_params.tsv</a>.')))),
 
   sec("methods", "Methods and software",
       methods_panel(methods),
@@ -400,7 +443,7 @@ report_page(
   sections = sections,
   assets_dir = opt$assets,
   out = opt$out,
-  footer = "Generated by NextITS render_report_s2.R. Charts use Apache ECharts (Apache-2.0).")
+  logo = opt$logo)
 
 cat("Wrote ", normalizePath(opt$out, mustWork = FALSE), "\n", sep = "")
 cat("Wrote ", normalizePath(opt$`summary-tsv`, mustWork = FALSE), "\n", sep = "")
