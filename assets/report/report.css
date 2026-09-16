@@ -254,7 +254,8 @@ details.group > .group-body { padding: 0 12px 10px; }
 .cmd pre { margin: 0; padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: .8rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
 .copied { color: var(--ok); font-size: .78rem; }
 
-pre.methods { white-space: pre-wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px; font-size: .82rem; font-family: var(--sans); line-height: 1.6; margin: 8px 0 14px; }
+/* Methods prose lives in a .cmd card too, so it only overrides typography. */
+.cmd pre.methods { font-family: var(--sans); font-size: .84rem; padding: 13px 15px; }
 ol.refs { font-size: .8rem; color: var(--ink-2); padding-left: 20px; }
 ol.refs li { margin-bottom: 5px; overflow-wrap: anywhere; }
 
