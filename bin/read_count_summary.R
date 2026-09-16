@@ -477,11 +477,25 @@ PER_RUN_COUNTS_merged[ , Percentage_PrimerChecked :=
 PER_RUN_COUNTS_merged[ , SeqTable_NumReads := sum(PER_SAMPLE_COUNTS_merged$SeqTable_NumReads, na.rm = TRUE) ]
 PER_RUN_COUNTS_merged[ , Percentage_Reads_Retained := round( SeqTable_NumReads / Total_Number_Of_Reads * 100, 2) ]
 
+if("PrimerArtefacts_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
+  PER_RUN_COUNTS_merged[ , PrimerArtefacts_Reads := sum(PER_SAMPLE_COUNTS_merged$PrimerArtefacts_Reads, na.rm = TRUE) ]
+  PER_RUN_COUNTS_merged[ , PrimerArtefacts_Percent := round(
+    PrimerArtefacts_Reads / (Reads_PrimerChecked + PrimerArtefacts_Reads) * 100, 2) ]
+  PER_RUN_COUNTS_merged[ Reads_PrimerChecked == 0 & PrimerArtefacts_Reads > 0, PrimerArtefacts_Percent := 100 ]
+}
+
+if("ITSx_Extracted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
+  PER_RUN_COUNTS_merged[ Reads_PrimerChecked > 0, ITSx_Yield_Percent := round(
+    Reads_ITSx_Extracted / Reads_PrimerChecked * 100, 2) ]
+}
+
 NumUniqSeqs <- SEQTAB |> dplyr::select(SeqID) |>   dplyr::summarize(N = n()) |> dplyr::collect()
 PER_RUN_COUNTS_merged$SeqTable_NumUniqueSequences <- NumUniqSeqs$N
 
 ## Export summary stats
 cat("Exporting results\n")
+fwrite(PER_SAMPLE_COUNTS_merged, file = "per_sample.tsv", sep = "\t")
+fwrite(PER_RUN_COUNTS_merged,    file = "per_run.tsv",    sep = "\t")
 write.xlsx(list(
   "per_sample" = PER_SAMPLE_COUNTS_merged,
   "per_run"    = PER_RUN_COUNTS_merged
