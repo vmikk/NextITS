@@ -18,7 +18,9 @@ option_list <- list(
   make_option("--params",       type = "character", default = NULL, help = "pipeline_params.tsv"),
   make_option("--versions",     type = "character", default = NULL, help = "software_versions.yml"),
   make_option("--methods",      type = "character", default = NULL, help = "README_Step1_Methods.txt"),
-  make_option("--schema",       type = "character", default = NULL, help = "nextflow_schema.json"),
+  make_option("--command",      type = "character", default = NULL, help = "execution_command.txt"),
+  make_option("--logo",         type = "character", default = NULL, help = "NextITS logo (SVG or PNG)"),
+  make_option("--trace-stamp",  type = "character", default = NULL, help = "Timestamp Nextflow stamped into pipeline_info filenames"),
   make_option("--lima-summary", type = "character", default = NULL, help = "lima.lima.summary"),
   make_option("--lima-counts",  type = "character", default = NULL, help = "lima.lima.counts"),
   make_option("--counts-dir",   type = "character", default = NULL, help = "Directory with Counts_*.txt"),
@@ -172,9 +174,12 @@ setorder(fate, -demux, Sample)
 
 ## ------------------------------------------------------------- run sankey
 
+## Trunk nodes share one colour so the eye follows the surviving reads
+## each loss branch keeps its own hue from FATE_COL
 NODE_COL <- c(FATE_COL,
-  "Raw reads" = "#1d6fa5", "Passed QC" = "#1d6fa5", "Demultiplexed" = "#1d6fa5",
-  "Primer-checked" = "#1d6fa5", "ITSx extracted" = "#1d6fa5")
+  "Raw reads"      = "#2e7d4f", "Passed QC"      = "#2e7d4f",
+  "Demultiplexed"  = "#2e7d4f", "Primer-checked" = "#2e7d4f",
+  "ITSx extracted" = "#2e7d4f")
 
 lk <- data.table(source = character(), target = character(), value = numeric())
 add_link <- function(from, to, value) {
@@ -425,8 +430,9 @@ itsx_section <- if (length(itsx) > 0L) {
   det_cats <- det_cats[vapply(det_cats, function(k) sum(det_mat[[k]]) > 0, logical(1))]
 
   bits <- list(
-    callout("ITSx runs on dereplicated sequences, so the counts in this section are ",
-            tags$b("unique sequences"), ", not reads."),
+    callout(HTML(paste0(
+      "ITSx runs on dereplicated sequences, so the counts in this section are ",
+      "<b>unique sequences</b>, not reads."))),
     subhead("itsx-detection", "Detection rate"),
     echart(stacked_bar_option(det_mat, det_cats,
         colours = c(Detected = "#2a9d6e", `Not detected` = "#9b5de5", Chimeric = "#c9184a"),
@@ -570,33 +576,32 @@ chim_section <- {
                bar_cols = "Chimeric", download = "chimera_reference.tsv", cols_menu = FALSE)))
   }
 
-  ## Tag jumps: recreate TagJump_plot.pdf as an interactive scatter.
+  ## Tag jumps
+  ## A real run has millions of sequence-by-sample occurrences, so report summary statistics rather than the distribution itself
   if (is_usable_file(opt$`tagjump-scores`) && requireNamespace("qs2", quietly = TRUE)) {
-    tj <- tryCatch(qs2::qs_read(opt$`tagjump-scores`, nthreads = 1L), error = function(e) NULL)
-    if (!is.null(tj) && nrow(tj) > 0L) {
-      tj <- as.data.table(tj)
-      ## Thousands of points render fine, tens of millions do not.
-      if (nrow(tj) > 40000L) tj <- tj[sample.int(nrow(tj), 40000L)]
-      mk <- function(sub, name, colour) {
-        if (nrow(sub) == 0L) return(NULL)
-        list(name = name, type = "scatter", large = TRUE, largeThreshold = 2000,
-             symbolSize = 5, itemStyle = list(color = colour, opacity = 0.55),
-             data = Map(function(a, b) list(a, b), sub$Total, sub$Abundance))
-      }
-      o <- list(
-        grid = list(left = 8, right = 20, top = 30, bottom = 10, containLabel = TRUE),
-        legend = list(top = 0, itemWidth = 11, itemHeight = 11, icon = "roundRect"),
-        tooltip = list(trigger = "item"),
-        xAxis = list(type = "log", name = "Total abundance of sequence across samples",
-                     nameLocation = "middle", nameGap = 30),
-        yAxis = list(type = "log", name = "Abundance in sample", nameLocation = "middle", nameGap = 46),
-        series = Filter(Negate(is.null), list(
-          mk(tj[TagJump == FALSE], "Kept", "#2a9d6e"),
-          mk(tj[TagJump == TRUE],  "Tag jump", "#c9184a"))))
+    tj <- tryCatch(as.data.table(qs2::qs_read(opt$`tagjump-scores`, nthreads = 1L)),
+                   error = function(e) NULL)
+    if (!is.null(tj) && nrow(tj) > 0L && "Score" %in% names(tj)) {
+      tj[, Score := suppressWarnings(as.numeric(Score))]
+      flagged <- if ("TagJump" %in% names(tj)) sum(tj$TagJump %in% TRUE) else NA_integer_
+      reads_out <- if (all(c("TagJump", "Abundance") %in% names(tj))) {
+        sum(num0(tj$Abundance[tj$TagJump %in% TRUE]))
+      } else NA_real_
+      reads_all <- if ("Abundance" %in% names(tj)) sum(num0(tj$Abundance)) else NA_real_
+
+      tj_summary <- data.table(
+        Metric = c("Sequence-by-sample occurrences", "Flagged as tag jumps",
+                   "Reads removed", "Reads removed, % of pre-filter total",
+                   "Median UNCROSS2 score", "Maximum UNCROSS2 score"),
+        Value  = c(fmt_int(nrow(tj)), fmt_int(flagged), fmt_int(reads_out),
+                   fmt_pct(safe_pct(reads_out, reads_all), 3),
+                   fmt_num(stats::median(tj$Score, na.rm = TRUE), 4),
+                   fmt_num(max(tj$Score, na.rm = TRUE), 4)))
+
       bits <- c(bits, list(
         subhead("tagjump", "Tag-jump filtering"),
-        echart(o, height = 380, title = "UNCROSS2 tag-jump calls",
-          caption = "Each point is one sequence in one sample. Occurrences that are rare in a sample but abundant overall are flagged as cross-talk.")))
+        dt_table(tj_summary, fmt = list(Value = "chr"), search = FALSE, cols_menu = FALSE,
+                 download = "tagjump_summary.tsv")))
     }
   }
 
@@ -641,23 +646,12 @@ len_section <- {
   }), fill = TRUE)
 
   if (!is.null(len) && nrow(len) > 0L) {
-    lev <- unique(len$Stage)
-    o <- .base_opt(legend = TRUE, grid = list(left = 8, right = 18, top = 30, bottom = 10))
-    samples_l <- unique(len$Sample)
-    o$xAxis <- list(type = "category", data = samples_l,
-                    axisLabel = list(rotate = if (length(samples_l) > 8) 45 else 0, hideOverlap = TRUE, fontSize = 10))
-    o$yAxis <- list(type = "value", name = "Read length, bp", nameLocation = "middle", nameGap = 50, scale = TRUE)
-    o$series <- lapply(seq_along(lev), function(i) {
-      sub <- len[Stage == lev[[i]]]
-      list(name = lev[[i]], type = "line", symbolSize = 7,
-           lineStyle = list(width = 0),
-           itemStyle = list(color = PAL[[(i - 1L) %% length(PAL) + 1L]]),
-           data = sub$Avg[match(samples_l, sub$Sample)])
-    })
     bits <- c(bits, list(
-      subhead("len-stage", "Mean read length by stage"),
-      echart(o, height = 320,
-        caption = "Mean read length per sample at each pipeline stage. Artefact reads that differ sharply in length point at primer-dimer or concatemer products."),
+      subhead("len-stage", "Read length by stage"),
+      p(class = "hint", paste0(
+        "Length of the reads entering and leaving each stage, per sample. ",
+        "Artefact reads that differ sharply in length point at primer-dimer or ",
+        "concatemer products.")),
       dt_table(len[order(Stage, -N)],
         fmt = list(Min = "bp", Avg = "bp", Max = "bp", N = "int"),
         labels = c("Stage", "Sample", "Min length", "Mean length", "Max length", "Sequences"),
@@ -719,7 +713,7 @@ len_section <- {
 ## ------------------------------------------------------------- assemble
 
 meta <- c(
-  "NextITS"  = version_label(versions, "NextITS"),
+  "NextITS"  = nextits_version_label(versions),
   "Nextflow" = version_label(versions, "Nextflow"),
   "Samples"  = fmt_int(n_samples))
 if (length(runs) > 0L) meta["Runs"] <- if (length(runs) <= 3L) paste(runs, collapse = ", ") else fmt_int(length(runs))
@@ -735,7 +729,7 @@ sections <- list(
         fmt = list(In = "int", Out = "int", Lost = "int", `Lost %` = "pct", `Cumulative %` = "pct"),
         bar_cols = "Out", search = FALSE, cols_menu = FALSE,
         download = "step1_stage_losses.tsv"),
-      pipeline_links(),
+      pipeline_links(stamp = opt$`trace-stamp`),
       subs = list(c("overview-stages", "Stage losses"))),
 
   sec("samples", "Per-sample",
@@ -761,9 +755,14 @@ sections <- list(
   if (!is.null(len_section)) sec("quality", "Read length and quality", len_section),
 
   sec("settings", "Run settings",
-      params_panel(params, opt$schema,
-                   only_groups = c("step_1_specific_parameters", "common_parameters",
-                                   "illumina_specific_parameters"))),
+      command_panel(opt$command, extra = c(
+        "Sequencing platform" = getp(params, "seqplatform", "\u2014"),
+        "rRNA region"         = getp(params, "its_region", "\u2014"),
+        "Forward primer"      = getp(params, "primer_forward", "\u2014"),
+        "Reverse primer"      = getp(params, "primer_reverse", "\u2014"))),
+      p(class = "hint", HTML(paste0(
+        "Every resolved parameter, including defaults, is listed in ",
+        '<a href="../pipeline_info/pipeline_params.tsv">pipeline_params.tsv</a>.')))),
 
   sec("methods", "Methods and software",
       methods_panel(methods),
@@ -778,7 +777,7 @@ report_page(
   sections = sections,
   assets_dir = opt$assets,
   out = opt$out,
-  footer = "Generated by NextITS render_report_s1.R. Charts use Apache ECharts (Apache-2.0).")
+  logo = opt$logo)
 
 cat("Wrote ", normalizePath(opt$out, mustWork = FALSE), "\n", sep = "")
 cat("Elapsed minutes: ", round(as.numeric(difftime(Sys.time(), start_time, units = "mins")), 3), "\n", sep = "")
