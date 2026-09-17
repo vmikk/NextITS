@@ -10,6 +10,8 @@
 
 // Subworkflow for clustering sequences (with optional pre-clustering or denoising)
 
+include { chunkingEnabled } from '../modules/param_utils.nf'
+
 
 // Homopolymer correction (global, for pooled and dereplicated data)
 process homopolymer {
@@ -18,8 +20,8 @@ process homopolymer {
 
     publishDir(
       "${params.outdir}/02.Homopolymer",
-      mode: "${params.storagemode}", 
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      mode: "${params.storagemode}",
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 1
@@ -114,7 +116,7 @@ process unoise {
     publishDir(
       "${params.outdir}/02.UNOISE",
       mode: "${params.storagemode}",
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 8
@@ -220,7 +222,7 @@ process dada2_inference {
     publishDir(
       "${params.outdir}/02.DADA2",
       mode: "${params.storagemode}",
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 8
@@ -340,7 +342,7 @@ process papa2_inference {
     publishDir(
       "${params.outdir}/02.DADA2",
       mode: "${params.storagemode}",
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 8
@@ -402,7 +404,7 @@ process precluster_swarm {
     publishDir(
       "${params.outdir}/02.Preclustered_SWARM_d1",
       mode: "${params.storagemode}",
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 8
@@ -460,7 +462,7 @@ process cluster_vsearch {
     publishDir(
       "${params.outdir}/03.Clustered_VSEARCH",
       mode: "${params.storagemode}",
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 8
@@ -511,7 +513,7 @@ process cluster_swarm {
     publishDir(
       "${params.outdir}/03.Clustered_SWARM",
       mode: "${params.storagemode}",
-      enabled: params.chunking_n == null || params.chunking_n < 2
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
     )
 
     // cpus 8
@@ -612,7 +614,7 @@ workflow CLUSTERING {
       if(params.dada2_pooling == "global"){
         
         // Prepare shared error model
-        if(params.dada2_error_estimation == "shared" && params.chunking_n != null && params.chunking_n >= 2){
+        if(params.dada2_error_estimation == "shared" && chunkingEnabled(params.chunking_n)){
           
           shared_dada_input_ch = dada_input_ch
             .combine(shared_err_ch)
