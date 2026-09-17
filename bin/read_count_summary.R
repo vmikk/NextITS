@@ -263,12 +263,19 @@ custom_process <- function(x){
     ## Rename "SampleID" into "file"
     setnames(x = x, old = "SampleID", new = "file")
 
-    ## Remove file extensions
-    x[ , file := sub(pattern = ".full.fasta$",          replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_ITS1_58S_ITS2.fasta$", replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_Chimera.fa$",          replacement = "", x = file) ]
-    x[ , file := sub(pattern = "_RescuedChimera.fa$",   replacement = "", x = file) ]
+    ## Remove file extensions (".gz" was already stripped off)
+    x[ , file := sub(pattern = "_ITS1_58S_ITS2\\.fasta$", replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_Chimera\\.fa$",          replacement = "", x = file) ]
+    x[ , file := sub(pattern = "_RescuedChimera\\.fa$",   replacement = "", x = file) ]
     x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
+
+    ## rRNA regions extracted by ITSx / ITSx2: `<sample>.full.fasta`, `<sample>.ITS1.fasta`, `<sample>.ITS1.full_and_partial.fasta`, ...
+    x[ , file := sub(
+        pattern     = "\\.(full|SSU|ITS1|5_8S|ITS2|LSU)(\\.full_and_partial)?\\.fasta$",
+        replacement = "", x = file) ]
+
+    ## Dereplicated primer-trimmed sequences (`its_region = "none"`): `<sample>.fa`
+    x[ , file := sub(pattern = "\\.fa$", replacement = "", x = file) ]
 
   }
   return(x)
