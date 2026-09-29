@@ -685,6 +685,124 @@ process itsx_collect {
 // ITSx processing workflow
 workflow ITSx {
 
+// Concatenate the extractor output from all chunks (per sample)
+// + convert the extracted rRNA regions to Parquet
+process itsx_concatenate {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03_ITSx", mode: "${params.storagemode}"
+    // cpus 1
+
+    tag "${meta.id}"
+
+    input:
+      tuple val(meta), path(chunk_files, stageAs: "chunks/")  // all files produced by the extractor, for all chunks of a sample
+
+    output:
+      tuple val(meta), path("${meta.id}.full.fasta.gz"), emit: itsx_full, optional: true
+      tuple val(meta), path("${meta.id}.SSU.fasta.gz"),  emit: itsx_ssu,  optional: true
+      tuple val(meta), path("${meta.id}.ITS1.fasta.gz"), emit: itsx_its1, optional: true
+      tuple val(meta), path("${meta.id}.5_8S.fasta.gz"), emit: itsx_58s,  optional: true
+      tuple val(meta), path("${meta.id}.ITS2.fasta.gz"), emit: itsx_its2, optional: true
+      tuple val(meta), path("${meta.id}.LSU.fasta.gz"),  emit: itsx_lsu,  optional: true
+      tuple val(meta), path("${meta.id}.positions.txt"),   emit: itsx_positions,   optional: true
+      tuple val(meta), path("${meta.id}.problematic.txt"), emit: itsx_problematic, optional: true
+      tuple val(meta), path("${meta.id}_no_detections.fasta.gz"), emit: itsx_nondetects,     optional: true
+      tuple val(meta), path("${meta.id}_no_detections.txt"),      emit: itsx_nondetects_txt, optional: true
+      tuple val(meta), path("${meta.id}.summary.txt"),            emit: itsx_summary, optional: true
+      tuple val(meta), path("${meta.id}.extraction.results.gz"),  emit: itsx_details, optional: true
+      tuple val(meta), path("${meta.id}.jsonl.gz"),               emit: itsx_jsonl,   optional: true
+      tuple val(meta), path("${meta.id}.SSU.full_and_partial.fasta.gz"),  emit: itsx_ssu_part,  optional: true
+      tuple val(meta), path("${meta.id}.ITS1.full_and_partial.fasta.gz"), emit: itsx_its1_part, optional: true
+      tuple val(meta), path("${meta.id}.5_8S.full_and_partial.fasta.gz"), emit: itsx_58s_part,  optional: true
+      tuple val(meta), path("${meta.id}.ITS2.full_and_partial.fasta.gz"), emit: itsx_its2_part, optional: true
+      tuple val(meta), path("${meta.id}.LSU.full_and_partial.fasta.gz"),  emit: itsx_lsu_part,  optional: true
+      tuple val(meta), path("parquet/*.parquet"), emit: parquet, optional: true
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+
+    script:
+    def sampID = "${meta.id}"
+    """
+    echo -e "Concatenating the extractor output from all chunks"
+    echo -e "Input sample: " ${sampID}
+
+    shopt -s nullglob
+
+    ## Concatenate chunk files matching a suffix into a single per-sample file
+    ## (a no-op if no chunk produced that file - e.g. ITSx2 has no `problematic` output)
+    concat_chunks () {
+      local suffix="\$1"     # chunk file suffix, e.g. ".ITS1.fasta.gz"
+      local outfile="\$2"    # per-sample output file
+      local label="\$3"      # human-readable label for the log
+
+      local files=( chunks/${sampID}_chunk*"\$suffix" )
+      echo -e "  - \$label: \${#files[@]}"
+      if [ \${#files[@]} -gt 0 ]; then
+        for f in "\${files[@]}"; do echo -e "        \$f"; done
+        cat "\${files[@]}" > "\$outfile"
+      fi
+    }
+
+    echo -e "Concatenating:"
+
+    ## rRNA regions (full-length detections)
+    concat_chunks ".full.fasta.gz" "${sampID}.full.fasta.gz" "full ITS sequences"
+    concat_chunks ".SSU.fasta.gz"  "${sampID}.SSU.fasta.gz"  "SSU sequences"
+    concat_chunks ".ITS1.fasta.gz" "${sampID}.ITS1.fasta.gz" "ITS1 sequences"
+    concat_chunks ".5_8S.fasta.gz" "${sampID}.5_8S.fasta.gz" "5.8S sequences"
+    concat_chunks ".ITS2.fasta.gz" "${sampID}.ITS2.fasta.gz" "ITS2 sequences"
+    concat_chunks ".LSU.fasta.gz"  "${sampID}.LSU.fasta.gz"  "LSU sequences"
+
+    ## rRNA regions (full + partial detections; ITSx v1.x only)
+    concat_chunks ".SSU.full_and_partial.fasta.gz"  "${sampID}.SSU.full_and_partial.fasta.gz"  "SSU partial sequences"
+    concat_chunks ".ITS1.full_and_partial.fasta.gz" "${sampID}.ITS1.full_and_partial.fasta.gz" "ITS1 partial sequences"
+    concat_chunks ".5_8S.full_and_partial.fasta.gz" "${sampID}.5_8S.full_and_partial.fasta.gz" "5.8S partial sequences"
+    concat_chunks ".ITS2.full_and_partial.fasta.gz" "${sampID}.ITS2.full_and_partial.fasta.gz" "ITS2 partial sequences"
+    concat_chunks ".LSU.full_and_partial.fasta.gz"  "${sampID}.LSU.full_and_partial.fasta.gz"  "LSU partial sequences"
+
+    ## Sequences with no rRNA detections
+    concat_chunks "_no_detections.fasta.gz" "${sampID}_no_detections.fasta.gz" "no-detection sequences"
+    concat_chunks "_no_detections.txt"      "${sampID}_no_detections.txt"      "no-detection IDs"
+
+    ## Region coordinates and diagnostics
+    concat_chunks ".positions.txt"          "${sampID}.positions.txt"          "positions"
+    concat_chunks ".problematic.txt"        "${sampID}.problematic.txt"        "problematic sequences"
+    concat_chunks ".extraction.results.gz"  "${sampID}.extraction.results.gz"  "extraction results"
+    concat_chunks ".jsonl.gz"               "${sampID}.jsonl.gz"               "per-record calls (JSONL)"
+
+    ## Summary reports cannot simply be concatenated - the per-chunk counts must be summed
+    sum_files=( chunks/${sampID}_chunk*.summary.txt )
+    echo -e "  - summary reports: \${#sum_files[@]}"
+    if [ \${#sum_files[@]} -gt 0 ]; then
+      for f in "\${sum_files[@]}"; do echo -e "        \$f"; done
+      merge_itsx_summaries.sh -o ${sampID}.summary.txt "\${sum_files[@]}"
+    fi
+
+    echo -e "\\n"
+
+    ## Convert the extracted regions to Parquet
+    if [ ${params.ITSx_to_parquet} == true ]; then
+
+      echo -e "\\nConverting the extracted regions to Parquet"
+      mkdir -p parquet
+
+      for region in full SSU ITS1 5_8S ITS2 LSU; do
+        if [ -s "${sampID}.\${region}.fasta.gz" ]; then
+          ITSx_to_DuckDB.sh \
+            -i "${sampID}.\${region}.fasta.gz" \
+            -o "parquet/${sampID}.\${region}.parquet"
+        fi
+      done
+
+      echo -e "Parquet files created\\n"
+
+    fi
+    """
+}
+
+
 // Get near-full-length ITS from the extractor output (based on the positions file)
 process get_its {
 
