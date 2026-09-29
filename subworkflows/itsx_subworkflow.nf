@@ -8,18 +8,20 @@
 ----------------------------------------------------------------------------
 */
 
-// Subworkflow for ITSx processing
-// (which splits large dereplicated FASTAs into chunks).
+// Subworkflow for primer trimming and extraction of rRNA regions
+//
 // The workflow is as follows:
 //   1. Trim primers and dereplicate at sample level
-//   2. Split the dereplicated primer-trimmed sequences (at sample level) into chunks while preserving metadata
-//   3. Run ITSx on each chunk
-//   4. Group results back by original sample ID and concatenate + convert ITSx output to Parquet
-
-// Path to the output results
-out_3_itsx   = params.outdir + "/03_ITSx"
-out_3_itsxp  = params.outdir + "/03_ITSx_PooledParts"
-
+//   2. Split the dereplicated primer-trimmed sequences (at sample level) into chunks, while preserving metadata
+//   3. Run the ITS extractor (ITSx 1.x or ITSx2) on each chunk, in parallel
+//   4. Group results back by sample ID, concatenate + convert to Parquet
+//   5. Pool the extracted regions across all samples
+//
+// If `params.its_region == "none"`, steps 2-5 are skipped and the dereplicated primer-trimmed sequences are used for the downstream analysis
+//
+// Extractor selection (`params.itsx_tool`):
+//   "ITSx"  - ITSx v1.x  (HMMER-based, slow, supports taxonomic profiles and partial regions)
+//   "ITSx2" - ITSx2      (Infernal covariance models, much faster; no partial regions, no taxonomic profiles, no `problematic`/`extraction.results` output)
 
 // Trim primers and dereplicate at sample level
 process primer_trim {
