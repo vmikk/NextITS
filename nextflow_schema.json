@@ -161,24 +161,34 @@
           "description": "Target ITS region to extract: 'full' for complete ITS region, 'ITS1' or 'ITS2' for specific spacers, 'ITS1_5.8S_ITS2' for the partial ITS (in case of HMM profiles are not able to detect the full ITS region), 'SSU' or 'LSU' for 18S or 28S ribosomal genes, or 'none' to skip extraction (in this case, only the primers will be trimmed)",
           "fa_icon": "fas fa-arrows-alt-h"
         },
+        "itsx_tool": {
+          "type": "string",
+          "default": "ITSx",
+          "enum": [
+            "ITSx",
+            "ITSx2"
+          ],
+          "description": "Tool used to extract rRNA regions: 'ITSx' (v1.x, HMMER-based) or 'ITSx2' (Infernal covariance models, much faster and pan-eukaryotic)",
+          "fa_icon": "fas fa-wrench"
+        },
         "ITSx_tax": {
           "type": "string",
           "default": "all",
           "fa_icon": "fas fa-user-tag",
-          "description": "Taxonomic profile for ITS extraction",
+          "description": "Taxonomic profile for ITS extraction (ITSx 1.x only; ITSx2 is pan-eukaryotic)",
           "pattern": "^(?:all|(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia)(?:,\\s*(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia))*)$"
         },
         "ITSx_evalue": {
           "type": "number",
           "default": 0.1,
           "fa_icon": "fas fa-check-circle",
-          "description": "Min E-value threshold for ITSx"
+          "description": "Min E-value threshold for ITSx (ITSx 1.x only)"
         },
         "ITSx_complement": {
           "type": "string",
           "default": "F",
           "fa_icon": "fas fa-check-circle",
-          "description": "Check single strand (F, default) or both DNA strands (T) for matches to HMM-profiles",
+          "description": "Check single strand (F, default) or both DNA strands (T) for matches to HMM-profiles (ITSx 1.x only)",
           "enum": [
             "F",
             "T"
@@ -188,25 +198,25 @@
           "type": "integer",
           "default": 0,
           "fa_icon": "fas fa-arrows-alt-h",
-          "description": "Min length cutoff for partial ITS sequences to keep (0 = disabled, default)"
+          "description": "Min length cutoff for partial ITS sequences to keep (0 = disabled, default; ITSx 1.x only)"
         },
         "ITSx_heuristics": {
           "type": "boolean",
           "default": false,
           "fa_icon": "fas fa-arrows-alt-h",
-          "description": "Use HMM filtering heuristics (default, disabled)"
+          "description": "Use HMM filtering heuristics (default, disabled; ITSx 1.x only)"
         },
         "ITSx_to_parquet": {
           "type": "boolean",
           "default": true,
           "fa_icon": "fas fa-database",
-          "description": "Convert ITSx output (FASTA files) to Parquet"
+          "description": "Convert the extracted rRNA regions (FASTA files) to Parquet"
         },
         "ITSx_chunk_size": {
           "type": "integer",
           "default": 10000,
           "fa_icon": "fas fa-database",
-          "description": "Chunk size for distributed ITSx processing (number of dereplicated sequences per sample); set to 0 to disable chunking"
+          "description": "Chunk size for distributed ITS extraction (number of dereplicated sequences per sample); set to 0 to put all sequences of a sample into a single chunk. NB. for ITSx 1.x the chunk size can slightly affect which borderline hits are reported, because HMMER E-values scale with the number of sequences searched; the default matches ITSx's own internal batch size"
         },
         "hp": {
           "type": "boolean",
