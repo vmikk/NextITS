@@ -397,8 +397,15 @@ ${logoColors.dim}----------------------------------------------------${logoColor
         println( warningMsg("Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.", params.monochrome_logs))
     }
 
+    // ITSx extractor validation
+    if (params.its_region != "none" && !(params.itsx_tool in ["ITSx", "ITSx2"])) {
+        println( errorMsg("Parameter --itsx_tool must be either 'ITSx' or 'ITSx2' (got: '${params.itsx_tool}').", params.monochrome_logs) )
+        exit(1)
+    }
+
     // ITSx profiles validation
-    if (params.its_region != "none") {
+    // NB. taxonomic profiles are an ITSx v1.x feature; ITSx2 delimits pan-eukaryotically
+    if (params.its_region != "none" && params.itsx_tool == "ITSx") {
 
       /*
       Currently, the following regex pattern is used to pre-validate the `ITSx_tax` parameter (in schema):
