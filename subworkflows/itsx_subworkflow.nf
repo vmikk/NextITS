@@ -276,11 +276,6 @@ process itsx {
 }
 
 
-
-// ITSx processing workflow
-workflow ITSx {
-
-
 // Extract rRNA regions with ITSx2 from a single chunk of dereplicated sequences
 // NB. ITSx2 delimits the cistron pan-eukaryotically with covariance models, therefore
 //     the ITSx v1.x options `-t`, `-E`, `--partial`, `--complement` and `--heuristics`
@@ -629,10 +624,33 @@ process itsx_collect {
     """
 }
 
+
+
+// Drop the metadata from a per-sample channel and collect it into a single list, so that all samples can be pooled by `itsx_collect`
+// If the channel is empty (the region was not detected in any sample), a placeholder file is emitted instead,
+// the process checks for it and skips that region
+def pool_region(ch, placeholder) {
+    ch.map { meta, fasta -> fasta }
+      .flatten()
+      .collect()
+      .ifEmpty(file(placeholder))
+}
+
+
+// Primer trimming and rRNA region extraction workflow
+workflow ITS_EXTRACTION {
+
   take:
-    seqs
+    seqs            // channel of primer-checked FASTQ files (one per sample)
 
   main:
+
+    // Which extractor to use, and whether to extract at all
+    def extractor   = (params.itsx_tool ?: "ITSx").toString()
+    def do_extract  = params.its_region != "none"
+
+    // Partial regions are an ITSx v1.x feature; ITSx2 has no full/partial split
+    def use_partial = (extractor == "ITSx") && (params.ITSx_partial as int) != 0
 
     // Add metadata to the channel (fetch sample ID from the FASTQ file name)
     ch_seqs = seqs.map { fastq ->
@@ -644,74 +662,98 @@ process itsx_collect {
     // Trim primers and dereplicate at sample level
     primer_trim(ch_seqs)
 
-    // Size of dereplicated input for ITSx
-    //   if null, use default value (currently, 10000)
-    //   if 0, use all sequences in one chunk
-    def chunk_size = (params.ITSx_chunk_size == null ? 10000 : params.ITSx_chunk_size as int)
+    if( ! do_extract ){
 
-    if( chunk_size == 0 ) {
-      // Single-chunk workflow (no data splitting)
-      // NB!  here, fasta will be gz-compressed -> will be handled in the itsx process
-      chunks_ch = primer_trim.out.derep
-        .map { meta, fasta -> [ meta + [chunk_id: null], fasta ] }
-    }
-    else {
-      // Chunking mode: split the dereplicated primer-trimmed sequences (at sample level) into chunks while preserving metadata
-      // NB!  here, fasta will be uncompressed
-      chunks_ch = primer_trim.out.derep
-        .flatMap { meta, fasta ->
-          def chunks = fasta.splitFasta(by: chunk_size, file: true, decompress: true, compress: false)
-          def result = []
-          chunks.eachWithIndex { chunk_file, idx ->
-            result << [ meta + [chunk_id: idx], chunk_file ]
-          }
-          return result
-        }
-    }
+      // No rRNA extraction - the dereplicated primer-trimmed sequences are the result
+      ch_region_seqs = primer_trim.out.derep
 
-    // Run ITSx
-    itsx(chunks_ch)
-
-    // For single-chunk workflow, concatenate all chunks for each sample
-    if(params.ITSx_chunk_size == 0){
-
-        // Fetch results from the ITSx
-        ch_res_itsx_full        = itsx.out.itsx_full
-        ch_res_itsx_ssu         = itsx.out.itsx_ssu
-        ch_res_itsx_its1        = itsx.out.itsx_its1
-        ch_res_itsx_58s         = itsx.out.itsx_58s
-        ch_res_itsx_its2        = itsx.out.itsx_its2
-        ch_res_itsx_lsu         = itsx.out.itsx_lsu
-        ch_res_itsx_positions   = itsx.out.itsx_positions
-        ch_res_itsx_problematic = itsx.out.itsx_problematic
-        ch_res_itsx_nondetects  = itsx.out.itsx_nondetects
-        ch_res_itsx_summary     = itsx.out.itsx_summary
-        ch_res_itsx_details     = itsx.out.itsx_details
-        ch_res_itsx_ssu_part    = itsx.out.itsx_ssu_part
-        ch_res_itsx_its1_part   = itsx.out.itsx_its1_part
-        ch_res_itsx_58s_part    = itsx.out.itsx_58s_part
-        ch_res_itsx_its2_part   = itsx.out.itsx_its2_part
-        ch_res_itsx_lsu_part    = itsx.out.itsx_lsu_part
-        
-        if(params.ITSx_to_parquet == true ){
-          itsx_to_parquet(
-            itsx.out.itsx_full,
-            itsx.out.itsx_ssu,
-            itsx.out.itsx_its1,
-            itsx.out.itsx_58s,
-            itsx.out.itsx_its2,
-            itsx.out.itsx_lsu
-          )
-          ch_res_parquet = itsx_to_parquet.out.parquet
-        } else {
-          ch_res_parquet = channel.empty()
-        }
+      ch_res_itsx_full        = channel.empty()
+      ch_res_itsx_ssu         = channel.empty()
+      ch_res_itsx_its1        = channel.empty()
+      ch_res_itsx_58s         = channel.empty()
+      ch_res_itsx_its2        = channel.empty()
+      ch_res_itsx_lsu         = channel.empty()
+      ch_res_itsx_positions   = channel.empty()
+      ch_res_itsx_problematic = channel.empty()
+      ch_res_itsx_nondetects  = channel.empty()
+      ch_res_itsx_nondetects_txt = channel.empty()
+      ch_res_itsx_summary     = channel.empty()
+      ch_res_itsx_details     = channel.empty()
+      ch_res_itsx_jsonl       = channel.empty()
+      ch_res_itsx_ssu_part    = channel.empty()
+      ch_res_itsx_its1_part   = channel.empty()
+      ch_res_itsx_58s_part    = channel.empty()
+      ch_res_itsx_its2_part   = channel.empty()
+      ch_res_itsx_lsu_part    = channel.empty()
+      ch_res_parquet          = channel.empty()
 
     } else {
-    // For multi-chunk workflow, we need to pool the chunks per sample
 
-      // Group all ITSx chunk outputs back by sample ID and concatenate
-      itsx_all_chunks = itsx.out.itsx_full
+      /*
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          Split the dereplicated sequences into chunks
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        - default, 10k seqs
+        - if 0, put all sequences of a sample into a single chunk
+    
+      NB! For ITSx v1.x, the chunk size is not entirely result-neutral:
+        HMMER reports E-values scaled by the number of sequences in the searched file,
+        so a borderline hit may pass in one chunk size and fail in another
+        ITSx itself already splits the input into batches of at most 10000 sequences,
+        so the default chunk size of 10000 reproduces ITSx's own batch boundaries as closely as possible
+
+      */
+      def chunk_size = (params.ITSx_chunk_size == null ? 10000 : params.ITSx_chunk_size as int)
+
+      if( chunk_size <= 0 ) {
+
+        // A single chunk per sample (NB. the FASTA stays gz-compressed here)
+        chunks_ch = primer_trim.out.derep
+          .map { meta, fasta -> [ meta + [chunk_id: 0], fasta ] }
+
+      } else {
+
+        // Split the dereplicated primer-trimmed sequences (at sample level) into chunks,
+        // while preserving metadata (NB. the chunks are uncompressed)
+        chunks_ch = primer_trim.out.derep
+          .flatMap { meta, fasta ->
+            def chunks = fasta.splitFasta(by: chunk_size, file: true, decompress: true, compress: false)
+            def result = []
+            chunks.eachWithIndex { chunk_file, idx ->
+              result << [ meta + [chunk_id: idx], chunk_file ]
+            }
+            return result
+          }
+      }
+
+      /*
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          Extract rRNA regions (in parallel, chunk by chunk)
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      */
+
+      if( extractor == "ITSx2" ){
+
+        itsx2(chunks_ch)
+
+        ch_chunks_all = itsx2.out.itsx_full
+          .mix(
+            itsx2.out.itsx_ssu,
+            itsx2.out.itsx_its1,
+            itsx2.out.itsx_58s,
+            itsx2.out.itsx_its2,
+            itsx2.out.itsx_lsu,
+            itsx2.out.itsx_positions,
+            itsx2.out.itsx_nondetects_txt,
+            itsx2.out.itsx_summary,
+            itsx2.out.itsx_jsonl
+          )
+
+      } else {
+
+        itsx(chunks_ch)
+
+        ch_chunks_all = itsx.out.itsx_full
           .mix(
             itsx.out.itsx_ssu,
             itsx.out.itsx_its1,
@@ -719,6 +761,7 @@ process itsx_collect {
             itsx.out.itsx_its2,
             itsx.out.itsx_lsu,
             itsx.out.itsx_nondetects,
+            itsx.out.itsx_nondetects_txt,
             itsx.out.itsx_summary,
             itsx.out.itsx_details,
             itsx.out.itsx_positions,
@@ -729,97 +772,137 @@ process itsx_collect {
             itsx.out.itsx_its2_part,
             itsx.out.itsx_lsu_part
           )
+      }
 
-        concatenated_ch = itsx_all_chunks
-          .map { meta, file ->
-              [meta.id, meta, file]
-          }
-          .groupTuple(by: 0)
-          .map { sample_id, metas, files ->
-              [metas[0], files]
-          }
-    
-        // Concatenate all chunks for each sample (no-op if channel is empty)
-        itsx_concatenate(concatenated_ch)
+      /*
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          Pool the chunks back, per sample
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      */
 
-        // Fetch results from the concatenated channel
-        ch_res_itsx_full        = itsx_concatenate.out.itsx_full
-        ch_res_itsx_ssu         = itsx_concatenate.out.itsx_ssu
-        ch_res_itsx_its1        = itsx_concatenate.out.itsx_its1
-        ch_res_itsx_58s         = itsx_concatenate.out.itsx_58s
-        ch_res_itsx_its2        = itsx_concatenate.out.itsx_its2
-        ch_res_itsx_lsu         = itsx_concatenate.out.itsx_lsu
-        ch_res_itsx_positions   = itsx_concatenate.out.itsx_positions
-        ch_res_itsx_problematic = itsx_concatenate.out.itsx_problematic
-        ch_res_itsx_nondetects  = itsx_concatenate.out.itsx_nondetects
-        ch_res_itsx_summary     = itsx_concatenate.out.itsx_summary
-        ch_res_itsx_details     = itsx_concatenate.out.itsx_details
-        ch_res_itsx_ssu_part    = itsx_concatenate.out.itsx_ssu_part
-        ch_res_itsx_its1_part   = itsx_concatenate.out.itsx_its1_part
-        ch_res_itsx_58s_part    = itsx_concatenate.out.itsx_58s_part
-        ch_res_itsx_its2_part   = itsx_concatenate.out.itsx_its2_part
-        ch_res_itsx_lsu_part    = itsx_concatenate.out.itsx_lsu_part
-        ch_res_parquet          = itsx_concatenate.out.parquet
-    }
+      // Group all chunk outputs back by sample ID
+      // NB. `chunk_id` is dropped from the metadata here
+      concatenated_ch = ch_chunks_all
+        .map { meta, file -> [ meta.id, meta.findAll { k, v -> k != 'chunk_id' }, file ] }
+        .groupTuple(by: 0)
+        .map { sample_id, metas, files -> [ metas[0], files ] }
 
+      itsx_concatenate(concatenated_ch)
 
+      ch_res_itsx_full        = itsx_concatenate.out.itsx_full
+      ch_res_itsx_ssu         = itsx_concatenate.out.itsx_ssu
+      ch_res_itsx_its1        = itsx_concatenate.out.itsx_its1
+      ch_res_itsx_58s         = itsx_concatenate.out.itsx_58s
+      ch_res_itsx_its2        = itsx_concatenate.out.itsx_its2
+      ch_res_itsx_lsu         = itsx_concatenate.out.itsx_lsu
+      ch_res_itsx_positions   = itsx_concatenate.out.itsx_positions
+      ch_res_itsx_problematic = itsx_concatenate.out.itsx_problematic
+      ch_res_itsx_nondetects  = itsx_concatenate.out.itsx_nondetects
+      ch_res_itsx_nondetects_txt = itsx_concatenate.out.itsx_nondetects_txt
+      ch_res_itsx_summary     = itsx_concatenate.out.itsx_summary
+      ch_res_itsx_details     = itsx_concatenate.out.itsx_details
+      ch_res_itsx_jsonl       = itsx_concatenate.out.itsx_jsonl
+      ch_res_itsx_ssu_part    = itsx_concatenate.out.itsx_ssu_part
+      ch_res_itsx_its1_part   = itsx_concatenate.out.itsx_its1_part
+      ch_res_itsx_58s_part    = itsx_concatenate.out.itsx_58s_part
+      ch_res_itsx_its2_part   = itsx_concatenate.out.itsx_its2_part
+      ch_res_itsx_lsu_part    = itsx_concatenate.out.itsx_lsu_part
+      ch_res_parquet          = itsx_concatenate.out.parquet
 
+      /*
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          Pick the rRNA region requested by the user
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      */
 
-  // Collect ITSx-extracted sequences
-  if(params.its_region == "full" || params.its_region == "ITS1" || params.its_region == "ITS2" || params.its_region == "SSU" || params.its_region == "LSU" || params.its_region == "ITS1_5.8S_ITS2"){
+      if( params.its_region == "ITS1_5.8S_ITS2" ){
 
-    // Collect rRNA parts into separate channels (+ drop metadata)
-    ch_cc_full = itsx.out.itsx_full.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOFULL"))
-    ch_cc_ssu  = itsx.out.itsx_ssu.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOSSU"))
-    ch_cc_its1 = itsx.out.itsx_its1.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS1"))
-    ch_cc_58s  = itsx.out.itsx_58s.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NO58S"))
-    ch_cc_its2 = itsx.out.itsx_its2.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS2"))
-    ch_cc_lsu  = itsx.out.itsx_lsu.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOLSU"))
-    
-    ch_cc_ssu_part  = itsx.out.itsx_ssu_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOSSUPART"))
-    ch_cc_its1_part = itsx.out.itsx_its1_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS1PART"))
-    ch_cc_58s_part  = itsx.out.itsx_58s_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NO58SPART"))
-    ch_cc_its2_part = itsx.out.itsx_its2_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOITS2PART"))
-    ch_cc_lsu_part  = itsx.out.itsx_lsu_part.map { meta, fasta -> fasta }.flatten().collect().ifEmpty(file("NOLSUPART"))
+        // Assemble the near-full-length ITS from the region coordinates reported by the extractor
+        // NB. the same dereplicated sequences that were fed to the extractor are reused here,
+        //     so that the sequence IDs match the positions file
+        ch_get_its = primer_trim.out.derep
+          .map    { meta, fasta -> [ meta.id, meta, fasta ] }
+          .join(
+            ch_res_itsx_positions.map { meta, pos -> [ meta.id, pos ] },
+            by: 0)
+          .map    { sample_id, meta, fasta, pos -> [ meta, fasta, pos ] }
 
-    itsx_collect(
-      ch_cc_full,
-      ch_cc_ssu,
-      ch_cc_its1,
-      ch_cc_58s,
-      ch_cc_its2,
-      ch_cc_lsu,
-      ch_cc_ssu_part,
-      ch_cc_its1_part,
-      ch_cc_58s_part,
-      ch_cc_its2_part,
-      ch_cc_lsu_part
-      )
+        get_its(ch_get_its)
 
-  } // end of collection of ITSx-extracted sequences
+        ch_region_seqs = get_its.out.itsnf
+
+      } else if( params.its_region == "ITS1" ){
+        ch_region_seqs = use_partial ? ch_res_itsx_its1_part : ch_res_itsx_its1
+      } else if( params.its_region == "ITS2" ){
+        ch_region_seqs = use_partial ? ch_res_itsx_its2_part : ch_res_itsx_its2
+      } else if( params.its_region == "SSU" ){
+        ch_region_seqs = use_partial ? ch_res_itsx_ssu_part : ch_res_itsx_ssu
+      } else if( params.its_region == "LSU" ){
+        ch_region_seqs = use_partial ? ch_res_itsx_lsu_part : ch_res_itsx_lsu
+      } else {
+        // "full" - full-length ITS (ITS1-5.8S-ITS2, with SSU and LSU trimmed off)
+        ch_region_seqs = ch_res_itsx_full
+      }
+
+      /*
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          Pool the extracted regions across all samples
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      */
+
+      // Collect rRNA parts into separate channels (+ drop metadata)
+      itsx_collect(
+        pool_region(ch_res_itsx_full,      "NOFULL"),
+        pool_region(ch_res_itsx_ssu,       "NOSSU"),
+        pool_region(ch_res_itsx_its1,      "NOITS1"),
+        pool_region(ch_res_itsx_58s,       "NO58S"),
+        pool_region(ch_res_itsx_its2,      "NOITS2"),
+        pool_region(ch_res_itsx_lsu,       "NOLSU"),
+        pool_region(ch_res_itsx_ssu_part,  "NOSSUPART"),
+        pool_region(ch_res_itsx_its1_part, "NOITS1PART"),
+        pool_region(ch_res_itsx_58s_part,  "NO58SPART"),
+        pool_region(ch_res_itsx_its2_part, "NOITS2PART"),
+        pool_region(ch_res_itsx_lsu_part,  "NOLSUPART")
+        )
+
+    } // end of rRNA region extraction
+
+    // Diagnostic files for the Step-1 report
+    ch_report_itsx = ch_res_itsx_summary
+      .mix(ch_res_itsx_positions, ch_res_itsx_problematic)
+      .map { meta, file -> file }
+      .flatten().collect().ifEmpty(file("no_itsxsummary"))
 
 
   emit:
-    hashes           = primer_trim.out.hashes.map { meta, file -> file }
-    uc               = primer_trim.out.uc.map { meta, file -> file }
+    // The sequences to use for the downstream analysis (already selected by `its_region`)
+    region_seqs      = ch_region_seqs.map { meta, file -> file }
+    // Primer trimming results
+    derep            = primer_trim.out.derep.map        { meta, file -> file }
+    hashes           = primer_trim.out.hashes.map       { meta, file -> file }
+    uc               = primer_trim.out.uc.map           { meta, file -> file }
     trimmed_seqs     = primer_trim.out.trimmed_seqs.map { meta, file -> file }
-    itsx_full        = ch_res_itsx_full
-    itsx_ssu         = ch_res_itsx_ssu
-    itsx_its1        = ch_res_itsx_its1
-    itsx_58s         = ch_res_itsx_58s
-    itsx_its2        = ch_res_itsx_its2
-    itsx_lsu         = ch_res_itsx_lsu
-    itsx_positions   = ch_res_itsx_positions
-    itsx_problematic = ch_res_itsx_problematic
-    itsx_nondetects  = ch_res_itsx_nondetects
-    itsx_summary     = ch_res_itsx_summary
-    itsx_details     = ch_res_itsx_details
-    itsx_ssu_part    = ch_res_itsx_ssu_part
-    itsx_its1_part   = ch_res_itsx_its1_part
-    itsx_58s_part    = ch_res_itsx_58s_part
-    itsx_its2_part   = ch_res_itsx_its2_part
-    itsx_lsu_part    = ch_res_itsx_lsu_part
-    parquet          = ch_res_parquet
+    // Per-sample extractor results
+    itsx_full        = ch_res_itsx_full.map        { meta, file -> file }
+    itsx_ssu         = ch_res_itsx_ssu.map         { meta, file -> file }
+    itsx_its1        = ch_res_itsx_its1.map        { meta, file -> file }
+    itsx_58s         = ch_res_itsx_58s.map         { meta, file -> file }
+    itsx_its2        = ch_res_itsx_its2.map        { meta, file -> file }
+    itsx_lsu         = ch_res_itsx_lsu.map         { meta, file -> file }
+    itsx_positions   = ch_res_itsx_positions.map   { meta, file -> file }
+    itsx_problematic = ch_res_itsx_problematic.map { meta, file -> file }
+    itsx_nondetects  = ch_res_itsx_nondetects.map  { meta, file -> file }
+    itsx_nondetects_txt = ch_res_itsx_nondetects_txt.map { meta, file -> file }
+    itsx_summary     = ch_res_itsx_summary.map     { meta, file -> file }
+    itsx_details     = ch_res_itsx_details.map     { meta, file -> file }
+    itsx_jsonl       = ch_res_itsx_jsonl.map       { meta, file -> file }
+    itsx_ssu_part    = ch_res_itsx_ssu_part.map    { meta, file -> file }
+    itsx_its1_part   = ch_res_itsx_its1_part.map   { meta, file -> file }
+    itsx_58s_part    = ch_res_itsx_58s_part.map    { meta, file -> file }
+    itsx_its2_part   = ch_res_itsx_its2_part.map   { meta, file -> file }
+    itsx_lsu_part    = ch_res_itsx_lsu_part.map    { meta, file -> file }
+    parquet          = ch_res_parquet.map          { meta, file -> file }
+    // Collected diagnostics for the report
+    report_itsx      = ch_report_itsx
 
-
-} // end of ITSx workflow
+} // end of ITS_EXTRACTION subworkflow
