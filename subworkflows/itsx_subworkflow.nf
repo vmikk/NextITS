@@ -685,6 +685,89 @@ process itsx_collect {
 // ITSx processing workflow
 workflow ITSx {
 
+
+// Extract rRNA regions with ITSx2 from a single chunk of dereplicated sequences
+// NB. ITSx2 delimits the cistron pan-eukaryotically with covariance models, therefore
+//     the ITSx v1.x options `-t`, `-E`, `--partial`, `--complement` and `--heuristics`
+//     have no counterpart here and are deliberately not passed
+process itsx2 {
+
+    label "main_container"
+
+    // Chunk-level results are not published - they are concatenated per sample first
+    // cpus 3
+
+    tag "${meta.id}__chunk${meta.chunk_id}"
+
+    input:
+      tuple val(meta), path(input)   // FASTA file with dereplicated sequences (may be gz-compressed)
+
+    output:
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.full.fasta.gz"), emit: itsx_full, optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.SSU.fasta.gz"),  emit: itsx_ssu,  optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.ITS1.fasta.gz"), emit: itsx_its1, optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.5_8S.fasta.gz"), emit: itsx_58s,  optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.ITS2.fasta.gz"), emit: itsx_its2, optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.LSU.fasta.gz"),  emit: itsx_lsu,  optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.positions.txt"),       emit: itsx_positions,  optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}_no_detections.txt"),   emit: itsx_nondetects_txt, optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.summary.txt"),         emit: itsx_summary,    optional: true
+      tuple val(meta), path("${meta.id}_chunk${meta.chunk_id}.jsonl.gz"),            emit: itsx_jsonl,      optional: true
+      tuple val("${task.process}"), val('ITSx2'), eval('itsx2 itsx --version | sed "s/itsx2 itsx //"'), topic: versions
+      tuple val("${task.process}"), val('Infernal'), eval('cmsearch -h 2>&1 | sed -n "s/^# INFERNAL \\([0-9][0-9a-z.]*\\).*/\\1/p" | head -n 1'), topic: versions
+      tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
+
+    script:
+    def sampID      = "${meta.id}"
+    def chunkPrefix = "${meta.id}_chunk${meta.chunk_id}"
+    """
+    echo -e "Extraction of rRNA regions using ITSx2\\n"
+    echo -e "Input sample: " ${sampID}
+    echo -e "Chunk ID: "     ${meta.chunk_id}
+
+    ## ITSx2 reads gz-compressed FASTA/FASTQ natively - no decompression needed
+    echo -e "\\nITSx2 extraction"
+    itsx2 itsx \
+      -i "${input}" \
+      -o "${chunkPrefix}" \
+      --save_regions all \
+      --fasta_out \
+      --cpu ${task.cpus}
+
+    echo -e "..Done"
+
+      # ITSx2.full.fasta
+      # ITSx2.SSU.fasta
+      # ITSx2.ITS1.fasta
+      # ITSx2.5_8S.fasta
+      # ITSx2.ITS2.fasta
+      # ITSx2.LSU.fasta
+      # ITSx2.positions.txt
+      # ITSx2_no_detections.txt
+      # ITSx2.summary.txt
+      # ITSx2.jsonl
+
+    ## Remove empty files (no sequences)
+    echo -e "\\nRemoving empty files"
+    find . -type f -name "*.fasta" -empty -print -delete
+    echo -e "..Done"
+
+    ## Compress results
+    ## NB. `find` is used to avoid gzipping the symlinked input chunk
+    echo -e "\\nCompressing files"
+
+    find . -type f -name "${chunkPrefix}*.fasta" \
+      | parallel -j${task.cpus} "gzip -${params.gzip_compression} {}"
+
+    if [ -f "${chunkPrefix}".jsonl ]; then
+      gzip -${params.gzip_compression} "${chunkPrefix}".jsonl
+    fi
+
+    echo -e "..Done"
+    """
+}
+
+
 // Concatenate the extractor output from all chunks (per sample)
 // + convert the extracted rRNA regions to Parquet
 process itsx_concatenate {
