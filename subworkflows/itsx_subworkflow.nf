@@ -26,7 +26,13 @@ process primer_trim {
 
     label "main_container"
 
-    publishDir "${out_3_itsx}", mode: "${params.storagemode}"
+    publishDir(
+      params.its_region == "none" ? "${params.outdir}/03_PrimerTrim" : "${params.outdir}/03_ITSx",
+      mode:   "${params.storagemode}",
+      saveAs: { fn -> params.its_region == "none"
+                        ? fn
+                        : fn.replaceAll(/\.fa\.gz$/, '_derep.fasta.gz') }
+    )
     // cpus 2
 
     // Add sample ID to the log file
@@ -36,30 +42,31 @@ process primer_trim {
       tuple val(meta), path(fastq)
 
     output:
-      tuple val(meta), path("${meta.id}_derep.fasta.gz"),    emit: derep,  optional: true
+      tuple val(meta), path("${meta.id}.fa.gz"),             emit: derep,  optional: true
       tuple val(meta), path("${meta.id}_hash_table.txt.gz"), emit: hashes, optional: true
       tuple val(meta), path("${meta.id}_uc.uc.gz"),          emit: uc,     optional: true
-      tuple val(meta), path("${meta.id}_primertrimmed_sorted.fq.gz"), emit: trimmed_seqs,   optional: true
+      tuple val(meta), path("${meta.id}_primertrimmed_sorted.fq.gz"), emit: trimmed_seqs, optional: true
       tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
       tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
       tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
       tuple val("${task.process}"), val('phredsort'), eval('phredsort -v | sed "s/phredsort //"'), topic: versions
       tuple val("${task.process}"), val('seqhasher'), eval('seqhasher -v | sed "s/SeqHasher //"'), topic: versions
       tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
-      tuple val("${task.process}"), val('brename'), eval('brename --help | head -n 4 | tail -1 | sed "s/Version: //"'), topic: versions
 
     script:
-    sampID="${meta.id}"
+    def sampID = "${meta.id}"
     """
     echo -e "Primer trimming and dereplication at sample level\\n"
-    echo -e "Input sample: " ${sampID}
-
-    ## Trim primers    
-    echo -e "Trimming primers\\n"
+    echo -e "Input sample: "   ${sampID}
+    echo -e "Forward primer: " ${params.primer_forward}
+    echo -e "Reverse primer: " ${params.primer_reverse}
 
     ## Reverse-complement rev primer
     RR=\$(rc.sh ${params.primer_reverse})
+    echo -e "Reverse primer RC: " "\$RR"
 
+    ## Trim primers
+    echo -e "\\nTrimming primers"
     cutadapt \
       -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
       --errors ${params.primer_mismatches} \
@@ -78,19 +85,22 @@ process primer_trim {
     echo -e "Number of sequences after primer trimming: " \$NUMSEQS
     if [ \$NUMSEQS -lt 1 ]; then
       echo -e "\\nIt looks like no reads remained after trimming the primers\\n"
+      rm -f ${sampID}_primertrimmed.fq.gz
       exit 0
     fi
-   
+
     ## Estimate sequence quality and sort sequences by quality
     echo -e "\\nSorting by sequence quality"
     seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
       | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
-      | gzip -1 > ${sampID}_primertrimmed_sorted.fq.gz
+      | gzip -${params.gzip_compression} > ${sampID}_primertrimmed_sorted.fq.gz
     echo -e "..Done"
+
+    ## Remove the intermediate file as early as possible (it can be large)
+    rm -f ${sampID}_primertrimmed.fq.gz
 
     ## Hash sequences, add sample ID to the header
     ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
-    ## Convert to Parquet format
     echo -e "\\nCreating hash table"
     seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
       | seqkit fx2tab --length \
@@ -98,11 +108,8 @@ process primer_trim {
       > ${sampID}_hash_table.txt
     echo -e "..Done"
 
-    ## Check the number of fields per record (should be 9!)
-    # awk '{print NF}' ${sampID}_hash_table.txt | sort | uniq -c
-    # awk 'NF > 9 {print \$0 }' ${sampID}_hash_table.txt
-
-    ## Dereplicate at sample level (use quality-sorted sequences to make sure that the representative sequence is with the highest quality)
+    ## Dereplicate at sample level
+    ## (use quality-sorted sequences, so that the representative sequence is the one with the highest quality)
     echo -e "\\nDereplicating at sample level"
     seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
       | vsearch \
@@ -116,20 +123,18 @@ process primer_trim {
         --minseqlength ${params.trim_minlen} \
         --uc ${sampID}_uc.uc \
         --quiet \
-      > ${sampID}_derep.fasta
-    
-    ## Remove temporary file
-    rm ${sampID}_primertrimmed.fq.gz
+      > ${sampID}.fa
+
+    echo -e "..Done"
 
     ## Compress results
     echo -e "\\nCompressing results"
     parallel -j${task.cpus} "gzip -${params.gzip_compression} {}" ::: \
       ${sampID}_hash_table.txt \
       ${sampID}_uc.uc \
-      ${sampID}_derep.fasta
+      ${sampID}.fa
 
     echo -e "..Done"
-
     """
 }
 
