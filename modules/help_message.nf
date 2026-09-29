@@ -30,9 +30,11 @@ def helpMsg() {
         --primer_roverlap   Min primer overlap (default, R primer length - 2)
         --qc_maxn           Discard sequences with more than the specified number of N’s 
         --trim_minlen       Min sequence length after primer trimming (default, 10)
-        --ITSx_tax          ITSx taxonomy profile (default, "all")
-        --ITSx_evalue       ITSx E-value cutoff threshold (default, 1e-1)
-        --ITSx_partial      Keep partial ITS sequences (defalt, off), otherwise specify min length cutoff
+        --itsx_tool         ITS extractor: "ITSx" (default, v1.x) or "ITSx2" (faster)
+        --ITSx_chunk_size   Dereplicated sequences per chunk for parallel extraction (default, 10000)
+        --ITSx_tax          ITSx taxonomy profile (default, "all"; ITSx 1.x only)
+        --ITSx_evalue       ITSx E-value cutoff threshold (default, 1e-1; ITSx 1.x only)
+        --ITSx_partial      Keep partial ITS sequences (default, off), otherwise specify min length cutoff (ITSx 1.x only)
         --hp                Homopolymer compression (default, true)
         --hp_similarity     Allowed sequence similarity for homopolymer compression (default, 0.999)
         --hp_iddef          Sequence similarity definition for homopolymer compression (default, 2)
