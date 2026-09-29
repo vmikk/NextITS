@@ -347,8 +347,14 @@
         return s;
       });
     }
+    /* Keep axis labels and axis names inside the grid's own rectangle.
+       `outerBoundsContain: "all"` also reserves room for the axis names, which
+       the deprecated `containLabel` never did - without it the x-axis name is
+       drawn past the bottom of the canvas and never seen */
     if (o.grid) {
-      o.grid = [].concat(o.grid).map(function (g) { return Object.assign({ containLabel: true }, g); });
+      o.grid = [].concat(o.grid).map(function (g) {
+        return Object.assign({ outerBoundsMode: "same", outerBoundsContain: "all" }, g);
+      });
     }
     return o;
   }
