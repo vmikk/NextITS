@@ -99,15 +99,23 @@ params {
 
     primer_mismatches: Integer = 2
 
-    // ITSx
-    ITSx_evalue: Float = 0.1
-    ITSx_partial: Integer = 0           // off, otherwise specify min length cutoff for partial ITS sequences to keep
-    ITSx_tax: String = "all"
+    // ITS extraction
+    // Which extractor to use:
+    //   "ITSx"  = ITSx v1.x (HMMER-based; supports taxonomic profiles and partial regions)
+    //   "ITSx2" = ITSx2     (Infernal covariance models; much faster, pan-eukaryotic)
+    itsx_tool: String = "ITSx"
+
+    // NB! The five options below apply to ITSx v1.x only
+    ITSx_evalue: Float = 0.1            // E-value
+    ITSx_partial: Integer = 0           // parital ITS; off, otherwise specify min length cutoff for partial ITS sequences to keep
+    ITSx_tax: String = "all"            // taxonomic profile
     ITSx_complement: String = "F"       // "F" (check single strand) or "T" (check both DNA strands for matches to HMM-profiles)
     ITSx_heuristics: Boolean            // use HMM heuristics for ITSx extraction
     /// ITSx_singledomain = true ....  optional arguments
-    ITSx_to_parquet: Boolean = true     // convert ITSx output (FASTA files) to Parquet
-      ITSx_chunk_size: Integer = 10000  // chunk size (number of dereplicated sequences per sample) for distributed ITSx processing; set to 0 to disable chunking
+
+    // Applicable to both extractors
+    ITSx_to_parquet: Boolean = true     // convert the extracted rRNA regions (FASTA files) to Parquet
+    ITSx_chunk_size: Integer = 10000    // chunk size (number of dereplicated sequences per sample) for distributed ITS extraction; set to 0 to put all sequences of a sample into a single chunk
 
 
     // Primer trimming (for Illumina)
