@@ -1800,6 +1800,14 @@ workflow S1 {
         newLine:  true
     )
 
+  // Record the exact `nextflow run` invocation, for the report and for the record
+  ch_command_txt = channel.of(workflow.commandLine)
+    .collectFile(
+        storeDir: "${params.tracedir}",
+        name:     "execution_command.txt",
+        newLine:  true
+    )
+
   // Document the analysis procedures
   document_analysis_s1(
     ch_versions_yml,
