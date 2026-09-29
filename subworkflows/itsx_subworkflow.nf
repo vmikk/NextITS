@@ -685,6 +685,44 @@ process itsx_collect {
 // ITSx processing workflow
 workflow ITSx {
 
+// Get near-full-length ITS from the extractor output (based on the positions file)
+process get_its {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03_ITSx", mode: "${params.storagemode}"
+    // cpus 1
+
+    tag "${meta.id}"
+
+    input:
+      tuple val(meta), path(derep), path(positions)   // dereplicated primer-trimmed sequences + region coordinates
+
+    output:
+      tuple val(meta), path("${meta.id}_ITS1_58S_ITS2.fasta.gz"), emit: itsnf,  optional: true
+      tuple val(meta), path("${meta.id}.extraction.tsv.gz"),      emit: report, optional: true
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'), topic: versions
+      tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'), topic: versions
+
+    script:
+    def sampID = "${meta.id}"
+    """
+    echo -e "Extracting ITS1-5.8S-ITS2 region"
+    echo -e "Input sample: " ${sampID}
+
+    ## Run extraction (+ validation and exclusion of problematic sequences)
+    ## NB. the same dereplicated sequences were used as the extractor input,
+    ##     therefore the sequence IDs are guaranteed to match the positions file
+    extract_itsx_regions.R \
+      --fasta     ${derep} \
+      --positions ${positions} \
+      --region    ITS \
+      --output    ${sampID}_ITS1_58S_ITS2.fasta.gz \
+      --report    ${sampID}.extraction.tsv.gz
+    """
+}
+
+
   take:
     seqs
 
