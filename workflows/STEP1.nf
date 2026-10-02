@@ -16,8 +16,8 @@ include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { CHIMERA_REMOVAL }           from '../subworkflows/chimera_removal_subworkflow.nf'
 include { ITS_EXTRACTION }            from '../subworkflows/itsx_subworkflow.nf'
 
-// Illumina-specific module
-include { qc_pe; merge_pe; demux_pe; trim_primers_pe; join_pe } from '../modules/Illumina_pe.nf'
+// Illumina paired-end reads (demultiplexing, reorientation, read merging)
+include { ILLUMINA_PE }               from '../subworkflows/illumina_subworkflow.nf'
 
 
 // Convert BAM to FASTQ
@@ -404,85 +404,6 @@ process demux {
     echo -e "\\nDemultiplexing finished"
     """
 }
-
-
-// Modify barcodes for cutadapt (restrict the search window)
-process prep_barcodes {
-
-    label "main_container"
-
-    // publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
-    // cpus 1
-
-    input:
-      path barcodes
-
-    output:
-      path "barcodes_modified.fa", emit: barcodesm
-
-    script:
-    """
-    echo -e "Restricting the search window for barcode lookup"
-    echo -e "Provided barcodes: " ${barcodes}
-
-    ## Add `XN{30}` to the barcodes
-
-    sed -e '/^>/! s/^/XN{${params.barcode_window}}/' \
-      ${barcodes} \
-      > barcodes_modified.fa
-
-    echo -e "..Done"
-    """
-}
-
-
-// Demultiplexing with cutadapt (single-end reads)
-process demux_se {
-
-    label "main_container"
-
-    publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
-    // cpus 10
-
-    input:
-      path input_fastq
-      path barcodes
-
-    output:
-      path "*.fq.gz", emit: samples_demux
-
-    script:
-    """
-    echo -e "Input file: " ${input_fastq}
-    echo -e "Barcodes: " ${barcodes}
-
-    echo -e "\nDemultiplexing with cutadapt:"
-
-    ## Demultiplex with cutadapt
-    cutadapt \
-      -g file:${barcodes} \
-      --revcomp --rename "{header}" \
-      --errors ${params.barcode_errors} \
-      --overlap ${params.barcode_overlap} \
-      --no-indels \
-      --cores ${task.cpus} \
-      --discard-untrimmed \
-      --action none \
-      -o "{name}.fq.gz" \
-      ${input_fastq} \
-      > cutadapt.log
-
-    echo -e "\\n..done"
-
-    ## Remove empty files (no sequences)
-    echo -e "\\nRemoving empty files"
-    find . -type f -name "*.fq.gz" -size -29c -print -delete
-    echo -e "..Done"
-
-    echo -e "\\nDemultiplexing finished"
-    """
-}
-
 
 
 // Primer disambiguation
@@ -1416,7 +1337,7 @@ process document_analysis_s1 {
 workflow S1 {
 
   is_demultiplexed = params.demultiplexed
-  keep_notmerged = params.illumina_keep_notmerged
+  is_illumina = params.seqplatform == "Illumina"
   run_hp = params.hp
   run_tj = params.tj
 
@@ -1430,133 +1351,113 @@ workflow S1 {
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   */
 
-  // Run demultiplexing
-  if( !is_demultiplexed ){
-    
+  // Illumina paired-end reads (multiplexed or per-sample)
+  if( is_illumina ){
+
+    if( !is_demultiplexed ){
+
+      // Validate tags
+      tag_validation(channel.value(params.barcodes))
+
+      // Multiplexed read pairs
+      ch_illumina_multiplexed = channel.of( tuple(file(params.input_R1), file(params.input_R2)) )
+      ch_illumina_persample   = channel.empty()
+
+      // Tags: single or symmetric dual tags (FASTA), dual tags (`tags_fwd.fasta` + `tags_rev.fasta`)
+      ch_illumina_tags      = tag_validation.out.fasta
+      ch_illumina_tags_dual = tag_validation.out.tags_dual.ifEmpty(file("no_dual_tags"))
+
+    } else {
+
+      // Per-sample read pairs, tuple(sampleID, [R1, R2])
+      // Illumina-style suffixes (`_S1_L001`) are removed from sample names
+      ch_illumina_multiplexed = channel.empty()
+      ch_illumina_persample   = channel
+        .fromFilePairs( params.input + '/' + params.illumina_pe_pattern, size: 2 )
+        .ifEmpty { error("ERROR: No paired FASTQ files matching `${params.illumina_pe_pattern}` found in the input directory: ${params.input}") }
+        .map { id, reads ->
+          def sampID = id.replaceAll(/_S\d+_L\d{3}$/, '')
+          if( sampID.contains('.') ){
+            error("ERROR: sample name `${sampID}` contains a dot, please rename the input files")
+          }
+          tuple(sampID, reads)
+        }
+
+      ch_illumina_tags      = file("no_tags")
+      ch_illumina_tags_dual = file("no_dual_tags")
+    }
+
+    // Demultiplexing, reorientation, read merging (+ optional joining of non-merged reads)
+    ILLUMINA_PE(
+      ch_illumina_multiplexed,
+      ch_illumina_persample,
+      ch_illumina_tags,
+      ch_illumina_tags_dual)
+
+    // QC of merged reads
+    qc_se(ILLUMINA_PE.out.merged)
+
+    // Channel to use for primer checking
+    // (joined reads are quality-filtered prior to joining)
+    ch_for_primer_check = qc_se.out.filtered.mix(ILLUMINA_PE.out.joined)
+
+
+
+  } else if( !is_demultiplexed ){
+  // PacBio multiplexed reads
+
     // Input file with barcodes (FASTA)
     ch_barcodes = channel.value(params.barcodes)
 
     // Validate tags
     tag_validation(ch_barcodes)
 
-    // PacBio
-    if ( params.seqplatform == "PacBio" ) {
-      
-      // Input file with multiplexed reads (FASTQ.gz or BAM)
-      ch_input = channel.value(params.input)
+    // Input file with multiplexed reads (FASTQ.gz or BAM)
+    ch_input = channel.value(params.input)
 
-      // Check the extension of input
-      input_type = file(params.input).getExtension() =~ /bam|BAM/ ? "bam" : "oth"
-      // println("${input_type}")
+    // Check the extension of input
+    input_type = file(params.input).getExtension() =~ /bam|BAM/ ? "bam" : "oth"
 
-      // If BAM is provided as input, convert it to FASTQ
-      if ( input_type == 'bam'){
+    // If BAM is provided as input, convert it to FASTQ
+    if ( input_type == 'bam'){
 
-        // Add BAM index file
-        ch_input_pbi = ch_input + ".pbi"
+      // Add BAM index file
+      ch_input_pbi = ch_input + ".pbi"
 
-        bam2fastq(ch_input, ch_input_pbi)
-        qc_se(bam2fastq.out.fastq)
+      bam2fastq(ch_input, ch_input_pbi)
+      qc_se(bam2fastq.out.fastq)
 
-      } else {
-
-        // Initial QC
-        qc_se(ch_input)
-
-      }
-
-      // Demultiplexing with dual barcodes requires 4 additional files:
-      //  - "biosamples" with symmertic/asymmetirc tag combinations
-      //  - table for assigning sample names to demuxed files
-      //  - and a table for renaming unknown combinations (if params.lima_remove_unknown == true)
-      // Create dummy files (for single or symmetic tags) if neccesary
-      ch_biosamples_sym  = tag_validation.out.biosamples_sym.flatten().collect().ifEmpty(file("biosamples_sym"))
-      ch_biosamples_asym = tag_validation.out.biosamples_asym.flatten().collect().ifEmpty(file("biosamples_asym"))
-      ch_file_renaming   = tag_validation.out.file_renaming.flatten().collect().ifEmpty(file("file_renaming"))
-      ch_unknown_combs   = tag_validation.out.unknown_combinations.flatten().collect().ifEmpty(file("unknown_combinations"))
-
-      // Demultiplexing
-      demux(
-        qc_se.out.filtered,
-        tag_validation.out.fasta,
-        ch_biosamples_sym, 
-        ch_biosamples_asym,
-        ch_file_renaming,
-        ch_unknown_combs)
-
-      // Channel to use for primer checking
-      ch_for_primer_check = demux.out.samples_demux.flatten()
-
-    } // end of PacBio-specific tasks
-
-    // Illumina 
-    if ( params.seqplatform == "Illumina" ) {
-      
-      // Input file with multiplexed pair-end reads (FASTQ.gz)
-      ch_inputR1 = channel.value(params.input_R1)
-      ch_inputR2 = channel.value(params.input_R2)
+    } else {
 
       // Initial QC
-      qc_pe(ch_inputR1, ch_inputR2)
+      qc_se(ch_input)
 
-      // PE assembly
-      merge_pe(
-        qc_pe.out.filtered_R1,
-        qc_pe.out.filtered_R2)
+    }
 
-      // Modify barcodes (restict search window)
-      prep_barcodes(tag_validation.out.fasta)
+    // Demultiplexing with dual barcodes requires 4 additional files:
+    //  - "biosamples" with symmertic/asymmetirc tag combinations
+    //  - table for assigning sample names to demuxed files
+    //  - and a table for renaming unknown combinations (if params.lima_remove_unknown == true)
+    // Create dummy files (for single or symmetic tags) if neccesary
+    ch_biosamples_sym  = tag_validation.out.biosamples_sym.flatten().collect().ifEmpty(file("biosamples_sym"))
+    ch_biosamples_asym = tag_validation.out.biosamples_asym.flatten().collect().ifEmpty(file("biosamples_asym"))
+    ch_file_renaming   = tag_validation.out.file_renaming.flatten().collect().ifEmpty(file("file_renaming"))
+    ch_unknown_combs   = tag_validation.out.unknown_combinations.flatten().collect().ifEmpty(file("unknown_combinations"))
 
-      // Demultiplexing
-      demux_se(
-        merge_pe.out.r12,
-        prep_barcodes.out.barcodesm)
+    // Demultiplexing
+    demux(
+      qc_se.out.filtered,
+      tag_validation.out.fasta,
+      ch_biosamples_sym, 
+      ch_biosamples_asym,
+      ch_file_renaming,
+      ch_unknown_combs)
 
-      ch_demux_merged = demux_se.out.samples_demux.flatten()
-
-      // Illumina nonmerged PE reads sub-workflow (optional)
-      if(keep_notmerged){
-
-        // Demultiplexing non-merged reads
-        demux_pe(
-          merge_pe.out.nm,
-          prep_barcodes.out.barcodesm)
-
-        // Channel of non-merged reads by sample (split into sample tuples)
-        // ch_R1 = demux_pe.out.demux_pe....
-
-        // Non-merged sample list
-        ch_nonmerged = demux_pe.out.samples_nonm_pe.splitText().map{it -> it.trim()}
-
-        // Trim primers of nonmerged PE reads
-        // Estimate sequence qualities
-        // Dereplicate R1 and R2 independently
-        // trim_primers_pe(demux_pe.out.demux_pe.flatten())
-
-        // Join nonmerged reads with poly-N pads
-        join_pe(
-          ch_nonmerged,
-          demux_pe.out.demux_pe.flatten().collect()   // all non-merged R1 and R2 files
-          )
-
-        // Add joined reads to the merged reads
-        ch_joined = join_pe.out.jj_FQ.flatten()
-        ch_demuxed = ch_demux_merged.concat(ch_joined)
-
-      } else { // end of Illumina non-merged reads
-
-        // Channel with demultiplexed reads
-        ch_demuxed = ch_demux_merged
-
-      }  // end of Illumina keep_notmerged == true
-
-      // Channel to use for primer checking
-      ch_for_primer_check = ch_demuxed
-
-    } // end of Illumina-specific tasks
+    // Channel to use for primer checking
+    ch_for_primer_check = demux.out.samples_demux.flatten()
 
   } else {
-  // If samples were already demuliplexed
+  // If samples were already demuliplexed (single-end reads, any platform)
 
     // Input files with demultiplexed reads (FASTQ.gz)
     ch_input = channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' )
@@ -1703,21 +1604,32 @@ workflow S1 {
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   */
  
-  // Initial data - Per-sample input channels
-  if( !is_demultiplexed ){
 
-    if(params.seqplatform == "PacBio"){
+  if( is_illumina ){
 
-      // Input data and QC = single multiplexed file
-      ch_counts_1 = ch_input
-      ch_counts_2 = qc_se.out.filtered
+    // Raw data = read pairs (R1 only, to count pairs)
+    ch_counts_1 = is_demultiplexed
+      ? ch_illumina_persample.map { _id, reads -> reads[0] }.collect()
+      : file(params.input_R1)
 
-      ch_all_demux = demux.out.samples_demux.flatten().collect()
-    }
+    // QC = per-sample merged reads that passed QC
+    ch_counts_2 = qc_se.out.filtered.flatten().collect().ifEmpty(file("no_qc"))
 
-    if(params.seqplatform == "Illumina"){
-      ch_all_demux = demux_se.out.samples_demux.flatten().collect()
-    }
+    // Per-sample demultiplexed pairs are taken from the reorientation stats
+    ch_all_demux = file("no_demux")
+
+    // Illumina-specific stats
+    ch_pe_reorient = ILLUMINA_PE.out.reorient_stats
+    ch_pe_merge    = ILLUMINA_PE.out.merge_stats
+    ch_pe_joined   = ILLUMINA_PE.out.joined.flatten().collect().ifEmpty(file("no_joined"))
+
+  } else if( !is_demultiplexed ){
+
+    // Input data and QC = single multiplexed file
+    ch_counts_1 = ch_input
+    ch_counts_2 = qc_se.out.filtered
+
+    ch_all_demux = demux.out.samples_demux.flatten().collect()
 
   } else {
   
@@ -1726,6 +1638,12 @@ workflow S1 {
     ch_counts_2 = qc_se.out.filtered.flatten().collect()
 
     ch_all_demux = channel.fromPath( params.input + '/*.{fastq.gz,fastq,fq.gz,fq}' ).flatten().collect()
+  }
+
+  if( !is_illumina ){
+    ch_pe_reorient = file("no_reorient_stats")
+    ch_pe_merge    = file("no_merge_stats")
+    ch_pe_joined   = file("no_joined")
   }
   
 
