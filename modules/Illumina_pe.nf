@@ -1,4 +1,75 @@
 
+// Quality-score check
+// Are Phred scores binned (e.g., NovaSeq, NextSeq) or continuous (e.g., MiSeq)?
+// Is there an excess of 3' poly-G tails (two-colour chemistry)?
+process illumina_qcheck {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
+    // cpus 1
+
+    input:
+      tuple path(input_R1), path(input_R2)
+
+    output:
+      path "Quality_check.tsv", emit: tsv
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+
+    script:
+    """
+    echo -e "Checking quality-score encoding\\n"
+    echo -e "Input R1: " ${input_R1}
+    echo -e "Input R2: " ${input_R2}
+
+    ## Number of reads to inspect (per mate)
+    NREADS=100000
+
+    printf "Mate\\tNumReads\\tMaxReadLength\\tNumDistinctQ\\tQValues\\tMaxQ\\tPolyG_Percent\\tQualityType\\n" \\
+      > Quality_check.tsv
+
+    check_mate () {
+      # \$1 = mate label, \$2 = FASTQ file
+
+      ## Distinct Phred scores (offset 33) and read lengths
+      seqkit head -n \$NREADS "\$2" \\
+        | seqkit seq --qual \\
+        | awk -v mate="\$1" '
+          BEGIN { for(i = 33; i < 127; i++) ord[sprintf("%c", i)] = i - 33 }
+          {
+            n++
+            if(length(\$0) > maxlen) maxlen = length(\$0)
+            for(i = 1; i <= length(\$0); i++) q[ ord[substr(\$0, i, 1)] ] = 1
+          }
+          END {
+            nq = 0; maxq = -1; vals = ""
+            for(k = 0; k <= 93; k++) if(k in q){ nq++; maxq = k; vals = vals (vals == "" ? "" : ",") k }
+            printf "%s\\t%d\\t%d\\t%d\\t%s\\t%d", mate, n, maxlen, nq, vals, maxq
+          }' > tmp_quals.txt
+
+      ## Reads with a 3-prime poly-G tail (10 or more G's)
+      NPG=\$(seqkit head -n \$NREADS "\$2" | seqkit seq --seq | { grep -c -E 'G{10}\$' || true; })
+      NR=\$(cut -f2 tmp_quals.txt)
+      NDQ=\$(cut -f4 tmp_quals.txt)
+
+      awk -v npg="\$NPG" -v nr="\$NR" -v ndq="\$NDQ" 'BEGIN{
+        printf "\\t%.2f\\t%s\\n", (nr > 0 ? 100 * npg / nr : 0), (ndq <= 8 ? "binned" : "continuous") }' \\
+        > tmp_pg.txt
+
+      paste -d '' tmp_quals.txt tmp_pg.txt >> Quality_check.tsv
+      rm tmp_quals.txt tmp_pg.txt
+    }
+
+    check_mate "R1" ${input_R1}
+    check_mate "R2" ${input_R2}
+
+    echo -e "\\nQuality-score summary:"
+    cat Quality_check.tsv
+    """
+}
+
+
+
 
 
 // Quality filtering for pair-end reads
