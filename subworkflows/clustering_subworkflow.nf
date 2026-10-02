@@ -483,32 +483,89 @@ process papa2_inference {
     echo -e "..Input: ${input}"
 
     ## DADA2 works with ACGT alphabet only
-    ## 1. So check if there are any sequences with ambiguities
-    ## 2. If any, remove them
+    ## 1. Sequences with abundance >= dada2_minsize and without ambiguities are denoised
+    ## 2. The rest (low-abundance sequences or sequences with ambiguities) are mapped to the inferred ASVs afterwards
     ## 3. Sort by sequence abundance
-    ## 5. Denoise
 
-    ## Remove sequences with ambiguities
     echo -e "..Preparing sequences\\n"
+    touch excluded.fa
     seqkit seq -w 0 ${input} \
-      | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+      | awk -v minsize=${params.dada2_minsize} '
+          /^>/ { h = \$0; s = h; sub(/^.*;size=/, "", s); sub(/;.*\$/, "", s); next }
+          {
+            if (\$0 ~ /^[ACGT]+\$/ && s + 0 >= minsize) { print h; print; nd++ }
+            else { print h > "excluded.fa"; print > "excluded.fa"; ne++ }
+          }
+          END { printf "%d\\t%d\\n", nd, ne > "split_counts.txt" }' \
       | vsearch --sortbysize - --output - --fasta_width 0 \
       | pigz -p ${task.cpus} -${params.gzip_compression} > no_ambigs.fa.gz
 
-    echo -e "\\n\\n..Running PAPA2\\n"
-    papa2_no_quals_2_Inference.py \
-      --input            no_ambigs.fa.gz \
-      --errors           ${errors} \
-      --bandsize         ${params.dada2_bandsize} \
-      --detectsingletons ${params.dada2_detectsingletons} \
-      --omegaA           ${params.dada2_omegaA} \
-      --omegaC           ${params.dada2_omegaC} \
-      --omegaP           ${params.dada2_omegaP} \
-      --maxconsist       ${params.dada2_maxconsist} \
-      --match            ${params.dada2_match} \
-      --mismatch         ${params.dada2_mismatch} \
-      --gappenalty       ${params.dada2_gappenalty} \
-      --threads          ${task.cpus}
+    NDENOISE=\$(cut -f 1 split_counts.txt)
+    NEXCL=\$(cut -f 2 split_counts.txt)
+    echo -e "\\n..Sequences to denoise: \${NDENOISE}"
+    echo -e "..Sequences excluded from denoising (abundance < ${params.dada2_minsize} or ambiguous bases): \${NEXCL}"
+
+    if [ "\${NDENOISE}" -gt 0 ]; then
+      echo -e "\\n\\n..Running PAPA2\\n"
+      papa2_no_quals_2_Inference.py \
+        --input            no_ambigs.fa.gz \
+        --errors           ${errors} \
+        --bandsize         ${params.dada2_bandsize} \
+        --detectsingletons ${params.dada2_detectsingletons} \
+        --omegaA           ${params.dada2_omegaA} \
+        --omegaC           ${params.dada2_omegaC} \
+        --omegaP           ${params.dada2_omegaP} \
+        --maxconsist       ${params.dada2_maxconsist} \
+        --match            ${params.dada2_match} \
+        --mismatch         ${params.dada2_mismatch} \
+        --gappenalty       ${params.dada2_gappenalty} \
+        --threads          ${task.cpus}
+    else
+      echo -e "\\n..No sequences to denoise"
+      echo -n | gzip > DADA2_denoised.fa.gz
+      echo -n | gzip > DADA2_denoised.uc.gz
+      touch DADA2_denoising_summary.txt
+    fi
+
+    ## Map sequences excluded from denoising to ASVs
+    if [ "\${NEXCL}" -gt 0 ]; then
+
+      if [ "\${NDENOISE}" -gt 0 ]; then
+        echo -e "\\n..Mapping sequences excluded from denoising to ASVs\\n"
+        vsearch \
+          --usearch_global excluded.fa \
+          --db         DADA2_denoised.fa.gz \
+          --id         ${params.dada2_mapback_id} \
+          --iddef      ${params.otu_iddef} \
+          --qmask      ${params.otu_qmask} \
+          --gapopen    ${params.vsearch_gapopen} \
+          --gapext     ${params.vsearch_gapext} \
+          --query_cov  0.9 \
+          --strand     both \
+          --maxaccepts 8 \
+          --maxrejects 64 \
+          --maxhits    1 \
+          --threads    ${task.cpus} \
+          --uc         mapback.uc
+      else
+        touch mapback.uc
+      fi
+
+      dada2_mapback.py \
+        --asvs      DADA2_denoised.fa.gz \
+        --uc        DADA2_denoised.uc.gz \
+        --excluded  excluded.fa \
+        --mapback   mapback.uc \
+        --unmapped  ${params.dada2_mapback_unmapped} \
+        --summary   DADA2_denoising_summary.txt \
+        --out_fasta DADA2_mapback.fa \
+        --out_uc    DADA2_mapback.uc
+
+      pigz -p ${task.cpus} -${params.gzip_compression} -c DADA2_mapback.fa > DADA2_denoised.fa.gz
+      pigz -p ${task.cpus} -${params.gzip_compression} -c DADA2_mapback.uc > DADA2_denoised.uc.gz
+      rm DADA2_mapback.fa DADA2_mapback.uc mapback.uc
+    fi
+    rm excluded.fa split_counts.txt
 
     echo -e "..Denoizing with DADA2 finished\\n"
     """
