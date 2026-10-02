@@ -215,9 +215,9 @@
         },
         "ITSx_chunk_size": {
           "type": "integer",
-          "default": 10000,
+          "default": 9999,
           "fa_icon": "fas fa-database",
-          "description": "Chunk size for distributed ITS extraction (number of dereplicated sequences per sample); set to 0 to put all sequences of a sample into a single chunk. NB. for ITSx 1.x the chunk size can slightly affect which borderline hits are reported, because HMMER E-values scale with the number of sequences searched; the default matches ITSx's own internal batch size"
+          "description": "Chunk size for distributed ITS extraction (number of dereplicated sequences per sample); set to 0 to put all sequences of a sample into a single chunk"
         },
         "hp": {
           "type": "boolean",
