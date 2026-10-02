@@ -15,7 +15,7 @@
 
 /*
  * Typed pipeline parameters (Nextflow 26+)
- * Config-time defaults (outdir, tracedir, primers, qc_twocolor, chunking_n, storagemode)
+ * Config-time defaults (outdir, tracedir, primers, chunking_n, storagemode)
  * are in conf/params.config and must not be duplicated here
  */
 params {
@@ -52,12 +52,9 @@ params {
     qc_maxn: Integer = 4
 
     // QC for Illumina reads
-    qc_phredmin: Integer? = null
-    qc_phredperc: Integer? = null
-    qc_polyglen: Integer? = null
-    qc_avgphred: Integer? = null      // Only for PE reads
-    qc_twocolor: Boolean              // reduced resolution Phred-scores (two-color Illumina chemistry)
-    
+    qc_polyglen: Integer? = 10          // trim 3' poly-G tails of at least this length prior to read merging (null = no trimming)
+    qc_binned: Boolean? = null          // expected type of Phred scores (set by `-profile miseq` or `-profile novaseq`; used only for a warning)
+
 
     // Is data demultiplexed?
     // If false (default), input = 1 fastq file and 1 fasta file
@@ -74,20 +71,26 @@ params {
     lima_minlen: Integer = 40           // minimum sequence length after clipping
     lima_remove_unknown: Boolean        // remove unknown barcode combinations (in dual-barcoding modes)
 
-    // Demultiplexing single-end reads with cutadapt
-    barcode_window: Integer = 30
-    barcode_errors: Integer = 1
-    barcode_overlap: Integer = 11
+    // Demultiplexing Illumina paired-end reads with cutadapt
+    illumina_barcodetype: String = "dual_symmetric"   // "dual_symmetric", "dual_asymmetric", "single"
+    illumina_demux_rescue: Boolean = false            // rescue read pairs with a single readable tag
+    illumina_revtag_orient: String = "auto"           // orientation of reverse tags in `fwd...rev` format: "auto", "forward", "revcomp"
+    illumina_pe_pattern: String = "*_R{1,2}*.{fastq,fq}.gz"   // file pattern of per-sample read pairs (with `--demultiplexed true`)
+    barcode_window: Integer = 30        // tag search window at the 5' end of reads (0 = tag is anchored at the read start)
+    barcode_errors: Integer = 2         // max number of mismatches in a tag
+    barcode_overlap: Integer = 11       // min overlap of a read with a tag
+    barcode_minlen: Integer = 50        // min read length after tag removal
 
-    // Illumina pair-end read assembly
-    pe_minoverlap: Integer = 20
-    pe_difflimit: Integer = 5
-    pe_diffperclimit: Integer = 20
-    pe_nlimit: Integer = 10
-    pe_minlen: Integer = 30
+    // Illumina paired-end read merging
+    pe_merger: String = "usearch"       // "usearch" or "vsearch"
+    pe_maxdiffs: Integer = 10           // max number of mismatches in the overlap
+    pe_pctid: Integer = 80              // min percent identity in the overlap
+    pe_minoverlap: Integer = 16         // min overlap length
+    pe_minlen: Integer = 50             // min length of a merged read
+    pe_maxlen: Integer? = null          // max length of a merged read
 
     // What to do with not merged reads (Illumina-only)
-    illumina_keep_notmerged: Boolean = true
+    illumina_keep_notmerged: Boolean = false
     illumina_joinpadgap: String = "NNNNNNNNNN"
     illumina_joinpadqual: String = "IIIIIIIIII"   // quality score of 40
 
@@ -115,7 +118,7 @@ params {
 
     // Applicable to both extractors
     ITSx_to_parquet: Boolean = true     // convert the extracted rRNA regions (FASTA files) to Parquet
-    ITSx_chunk_size: Integer = 10000    // chunk size (number of dereplicated sequences per sample) for distributed ITS extraction; set to 0 to put all sequences of a sample into a single chunk
+    ITSx_chunk_size: Integer = 9999     // chunk size (number of dereplicated sequences per sample) for distributed ITS extraction; set to 0 to put all sequences of a sample into a single chunk
 
 
     // Primer trimming (for Illumina)
@@ -188,7 +191,7 @@ params {
     dada2_engine: String = "papa2"             // "dada2" (original R-based implementation) or "papa2" (Python-based implementation)
     dada2_pooling: String = "global"           // "global" or "byrun" (not implemented yet)
     dada2_error_estimation: String = "shared"  // "per_bucket" or "shared" (independent model for each chunk or shared model for all chunks)
-    dada2_nbases: Float = 1e8
+    dada2_nbases: Float = 5e8                  // target number of read bases for error rate learning
     dada2_bandsize: Integer = 16
     dada2_detectsingletons: Boolean = true
     dada2_omegaA: Float = 1e-20                // algorithm sensitivity (sets the p-value threshold at which new ASVs are inferred; reduce to increase sensitivity at the cost of more spurious ASVs)
@@ -198,7 +201,9 @@ params {
     dada2_match: Integer = 4
     dada2_mismatch: Integer = -5
     dada2_gappenalty: Integer = -8
-    dada2_maxreadsperseq: Integer = 1000   // cap max number of reads per sequence for error rate estimation (set to 0 to disable)
+    dada2_minsize: Integer = 2                 // sequences with lower abundance (and with ambiguous bases) are not denoised, but mapped to ASVs
+    dada2_mapback_id: Float = 0.99             // minimum similarity for mapping sequences excluded from denoising to ASVs
+    dada2_mapback_unmapped: String = "keep"    // "keep" or "discard" excluded sequences that do not match any ASV
 
     // Sequence clustering method ("none" / "vsearch" / "swarm" / "shmatching")
     clustering: String = "vsearch"
