@@ -5,6 +5,9 @@ with unique sequences sorted by descending abundance
 
 Input:
 - NextITS-style dereplicated FASTA/FASTQ: headers `SeqID;size=ABUNDANCE`
+
+Also provides a quality-free error function with a pseudocount
+(port of R dada2 `noqualErrfun`) and error-model diagnostics
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ class NextITSRecord:
     abundance: int
     sequence: str
     qual_ascii: bytes | None = None
+    group: str = ""
 
 
 def _open_input(path: str) -> BinaryIO:
@@ -32,8 +36,12 @@ def _open_input(path: str) -> BinaryIO:
     return open(path, "rb")
 
 
-def _parse_header_size(header_line: bytes) -> Tuple[str, int]:
-    """Parse `@SeqID;size=N`, `>SeqID;size=N`, or `SeqID;size=N`."""
+def _parse_header_size(header_line: bytes) -> Tuple[str, int, str]:
+    """Parse `@SeqID;size=N`, `>SeqID;size=N`, or `SeqID;size=N`.
+
+    An optional group label (`;grp=LABEL`, added to the error-learning subset)
+    is returned as the third element (empty string if absent).
+    """
     h = header_line.strip()
     if h.startswith((b"@", b">")):
         h = h[1:]
@@ -44,8 +52,11 @@ def _parse_header_size(header_line: bytes) -> Tuple[str, int]:
         )
     seq_id, rest = text.split(";size=", 1)
     rest = rest.split()[0] if rest.split() else rest
-    abundance = int(float(rest))
-    return seq_id, abundance
+    group = ""
+    if ";grp=" in rest:
+        group = rest.split(";grp=", 1)[1].split(";")[0]
+    abundance = int(float(rest.split(";")[0]))
+    return seq_id, abundance, group
 
 
 def _detect_seq_format(path: str) -> str:
@@ -84,7 +95,7 @@ def _iter_fastq_records(path: str) -> Iterator[NextITSRecord]:
                 raise ValueError(
                     f"Expected '+' line in FASTQ record, got: {plus[:120]!r}"
                 )
-            seq_id, abundance = _parse_header_size(header)
+            seq_id, abundance, group = _parse_header_size(header)
             seq = seq_line.strip().decode("ascii").upper()
             q = qual_line.rstrip(b"\n\r")
             if len(q) != len(seq):
@@ -96,6 +107,7 @@ def _iter_fastq_records(path: str) -> Iterator[NextITSRecord]:
                 abundance=abundance,
                 sequence=seq,
                 qual_ascii=q,
+                group=group,
             )
 
 
@@ -103,6 +115,7 @@ def _iter_fasta_records(path: str) -> Iterator[NextITSRecord]:
     with _open_input(path) as fh:
         seq_id: str | None = None
         abundance: int | None = None
+        group = ""
         seq_chunks: List[bytes] = []
 
         for line in fh:
@@ -116,8 +129,9 @@ def _iter_fasta_records(path: str) -> Iterator[NextITSRecord]:
                         seq_id=seq_id,
                         abundance=int(abundance),
                         sequence=sequence,
+                        group=group,
                     )
-                seq_id, abundance = _parse_header_size(stripped)
+                seq_id, abundance, group = _parse_header_size(stripped)
                 seq_chunks = []
                 continue
             if seq_id is None:
@@ -132,6 +146,7 @@ def _iter_fasta_records(path: str) -> Iterator[NextITSRecord]:
                 seq_id=seq_id,
                 abundance=int(abundance),
                 sequence=sequence,
+                group=group,
             )
 
 
@@ -167,7 +182,27 @@ def _build_constant_quals(seqs: List[str], q_value: float = 40.0) -> np.ndarray:
     return quals
 
 
-def load_nextits_derep(path: str) -> Tuple[dict, dict]:
+def load_nextits_derep_groups(path: str) -> List[Tuple[str, dict, dict]]:
+    """Load NextITS dereplicated FASTA/FASTQ, split by group label (`;grp=`).
+
+    Returns a list of (group, derep, meta) tuples, one per group,
+    or a single tuple with an empty group label if the input has no labels.
+    Used for error learning, where groups are treated as separate samples.
+    """
+    input_format = _detect_seq_format(path)
+    record_iter = _iter_fasta_records if input_format == "fasta" else _iter_fastq_records
+    by_group: dict = {}
+    for r in record_iter(path):
+        by_group.setdefault(r.group, []).append(r)
+    return [
+        (g, *load_nextits_derep(path, records=recs, input_format=input_format))
+        for g, recs in sorted(by_group.items())
+    ]
+
+
+def load_nextits_derep(
+    path: str, records: List[NextITSRecord] | None = None, input_format: str | None = None
+) -> Tuple[dict, dict]:
     """Load NextITS dereplicated FASTA/FASTQ into a papa2 derep dict plus metadata.
 
     Returns:
@@ -180,9 +215,10 @@ def load_nextits_derep(path: str) -> Tuple[dict, dict]:
             - ``unique_index_file_order``: for each input record, index into
               sorted uniques (after merge + abundance sort)
     """
-    input_format = _detect_seq_format(path)
-    record_iter = _iter_fasta_records if input_format == "fasta" else _iter_fastq_records
-    records: List[NextITSRecord] = list(record_iter(path))
+    if records is None:
+        input_format = _detect_seq_format(path)
+        record_iter = _iter_fasta_records if input_format == "fasta" else _iter_fastq_records
+        records = list(record_iter(path))
     if not records:
         return _empty_nextits_derep()
 
@@ -275,72 +311,43 @@ def load_nextits_derep(path: str) -> Tuple[dict, dict]:
     return derep, meta
 
 
-def subsample_derep_by_nbases(
-    derep: dict, target_bases: float, max_reads_per_seq: int = 0
-) -> dict:
-    """Take a subset of uniques (highest abundance first) until >= target_bases.
+_NT = "ACGT"
 
-    Approximates DADA2 ``learnErrors(..., nbases=...)`` read/budget behavior
-    for a single pre-dereplicated sample.
-    Optionally caps the effective abundance of each unique during learning 
-    to avoid the budget being consumed by a handful of extremely abundant sequences.
+
+def noqual_errfun_pc(trans, pseudocount: float = 1.0) -> np.ndarray:
+    """Estimate error rates ignoring quality scores (constant across Q columns).
+
+    Port of R dada2 ``noqualErrfun`` (``R/errorModels.R``), including its pseudocount.
+    ``papa2.noqual_errfun`` has no pseudocount, so a transition that was never observed gets a rate of exactly 0
+    then lambda = 0 and every sequence with that substitution is split off as a new ASV.
     """
-    seqs = derep["seqs"]
-    abunds = derep["abundances"]
-    quals = derep["quals"]
-    if not seqs:
-        return dict(derep)
-    if max_reads_per_seq < 0:
-        raise ValueError("max_reads_per_seq must be >= 0")
+    trans = np.asarray(trans, dtype=np.float64)
+    ncol = trans.shape[1]
+    obs = trans.sum(axis=1) + pseudocount
+    err = np.zeros((16, ncol), dtype=np.float64)
+    for nti in range(4):
+        rows = range(nti * 4, nti * 4 + 4)
+        tot = sum(obs[r] for r in rows)
+        for r in rows:
+            if r != nti * 5:
+                err[r, :] = obs[r] / tot
+        err[nti * 5, :] = 1.0 - sum(err[r, 0] for r in rows if r != nti * 5)
+    return err
 
-    learn_abunds = np.asarray(abunds, dtype=np.int32)
-    if max_reads_per_seq > 0:
-        learn_abunds = np.minimum(learn_abunds, int(max_reads_per_seq)).astype(
-            np.int32, copy=False
-        )
 
-    total_bases = float(
-        sum(int(learn_abunds[i]) * len(seqs[i]) for i in range(len(seqs)))
-    )
-    if total_bases <= target_bases:
-        max_col = max(len(s) for s in seqs)
-        new_quals = np.asarray(quals, dtype=np.float64)
-        if new_quals.shape[1] > max_col:
-            new_quals = new_quals[:, :max_col]
-        elif new_quals.shape[1] < max_col:
-            pad = max_col - new_quals.shape[1]
-            new_quals = np.hstack(
-                [new_quals, np.full((new_quals.shape[0], pad), np.nan)]
-            )
-        return {
-            "seqs": list(seqs),
-            "abundances": np.asarray(learn_abunds, dtype=np.int32),
-            "quals": new_quals,
-            "map": np.arange(len(seqs), dtype=np.int32),
-        }
+def count_substitutions(trans) -> int:
+    """Total number of observed substitutions (off-diagonal transitions)."""
+    trans = np.asarray(trans, dtype=np.float64)
+    diag = [0, 5, 10, 15]
+    return int(round(trans.sum() - trans[diag, :].sum()))
 
-    cum = 0
-    keep_idx: List[int] = []
-    for i, seq in enumerate(seqs):
-        cum += int(learn_abunds[i]) * len(seq)
-        keep_idx.append(i)
-        if cum >= target_bases:
-            break
-    new_seqs = [seqs[i] for i in keep_idx]
-    new_abunds = np.array([int(learn_abunds[i]) for i in keep_idx], dtype=np.int32)
-    new_quals = np.asarray(quals[keep_idx, :], dtype=np.float64)
-    if new_seqs:
-        max_col = max(len(s) for s in new_seqs)
-        if new_quals.shape[1] > max_col:
-            new_quals = new_quals[:, :max_col]
-        elif new_quals.shape[1] < max_col:
-            pad = max_col - new_quals.shape[1]
-            new_quals = np.hstack(
-                [new_quals, np.full((new_quals.shape[0], pad), np.nan)]
-            )
-    return {
-        "seqs": new_seqs,
-        "abundances": new_abunds,
-        "quals": new_quals,
-        "map": np.arange(len(new_seqs), dtype=np.int32),
-    }
+
+def format_error_rates(err) -> List[str]:
+    """One line per substitution type with its rate (first Q column)."""
+    err = np.asarray(err, dtype=np.float64)
+    lines = []
+    for nti in range(4):
+        for ntj in range(4):
+            if nti != ntj:
+                lines.append(f"  {_NT[nti]}2{_NT[ntj]}: {err[nti * 4 + ntj, 0]:.4e}")
+    return lines
