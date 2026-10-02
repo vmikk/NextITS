@@ -456,115 +456,138 @@ process reorient_pe {
 
 
 
-
-// Quality filtering for pair-end reads
-process qc_pe {
-
-    label "main_container"
-
-    // cpus 10
-
-    input:
-      path input_R1
-      path input_R2
-
-    output:
-      path "QC_R1.fq.gz", emit: filtered_R1
-      path "QC_R2.fq.gz", emit: filtered_R2
-
-    script:
-    filter_avgphred  = params.qc_avgphred  ? "--average_qual ${params.qc_avgphred}"                 : "--average_qual 0"
-    filter_phredmin  = params.qc_phredmin  ? "--qualified_quality_phred ${params.qc_phredmin}"      : ""
-    filter_phredperc = params.qc_phredperc ? "--unqualified_percent_limit ${params.qc_phredperc}"   : ""
-    filter_polyglen  = params.qc_polyglen  ? "--trim_poly_g --poly_g_min_len ${params.qc_polyglen}" : ""
-    """
-    echo -e "QC\\n"
-    echo -e "Input R1: " ${input_R1}
-    echo -e "Input R2: " ${input_R2}
-
-    ## If `filter_phredmin` && `filter_phredperc` are specified,
-    # Filtering based on percentage of unqualified bases
-    # how many percents of bases are allowed to be unqualified (Q < 24)
-        
-    fastp \
-      --in1 ${input_R1} \
-      --in2 ${input_R2} \
-      --disable_adapter_trimming \
-      --n_base_limit ${params.qc_maxn} \
-      ${filter_avgphred} \
-      ${filter_phredmin} \
-      ${filter_phredperc} \
-      ${filter_polyglen} \
-      --length_required 100 \
-      --thread ${task.cpus} \
-      --html qc.html \
-      --json qc.json \
-      --out1 QC_R1.fq.gz \
-      --out2 QC_R2.fq.gz
-
-    echo -e "\\nQC finished"
-    """
-}
-
-
-
-// Merge Illumina PE reads
+// Merge paired-end reads (USEARCH or VSEARCH)
+// + optional trimming of 3' poly-G tails (two-colour chemistry) prior to merging
 process merge_pe {
 
     label "main_container"
 
-    // publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
-    // cpus 10
+    publishDir "${params.outdir}/01_Demux/Merged", mode: "${params.storagemode}", pattern: "*.fq.gz"
+    // cpus 4
+
+    tag "${sampID}"
 
     input:
-      path input_R1
-      path input_R2
+      tuple val(sampID), path(reads, stageAs: "input/*")
 
     output:
-      path "Merged.fq.gz", emit: r12
-      tuple path("NotMerged_R1.fq.gz"), path("NotMerged_R2.fq.gz"), emit: nm, optional: true
+      path "${sampID}.fq.gz", emit: merged, optional: true
+      tuple val(sampID), path("NotMerged/${sampID}_R1.fq.gz"), path("NotMerged/${sampID}_R2.fq.gz"), emit: notmerged, optional: true
+      path "${sampID}_merge.tsv", emit: stats
+      tuple val("${task.process}"), val("${params.pe_merger}"), eval(params.pe_merger == "usearch" ? 'usearch --version | sed "s/usearch v//; s/_i86linux64//"' : 'vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
+      tuple val("${task.process}"), val('fastp'), eval(params.qc_polyglen ? 'fastp --version 2>&1 | sed "s/fastp //"' : 'echo "not used"'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
 
     script:
+    def maxlen_u = params.pe_maxlen ? "-fastq_maxmergelen ${params.pe_maxlen}"   : ""
+    def maxlen_v = params.pe_maxlen ? "--fastq_maxmergelen ${params.pe_maxlen}" : ""
     """
-    echo -e "Merging Illumina pair-end reads\\n"
+    echo -e "Merging paired-end reads\\n"
+    echo -e "Sample: "   ${sampID}
+    echo -e "Input R1: " ${reads[0]}
+    echo -e "Input R2: " ${reads[1]}
+    echo -e "Merger: "   ${params.pe_merger}
 
-    ## By default, fastp modifies sequences header
-    ## e.g., `merged_150_15` means that 150bp are from read1, and 15bp are from read2
-    ## But we'll preserve only sequence ID
+    mkdir -p NotMerged
 
-    fastp \
-      --in1 ${input_R1} \
-      --in2 ${input_R2} \
-      --merge --correction \
-      --overlap_len_require ${params.pe_minoverlap} \
-      --overlap_diff_limit ${params.pe_difflimit} \
-      --overlap_diff_percent_limit ${params.pe_diffperclimit} \
-      --length_required ${params.pe_minlen} \
-      --disable_quality_filtering \
-      --disable_adapter_trimming \
-      --dont_eval_duplication \
-      --compression 6 \
-      --thread ${task.cpus} \
-      --out1 NotMerged_R1.fq.gz \
-      --out2 NotMerged_R2.fq.gz \
-      --json log.json \
-      --html log.html \
-      --stdout \
-    | seqkit seq --only-id \
-    | gzip -${params.gzip_compression} \
-    > Merged.fq.gz
+    R1=${reads[0]}
+    R2=${reads[1]}
 
-    ##  --merged_out Merged.fq.gz \
-    ##  --n_base_limit ${params.pe_nlimit} \
+    ## Trim poly-G tails (signal loss in two-colour chemistry is called as G)
+    if [[ "${params.qc_polyglen ?: ''}" != "" ]]; then
+      echo -e "\\nTrimming 3' poly-G tails (min length ${params.qc_polyglen})"
+      fastp \\
+        --in1 \$R1 --in2 \$R2 \\
+        --out1 polyg_R1.fq.gz --out2 polyg_R2.fq.gz \\
+        --trim_poly_g --poly_g_min_len ${params.qc_polyglen} \\
+        --disable_adapter_trimming \\
+        --disable_quality_filtering \\
+        --length_required 20 \\
+        --dont_eval_duplication \\
+        --thread ${task.cpus} \\
+        --json fastp.json --html fastp.html \\
+        2> fastp.log
+      R1=polyg_R1.fq.gz
+      R2=polyg_R2.fq.gz
+    fi
 
-    # --overlap_len_require         the minimum length to detect overlapped region of PE reads
-    # --overlap_diff_limit          the maximum number of mismatched bases to detect overlapped region of PE reads
-    # --overlap_diff_percent_limit  the maximum percentage of mismatched bases to detect overlapped region of PE reads
-    ## NB: reads should meet these three conditions simultaneously!
+    if [[ "${params.pe_merger}" == "usearch" ]]; then
 
-    echo -e "..done"
+      if ! command -v usearch > /dev/null 2>&1; then
+        echo -e "\\nERROR: USEARCH is not available in the environment."
+        echo -e "Use '--pe_merger vsearch', or a container with USEARCH installed.\\n"
+        exit 1
+      fi
+
+      ## USEARCH works only with uncompressed files
+      gunzip -c \$R1 > unpacked_R1.fq
+      gunzip -c \$R2 > unpacked_R2.fq
+
+      ## Staggered pairs are merged, overhangs are trimmed (by default)
+      usearch \\
+        -fastq_mergepairs  unpacked_R1.fq \\
+        -reverse           unpacked_R2.fq \\
+        -fastq_maxdiffs    ${params.pe_maxdiffs} \\
+        -fastq_pctid       ${params.pe_pctid} \\
+        -fastq_minovlen    ${params.pe_minoverlap} \\
+        -fastq_minmergelen ${params.pe_minlen} \\
+        ${maxlen_u} \\
+        -fastq_qmax 93 \\
+        -threads ${task.cpus} \\
+        -fastqout               merged.fq \\
+        -fastqout_notmerged_fwd notmerged_R1.fq \\
+        -fastqout_notmerged_rev notmerged_R2.fq \\
+        -report                 merge_report.txt \\
+        > merge.log 2>&1
+
+      rm unpacked_R1.fq unpacked_R2.fq
+
+    else
+
+      vsearch \\
+        --fastq_mergepairs \$R1 \\
+        --reverse          \$R2 \\
+        --fastq_maxdiffs   ${params.pe_maxdiffs} \\
+        --fastq_maxdiffpct ${100 - (params.pe_pctid as Integer)} \\
+        --fastq_minovlen   ${params.pe_minoverlap} \\
+        --fastq_minmergelen ${params.pe_minlen} \\
+        ${maxlen_v} \\
+        --fastq_allowmergestagger \\
+        --fastq_qmax 93 \\
+        --threads ${task.cpus} \\
+        --fastqout               merged.fq \\
+        --fastqout_notmerged_fwd notmerged_R1.fq \\
+        --fastqout_notmerged_rev notmerged_R2.fq \\
+        --no_progress \\
+        2> merge_report.txt
+
+    fi
+
+    cat merge_report.txt
+
+    ## Keep only sequence IDs in headers (no spaces)
+    seqkit seq --only-id merged.fq          | pigz -p ${task.cpus} -${params.gzip_compression} > ${sampID}.fq.gz
+    seqkit seq --only-id notmerged_R1.fq    | pigz -p ${task.cpus} -${params.gzip_compression} > NotMerged/${sampID}_R1.fq.gz
+    seqkit seq --only-id notmerged_R2.fq    | pigz -p ${task.cpus} -${params.gzip_compression} > NotMerged/${sampID}_R2.fq.gz
+
+    ## Per-sample stats
+    NIN=\$(( \$(gunzip -c ${reads[0]} | wc -l) / 4 ))
+    NMERGED=\$(( \$(wc -l < merged.fq) / 4 ))
+    NNOT=\$(( \$(wc -l < notmerged_R1.fq) / 4 ))
+    printf "SampleID\\tMerge_Input_Pairs\\tMerged_Reads\\tNotMerged_Pairs\\n" > ${sampID}_merge.tsv
+    printf "%s\\t%s\\t%s\\t%s\\n" ${sampID} \$NIN \$NMERGED \$NNOT >> ${sampID}_merge.tsv
+    cat ${sampID}_merge.tsv
+
+    rm merged.fq notmerged_R1.fq notmerged_R2.fq
+    rm -f polyg_R1.fq.gz polyg_R2.fq.gz
+
+    ## Remove empty outputs
+    if [ \$NMERGED -eq 0 ]; then rm ${sampID}.fq.gz; fi
+    if [ \$NNOT -eq 0 ];    then rm NotMerged/${sampID}_R1.fq.gz NotMerged/${sampID}_R2.fq.gz; fi
     """
 }
+
+
 
 
 
