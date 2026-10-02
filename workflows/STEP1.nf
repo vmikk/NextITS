@@ -138,6 +138,7 @@ process tag_validation {
       path "file_renaming.tsv",        emit: file_renaming,   optional: true
       path "unknown_combinations.tsv", emit: unknown_combinations, optional: true
       path "tag_names_renamed.tsv",    emit: tag_names_renamed, optional: true
+      path "tags_{fwd,rev}.fasta",     emit: tags_dual,       optional: true   // per-sample dual tags (for cutadapt)
 
     script:
     """
@@ -146,6 +147,13 @@ process tag_validation {
 
     ## Convert Windows-style line endings (CRLF) to Unix-style (LF)
     LC_ALL=C sed -i 's/\r\$//g' ${barcodes}
+
+    ## Remove cutadapt-style search-window and anchoring prefixes (e.g., `XN{30}ACGT` or `^ACGT`)
+    ## (search window is added later, see `--barcode_window`)
+    if grep -v '^>' ${barcodes} | grep -q -E '(^|\\.\\.\\.)(\\^|X|N\\{)' ; then
+      echo -e "..Removing cutadapt-style prefixes from tag sequences"
+      LC_ALL=C sed -i -E '/^>/! s/(^|\\.\\.\\.)\\^?X?(N\\{[0-9]+\\})?/\\1/g' ${barcodes}
+    fi
 
     ## Perform tag validation
     validate_tags.R \\
