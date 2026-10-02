@@ -355,8 +355,20 @@ ${logoColors.dim}----------------------------------------------------${logoColor
         println( errorMsg("Please provide the input file with sequences in FASTQ.gz or BAM format with `--input` parameter.", params.monochrome_logs))
         exit(1)
     }
-    if (!params.input_R1 && !params.input_R2 && params.seqplatform == "Illumina") {
-        println( errorMsg("Please provide input files with sequences in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.", params.monochrome_logs))
+    if (params.seqplatform == "Illumina" && !is_demultiplexed) {
+        if (!params.input_R1 || !params.input_R2) {
+            println( errorMsg("Please provide input files with multiplexed paired-end reads in FASTQ.gz format with `--input_R1` and `--input_R2` parameters.", params.monochrome_logs))
+            exit(1)
+        }
+        [params.input_R1, params.input_R2].each { f ->
+            if (!file(f).exists()) {
+                println( errorMsg("Input file not found: ${f}", params.monochrome_logs))
+                exit(1)
+            }
+        }
+    }
+    if (params.seqplatform == "Illumina" && is_demultiplexed && !params.input) {
+        println( errorMsg("Please provide the directory with per-sample paired-end reads with `--input` parameter.", params.monochrome_logs))
         exit(1)
     }
     if (!params.barcodes && !is_demultiplexed) {
