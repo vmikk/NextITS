@@ -158,7 +158,9 @@ cat("Processing sequences\n")
 sq <- as.data.table(fq@id)
 setnames(x = sq, new = "SeqName")
 sq[ , c("SeqID", "Abundance") := tstrsplit(x = SeqName, split = ";size=", keep = 1:2) ]
-sq[ , Abundance := as.numeric(Abundance) ]
+## Optional group labels (`;grp=`, groups of sequence clusters in the error-learning subset)
+sq[ , Group := fifelse(grepl(";grp=", Abundance), sub("^.*;grp=([^;]*).*$", "\\1", Abundance), "") ]
+sq[ , Abundance := as.numeric(sub(";.*$", "", Abundance)) ]
 sq[ , Sequence := as.character(sread(fq))]
 
 ## Extract sequence qualities
@@ -189,23 +191,32 @@ if(perc_nonsingleton < 10){
 ##   See also https://github.com/benjjneb/dada2/blob/004ce26909268e1318a2f68e0ea26807412c7a2d/R/sequenceIO.R#L240-L242
 #             https://github.com/benjjneb/dada2/blob/004ce26909268e1318a2f68e0ea26807412c7a2d/R/sequenceIO.R#L45
 
-## Prepare derep-class object
-cat("\nPreparing derep-class object\n")
-uniques <- sq$Abundance
-names(uniques) <- as.character(sread(fq))   # names = full amplicon sequence
-rownames(seq_quals) <- names(uniques)
+## Prepare derep-class objects
+## Each group of sequence clusters is processed as a separate sample
+## (transition counts are pooled across samples by `learnErrors`)
+cat("\nPreparing derep-class object(s)\n")
+make_derep <- function(idx){
+  uniques <- sq$Abundance[idx]
+  names(uniques) <- sq$Sequence[idx]        # names = full amplicon sequence
+  ## DADA2 requires as many columns as the length of the longest sequence in the sample
+  quals <- seq_quals[idx, seq_len(max(nchar(sq$Sequence[idx]))), drop = FALSE]
+  rownames(quals) <- names(uniques)
+  derep <- list(
+    uniques = uniques,
+    quals   = quals,
+    map     = NULL,
+    SeqID   = sq$SeqID[idx]                 # add also sequence IDs
+    )
+  as(derep, "derep")
+}
 
-derep <- list(
-  uniques = uniques,
-  quals   = seq_quals,
-  map     = NULL,
-  SeqID   = sq$SeqID         # add allso sequence IDs
-  )
-
-derep <- as(derep, "derep")
+grp_idx <- split(seq_len(nrow(sq)), sq$Group)
+cat("Number of sequence groups (processed as separate samples): ", length(grp_idx), "\n")
+derep <- lapply(grp_idx, make_derep)
+if(length(derep) == 1){ derep <- derep[[1]] }
 
 ## Clean up
-rm(uniques, seq_quals)
+rm(seq_quals, grp_idx)
 
 
 
