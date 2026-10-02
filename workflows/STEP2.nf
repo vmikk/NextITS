@@ -257,6 +257,10 @@ process bucketize {
 
 
 // Prepare a cross-bucket sequences subset for shared DADA2 error estimation
+// Buckets are taken in random order until the number of read bases reaches `dada2_nbases`
+// Each bucket contributes at most 1/5 of the target
+// (reads of larger buckets are subsampled uniformly, which preserves the ratio between parent sequences and their error variants)
+// Sequence clusters are packed into groups, which are used as separate samples for error learning
 process prepare_dada2_error_subset {
 
     label "main_container"
@@ -266,54 +270,24 @@ process prepare_dada2_error_subset {
 
     output:
       path "DADA2_error_subset.fa.gz", emit: subset
-      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'),  topic: versions
-      tuple val("${task.process}"), val('csvtk'), eval('csvtk version | sed "s/csvtk v//"'),  topic: versions
+      path "DADA2_error_subset_buckets.tsv", emit: stats
+      tuple val("${task.process}"), val('Python'), eval('python --version | sed "s/Python //"'),  topic: versions
+      tuple val("${task.process}"), val('vsearch'), eval('vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
 
     script:
     """
     echo -e "Preparing shared DADA2 error-estimation subset\\n"
 
-    echo -e "Calculating bucket statistics:\\n"
-    seqkit stat -T --threads ${task.cpus} --quiet ./buckets/* \
-      | csvtk cut -t -T -f file,num_seqs,sum_len --delete-header \
-      > bucket_stats.tsv
-
-    TOTAL_READS=\$(csvtk summary -t -f 2:sum -H -U bucket_stats.tsv | sed 's/.00\$//')
-    TOTAL_BASES=\$(csvtk summary -t -f 3:sum -H -U bucket_stats.tsv | sed 's/.00\$//')
-
-    echo -e "..Total reads across buckets: \${TOTAL_READS}"
-    echo -e "..Total bases across buckets: \${TOTAL_BASES}"
-
-    GLOBAL_PROP=\$(awk -v target=${params.dada2_nbases} -v total="\${TOTAL_BASES}" 'BEGIN {
-      prop = target / total;
-      if (prop > 1) prop = 1;
-      if (prop <= 0) prop = 1 / total;
-      printf "%.12f\\n", prop
-    }')
-
-    echo -e "..Global sampling proportion: \${GLOBAL_PROP}\\n"
-
-    TAB=\$(printf '\\t')
-    while IFS="\${TAB}" read -r fasta reads bases; do
-      FILE_PROP=\$(awk -v global="\${GLOBAL_PROP}" -v reads="\${reads}" 'BEGIN {
-        min_prop = 1 / reads;
-        prop = (global > min_prop ? global : min_prop);
-        if (prop > 1) prop = 1;
-        printf "%.12f\\n", prop
-      }')
-
-      echo -e "..Sampling \${fasta} with proportion \${FILE_PROP}" >&2
-
-      seqkit sample --quiet \
-        --proportion "\${FILE_PROP}" \
-        --rand-seed 111 \
-        -w 0 \
-        --threads ${task.cpus} \
-        "\${fasta}"
-
-    done < bucket_stats.tsv \
-      | gzip -${params.gzip_compression} \
-      > DADA2_error_subset.fa.gz
+    dada2_error_subset.py \
+      --buckets         ./buckets/* \
+      --nbases          ${params.dada2_nbases} \
+      --minbuckets      5 \
+      --clusterid       0.97 \
+      --groupsize       2000 \
+      --seed            111 \
+      --threads         ${task.cpus} \
+      --output          DADA2_error_subset.fa.gz \
+      --stats           DADA2_error_subset_buckets.tsv
 
     echo -e "\\n..Shared DADA2 subset prepared\\n"
     """
