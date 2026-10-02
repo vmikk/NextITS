@@ -383,6 +383,80 @@ process demux_illumina {
 
 
 
+// Reorient read pairs by primers (R1 = forward-primer strand), without trimming
+// Pairs without any primer are discarded
+// (the requirement of both primers is applied later, on merged reads, by `primer_check`)
+//
+// NB. for paired-end reads, `--revcomp` does not reverse-complement sequences:
+//     it re-runs the adapter search with R1 and R2 swapped, and keeps the better-scoring orientation
+process reorient_pe {
+
+    label "main_container"
+
+    // cpus 2
+
+    tag "${sampID}"
+
+    input:
+      tuple val(sampID), path(reads, stageAs: "input/*")
+
+    output:
+      tuple val(sampID), path("Reoriented/${sampID}_R{1,2}.fq.gz"), emit: reads, optional: true
+      path "${sampID}_reorient.tsv", emit: stats
+      tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
+
+    script:
+    """
+    echo -e "Reorienting read pairs\\n"
+    echo -e "Sample: "  ${sampID}
+    echo -e "Input R1: " ${reads[0]}
+    echo -e "Input R2: " ${reads[1]}
+    echo -e "Forward primer: " ${params.primer_forward}
+    echo -e "Reverse primer: " ${params.primer_reverse}
+
+    mkdir -p Reoriented
+
+    ## Primers are not anchored, there could be a linker or a tag in front of them
+    ## IUPAC codes are honoured by default
+    cutadapt \\
+      --revcomp \\
+      --action=none \\
+      --rename='{header}' \\
+      -g "${params.primer_forward};min_overlap=${params.primer_foverlap}" \\
+      -G "${params.primer_reverse};min_overlap=${params.primer_roverlap}" \\
+      --errors ${params.primer_mismatches} \\
+      --no-indels \\
+      --discard-untrimmed \\
+      --pair-filter=both \\
+      --cores ${task.cpus} \\
+      --json reorient.json \\
+      -o Reoriented/${sampID}_R1.fq.gz \\
+      -p Reoriented/${sampID}_R2.fq.gz \\
+      ${reads[0]} ${reads[1]} \\
+      > reorient.log
+
+    ## Per-sample stats
+    python3 - reorient.json ${sampID} > ${sampID}_reorient.tsv <<'PYEOF'
+    import json, sys
+    rc = json.load(open(sys.argv[1]))["read_counts"]
+    print("SampleID\\tInput_Pairs\\tReoriented_Pairs\\tSwapped_Pairs")
+    print(f"{sys.argv[2]}\\t{rc['input']}\\t{rc['output']}\\t{rc.get('reverse_complemented') or 0}")
+    PYEOF
+
+    cat ${sampID}_reorient.tsv
+
+    ## Remove empty outputs
+    find Reoriented -type f -name "*.fq.gz" -size -100c -delete
+    if [ ! -f Reoriented/${sampID}_R1.fq.gz ] || [ ! -f Reoriented/${sampID}_R2.fq.gz ]; then
+      echo -e "\\nNo read pairs with primers found"
+      rm -f Reoriented/*.fq.gz
+    fi
+    """
+}
+
+
+
+
 // Quality filtering for pair-end reads
 process qc_pe {
 
