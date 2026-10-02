@@ -702,17 +702,19 @@ workflow ITS_EXTRACTION {
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
           Split the dereplicated sequences into chunks
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        - default, 10k seqs
+        - default, 9999 seqs
         - if 0, put all sequences of a sample into a single chunk
-    
+
       NB! For ITSx v1.x, the chunk size is not entirely result-neutral:
         HMMER reports E-values scaled by the number of sequences in the searched file,
         so a borderline hit may pass in one chunk size and fail in another
-        ITSx itself already splits the input into batches of at most 10000 sequences,
-        so the default chunk size of 10000 reproduces ITSx's own batch boundaries as closely as possible
+        ITSx itself splits the input into internal batches (the first batch holds 9999 sequences, the following ones 10000),
+        so the default chunk size of 9999 keeps each chunk within a single ITSx batch
+        With larger chunks, ITSx v1.1.3 writes an `--END--` pseudo-record into the tabular outputs (removed in the `itsx` process)
+        and its summary report counts only the sequences of the last batch
 
       */
-      def chunk_size = (params.ITSx_chunk_size == null ? 10000 : params.ITSx_chunk_size as int)
+      def chunk_size = (params.ITSx_chunk_size == null ? 9999 : params.ITSx_chunk_size as int)
 
       if( chunk_size <= 0 ) {
 
