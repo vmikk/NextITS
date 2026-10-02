@@ -143,8 +143,13 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Number of CPU threads to use: {args.threads}")
     print()
 
-    os.environ["OMP_NUM_THREADS"] = str(max(1, args.threads))
-    os.environ.setdefault("DADA2_WORKERS", "1")
+    ## papa2 sizes its OpenMP pool from DADA2_CORES / DADA2_OMP_THREADS
+    ## (falls back to os.cpu_count(), ignoring OMP_NUM_THREADS)
+    nthreads = str(max(1, args.threads))
+    os.environ["OMP_NUM_THREADS"] = nthreads
+    os.environ["DADA2_CORES"] = nthreads
+    os.environ["DADA2_OMP_THREADS"] = nthreads
+    os.environ["DADA2_WORKERS"] = "1"
 
     random.seed(111)
     np.random.seed(111)
@@ -185,6 +190,19 @@ def main(argv: list[str] | None = None) -> int:
         max_q = int(np.nanmax(derep["quals"]))
     err = _extend_err_to_maxq(err, max_q)
     print(f"Error matrix shape (after Q extension): {err.shape}")
+    print("Substitution rates:")
+    print("\n".join(papa2_io.format_error_rates(err)))
+
+    ## A zero substitution rate gives lambda = 0, so every sequence with that substitution would become a separate ASV
+    offdiag = np.delete(err, [0, 5, 10, 15], axis=0)
+    if np.any(offdiag <= 0):
+        print(
+            "\nERROR: the error model contains zero substitution rates "
+            "(degenerate model).\n"
+            "Re-estimate error rates with the current version of the pipeline.",
+            file=sys.stderr,
+        )
+        return 1
 
     # NW / gap scores are integers in the C API (ctypes c_int); argparse gives float.
     hpgap = args.hpgap
@@ -206,7 +224,7 @@ def main(argv: list[str] | None = None) -> int:
     dadares = dada(
         derep,
         err=err,
-        error_estimation_function=papa2.noqual_errfun,
+        error_estimation_function=papa2_io.noqual_errfun_pc,
         self_consist=False,
         verbose=False,
         **dada_kw,
