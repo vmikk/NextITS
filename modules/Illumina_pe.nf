@@ -70,6 +70,317 @@ process illumina_qcheck {
 
 
 
+// Demultiplexing of Illumina paired-end reads with cutadapt
+//
+// Tag layouts (`params.illumina_barcodetype`):
+//   "dual_symmetric"  = the same tag at the 5' end of both mates
+//   "dual_asymmetric" = different tags at the 5' ends of the mates (`fwd...rev` FASTA; symmetric entries allowed)
+//   "single"          = tag at the 5' end of one mate only
+//
+// For dual tags:
+//   Pass 1  strict demultiplexing - both mates must carry the tags of the same sample (`--pair-adapters`)
+//           (+ pass 1b for asymmetric tags, with swapped mates - amplicons are in mixed orientation)
+//   Pass 2  pairs left over, in which both mates carry a known tag, are tag-jumps (or unknown tag combinations)
+//   Pass 3  rescue pairs with a single readable tag (if the tag is used by a single sample only)
+//
+// NB. `--revcomp` can not be combined with `--pair-adapters`
+process demux_illumina {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/01_Demux", mode: "${params.storagemode}"
+    // cpus 8
+
+    input:
+      tuple path(input_R1), path(input_R2)
+      path barcodes                       // validated tags (single or symmetric dual tags)
+      path(tags_dual, stageAs: "dual/*")  // `tags_fwd.fasta` + `tags_rev.fasta` (dual tags) or a dummy file
+
+    output:
+      path "Demux/*.fq.gz",     emit: samples_demux, optional: true   // `{sample}_R1.fq.gz` and `{sample}_R2.fq.gz`
+      path "Demux_summary.tsv", emit: summary
+      path "Demux_totals.tsv",  emit: totals
+      path "logs/*",            emit: logs
+      tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+
+    script:
+    def rescue = params.illumina_demux_rescue ? "true" : "false"
+    """
+    echo -e "Demultiplexing Illumina paired-end reads with cutadapt\\n"
+    echo -e "Input R1:     " ${input_R1}
+    echo -e "Input R2:     " ${input_R2}
+    echo -e "Barcodes:     " ${barcodes}
+    echo -e "Tag layout:   " ${params.illumina_barcodetype}
+    echo -e "Tag errors:   " ${params.barcode_errors}
+    echo -e "Tag window:   " ${params.barcode_window}
+    echo -e "Rescue:       " ${rescue}
+
+    ## cutadapt keeps one file open per sample and mate
+    ulimit -S -n 4096 2>/dev/null || true
+
+    mkdir -p logs json Strict StrictB Rescued Demux
+
+    ## Shared options for tag matching
+    TAGOPTS="--errors ${params.barcode_errors} --no-indels --overlap ${params.barcode_overlap} --cores ${task.cpus}"
+
+    ## Number of pairs with a match, from the cutadapt JSON report
+    json_count () {
+      python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["read_counts"]["read1_with_adapter"] or 0)' "\$1"
+    }
+
+
+    ## ---------------------------------------------------------------------------
+    ## Tags
+    ## ---------------------------------------------------------------------------
+
+    HAS_DUAL=false
+    if [ -s dual/tags_fwd.fasta ] && [ -s dual/tags_rev.fasta ]; then HAS_DUAL=true; fi
+
+    case "${params.illumina_barcodetype}" in
+
+      "single"|"dual_symmetric")
+        if [[ \$HAS_DUAL == true ]]; then
+          echo -e "\\nERROR: dual tags (in 'fwd...rev' format) were provided, but '--illumina_barcodetype ${params.illumina_barcodetype}' expects a single tag per sample."
+          echo -e "Use '--illumina_barcodetype dual_asymmetric', or provide one tag per sample.\\n"
+          exit 1
+        fi
+
+        prepare_illumina_tags.py \\
+          --mode   ${params.illumina_barcodetype} \\
+          --tags   ${barcodes} \\
+          --window ${params.barcode_window} \\
+          --outdir tags
+        REVTAG="NA"
+        ;;
+
+      "dual_asymmetric")
+        if [[ \$HAS_DUAL == false ]]; then
+          echo -e "\\nERROR: '--illumina_barcodetype dual_asymmetric' requires tags in 'fwd...rev' format."
+          echo -e "For the same tag on both mates use '--illumina_barcodetype dual_symmetric'.\\n"
+          exit 1
+        fi
+
+        for ORI in forward revcomp; do
+          prepare_illumina_tags.py \\
+            --mode       dual_asymmetric \\
+            --fwd        dual/tags_fwd.fasta \\
+            --rev        dual/tags_rev.fasta \\
+            --rev-orient \$ORI \\
+            --window     ${params.barcode_window} \\
+            --outdir     tags_\$ORI
+        done
+
+        ## Orientation of reverse tags
+        ## (both mate orientations, as amplicons may be in mixed orientation)
+        REVTAG="${params.illumina_revtag_orient}"
+        if [[ \$REVTAG == "auto" ]]; then
+          echo -e "\\nDetecting the orientation of reverse tags (first 20000 read pairs)"
+          seqkit head -n 20000 ${input_R1} -o sub_R1.fq.gz
+          seqkit head -n 20000 ${input_R2} -o sub_R2.fq.gz
+
+          declare -A NPAIRS
+          for ORI in forward revcomp; do
+            N=0
+            for SIDES in "T1 T2" "T2 T1"; do
+              set -- \$SIDES
+              cutadapt --pair-adapters --action=none \$TAGOPTS \\
+                -g file:tags_\$ORI/\$1.fasta \\
+                -G file:tags_\$ORI/\$2.fasta \\
+                --json tmp.json \\
+                -o /dev/null -p /dev/null \\
+                sub_R1.fq.gz sub_R2.fq.gz > /dev/null
+              N=\$(( N + \$(json_count tmp.json) ))
+            done
+            NPAIRS[\$ORI]=\$N
+            echo -e "..reverse tags in \$ORI orientation: \$N pairs assigned"
+          done
+          rm -f sub_R1.fq.gz sub_R2.fq.gz tmp.json
+
+          if (( NPAIRS[revcomp] > NPAIRS[forward] )); then REVTAG="revcomp"; else REVTAG="forward"; fi
+          if (( NPAIRS[revcomp] == 0 && NPAIRS[forward] == 0 )); then
+            echo -e "WARNING: no read pairs could be assigned in the test subset, using reverse tags as provided"
+          fi
+        fi
+        echo -e "..Reverse tags are used in '\$REVTAG' orientation"
+        mv tags_\$REVTAG tags
+        rm -rf tags_forward tags_revcomp
+        ;;
+
+      *)
+        echo -e "\\nERROR: unknown tag layout '${params.illumina_barcodetype}'\\n"
+        exit 1
+        ;;
+    esac
+
+    echo -e "\\nNumber of samples: " \$(grep -c '^>' tags/T1.fasta)
+
+
+    ## ---------------------------------------------------------------------------
+    ## Demultiplexing
+    ## ---------------------------------------------------------------------------
+
+    PASS3_JSON=""
+
+    if [[ "${params.illumina_barcodetype}" == "single" ]]; then
+
+      echo -e "\\n.. Single-tag demultiplexing (tag on either mate)\\n"
+      cutadapt \\
+        --revcomp --rename='{header}' \\
+        \$TAGOPTS \\
+        --minimum-length ${params.barcode_minlen} \\
+        --discard-untrimmed \\
+        -g file:tags/T1.fasta \\
+        --json json/pass1.json \\
+        -o "Strict/{name}_R1.fq.gz" \\
+        -p "Strict/{name}_R2.fq.gz" \\
+        ${input_R1} ${input_R2} \\
+        > logs/cutadapt_pass1.log
+
+      PASS1_JSONS="json/pass1.json"
+      PASS2_JSON=""
+
+    else
+
+      ## Pass 1: strict demultiplexing, both mates must carry the tags of the same sample
+      ## Non-matching pairs are left untrimmed (tags intact) and are used as input for the next passes
+      echo -e "\\n.. Pass 1: strict demultiplexing (--pair-adapters)\\n"
+      cutadapt \\
+        --pair-adapters \\
+        \$TAGOPTS \\
+        --minimum-length ${params.barcode_minlen} \\
+        -g file:tags/T1.fasta \\
+        -G file:tags/T2.fasta \\
+        --json json/pass1.json \\
+        --untrimmed-output        unp1_R1.fq.gz \\
+        --untrimmed-paired-output unp1_R2.fq.gz \\
+        -o "Strict/{name}_R1.fq.gz" \\
+        -p "Strict/{name}_R2.fq.gz" \\
+        ${input_R1} ${input_R2} \\
+        > logs/cutadapt_pass1.log
+
+      PASS1_JSONS="json/pass1.json"
+
+      ## Pass 1b: asymmetric tags in the opposite mate orientation
+      if [[ "${params.illumina_barcodetype}" == "dual_asymmetric" ]]; then
+        echo -e "\\n.. Pass 1b: strict demultiplexing, swapped mates\\n"
+        cutadapt \\
+          --pair-adapters \\
+          \$TAGOPTS \\
+          --minimum-length ${params.barcode_minlen} \\
+          -g file:tags/T2.fasta \\
+          -G file:tags/T1.fasta \\
+          --json json/pass1b.json \\
+          --untrimmed-output        unp_R1.fq.gz \\
+          --untrimmed-paired-output unp_R2.fq.gz \\
+          -o "StrictB/{name}_R1.fq.gz" \\
+          -p "StrictB/{name}_R2.fq.gz" \\
+          unp1_R1.fq.gz unp1_R2.fq.gz \\
+          > logs/cutadapt_pass1b.log
+        rm unp1_R1.fq.gz unp1_R2.fq.gz
+        PASS1_JSONS="json/pass1.json json/pass1b.json"
+      else
+        mv unp1_R1.fq.gz unp_R1.fq.gz
+        mv unp1_R2.fq.gz unp_R2.fq.gz
+      fi
+
+      ## Pass 2: discard tag-jumped pairs (both mates carry a known tag, but not a valid combination)
+      ## `--action=none` keeps the tags, `--discard-trimmed --pair-filter=both` removes pairs with a tag on both mates
+      echo -e "\\n.. Pass 2: discarding tag-jumped pairs\\n"
+      cutadapt \\
+        --action=none \\
+        --discard-trimmed \\
+        --pair-filter=both \\
+        \$TAGOPTS \\
+        -g file:tags/Tall.fasta \\
+        -G file:tags/Tall.fasta \\
+        --json json/pass2.json \\
+        -o rescuable_R1.fq.gz \\
+        -p rescuable_R2.fq.gz \\
+        unp_R1.fq.gz unp_R2.fq.gz \\
+        > logs/cutadapt_pass2.log
+      rm unp_R1.fq.gz unp_R2.fq.gz
+
+      PASS2_JSON="json/pass2.json"
+
+      ## Pass 3: rescue pairs with a single readable tag
+      ##   `-g` only (no `-G`) - that makes `--revcomp` meaningful (mates are swapped if the tag is found on R2)
+      ##   only tags used by a single sample are considered
+      if [[ ${rescue} == true ]] && [ -s tags/Tresc.fasta ]; then
+        echo -e "\\n.. Pass 3: rescuing pairs with one readable tag\\n"
+        cutadapt \\
+          --revcomp --rename='{header}' \\
+          \$TAGOPTS \\
+          --minimum-length ${params.barcode_minlen} \\
+          --discard-untrimmed \\
+          -g file:tags/Tresc.fasta \\
+          --json json/pass3.json \\
+          -o "Rescued/{name}_R1.fq.gz" \\
+          -p "Rescued/{name}_R2.fq.gz" \\
+          rescuable_R1.fq.gz rescuable_R2.fq.gz \\
+          > logs/cutadapt_pass3.log
+        PASS3_JSON="json/pass3.json"
+      else
+        echo -e "\\n.. Pass 3 (rescue) skipped"
+      fi
+      rm rescuable_R1.fq.gz rescuable_R2.fq.gz
+
+    fi
+
+
+    ## ---------------------------------------------------------------------------
+    ## Combine strict and rescued pairs per sample
+    ## ---------------------------------------------------------------------------
+
+    ## Remove empty outputs
+    ##   an empty .gz is 20 bytes via igzip/pigz, but 37 bytes via Python's gzip,
+    ##   while a single read is >= 250 bytes - so 100 is a safe threshold for both
+    find Strict StrictB Rescued -type f -name "*.fq.gz" -size -100c -delete
+
+    echo -e "\\n.. Combining strict and rescued pairs"
+    grep '^>' tags/T1.fasta | sed 's/^>//' | sort -u > samples.txt
+    while read -r s; do
+      for r in R1 R2; do
+        files=()
+        for f in "Strict/\${s}_\${r}.fq.gz" "StrictB/\${s}_\${r}.fq.gz" "Rescued/\${s}~1_\${r}.fq.gz" "Rescued/\${s}~2_\${r}.fq.gz"; do
+          if [ -s "\$f" ]; then files+=("\$f"); fi
+        done
+        if (( \${#files[@]} > 0 )); then
+          cat "\${files[@]}" > "Demux/\${s}_\${r}.fq.gz"
+        fi
+      done
+    done < samples.txt
+
+    ## Per-sample read counts (R1 only = number of pairs)
+    find Strict StrictB Rescued Demux -name "*_R1.fq.gz" | sort > r1_files.txt
+    if [ -s r1_files.txt ]; then
+      seqkit stats --tabular --threads ${task.cpus} --infile-list r1_files.txt > r1_counts.tsv
+    else
+      printf "file\\tformat\\ttype\\tnum_seqs\\n" > r1_counts.tsv
+    fi
+
+    ## Summary tables (fails if the combined counts differ from strict + rescued)
+    summarize_demux_illumina.py \\
+      --counts        r1_counts.tsv \\
+      --samples       samples.txt \\
+      --pass1         \$PASS1_JSONS \\
+      --pass2         "\$PASS2_JSON" \\
+      --pass3         "\$PASS3_JSON" \\
+      --mode          ${params.illumina_barcodetype} \\
+      --revtag-orient "\$REVTAG" \\
+      --out-summary   Demux_summary.tsv \\
+      --out-totals    Demux_totals.tsv
+
+    cp -r json logs/
+    cp tags/*.fasta logs/
+    rm -rf Strict StrictB Rescued r1_files.txt r1_counts.tsv
+
+    echo -e "\\nDemultiplexing totals:"
+    cat Demux_totals.tsv
+    echo -e "\\nDemultiplexing finished"
+    """
+}
+
 
 
 // Quality filtering for pair-end reads
