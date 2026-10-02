@@ -228,6 +228,15 @@ process itsx {
     ## Remove the decompressed copy of the input as soon as ITSx is finished
     if [ -n "\$tmpfile" ]; then rm -f -- "\$tmpfile"; fi
 
+    ## ITSx v1.1.3 bug workaround: when the input is split into internal batches (> 9999 sequences),
+    ## the end-of-batch (`--END--`) leaks into the tabular outputs as a pseudo-record
+    for f in "${chunkPrefix}".positions.txt "${chunkPrefix}".problematic.txt "${chunkPrefix}".extraction.results; do
+      if [ -f "\$f" ] && grep -q -- '^--END--' "\$f"; then
+        echo -e "Removing ITSx end-of-batch pseudo-record from \$f"
+        awk -F'\t' '\$1 != "--END--"' "\$f" > "\$f".tmp && mv "\$f".tmp "\$f"
+      fi
+    done
+
       # ITSx.full.fasta
       # ITSx.SSU.fasta
       # ITSx.ITS1.fasta
