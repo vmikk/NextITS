@@ -21,6 +21,7 @@
 # - ITSx coordinates and Biostrings::subseq() are 1-based and end-inclusive
 # - Coordinates must refer to the orientation of the supplied FASTA
 #   (normally ITSx should be run with --complement F)
+# - ITSx v1.1.3 might add end-of-batch records (`--END--`) to some files, these will be removed here
 
 
 ## Check time
@@ -332,6 +333,14 @@ fasta_data <- data.table(
 
 cat("Loading ITSx positions...\n")
 positions <- read_itsx_positions(POSITIONS)
+
+## ITSx v1.1.3 writes end-of-batch (`--END--`) as a pseudo-record when the input is split into internal batches (> 9999 sequences)
+ITSX_SENTINEL <- "--END--"
+is_sentinel <- positions$SeqID %in% ITSX_SENTINEL & !positions$SeqID %in% fasta_data$SeqID
+if(any(is_sentinel)){
+  cat("Removing ", sum(is_sentinel), " ITSx end-of-batch sentinel record(s) (", ITSX_SENTINEL, ")\n", sep = "")
+  positions <- positions[ !is_sentinel ]
+}
 
 if(nrow(positions) > 0L){
   if(anyNA(positions$SeqID) || any(!nzchar(positions$SeqID))){
