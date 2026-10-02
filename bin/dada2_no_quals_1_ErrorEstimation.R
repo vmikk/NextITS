@@ -251,6 +251,26 @@ if("try-error" %in% class(errors) & CPUTHREADS == 1){
   stop("..Error rate estimation failed\n")
 }
 
+## Check the error model
+## With no observed substitutions, the model only contains the pseudocount,
+## and would mark nearly every variant as a new ASV
+trans <- errors$trans
+num_subs <- sum(trans) - sum(trans[ c("A2A", "C2C", "G2G", "T2T"), ])
+cat("\nObserved substitutions (read-weighted): ", num_subs, "\n")
+cat("Observed transitions (read-weighted): ", sum(trans), "\n")
+
+err <- getErrors(errors)
+subst <- setdiff(rownames(err), c("A2A", "C2C", "G2G", "T2T"))
+cat("Substitution rates:\n")
+for(tr in subst){
+  cat("  ", tr, ": ", formatC(err[tr, 1], format = "e", digits = 4), "\n", sep = "")
+}
+
+if(num_subs == 0){
+  stop("No substitutions were observed during error learning, the error model is degenerate.\n",
+       "The learning input probably contains no error variants (e.g., only the most abundant sequences).\n")
+}
+
 
 ## Export results
 cat("\nExporting error rates\n")
