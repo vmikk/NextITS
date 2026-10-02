@@ -428,11 +428,12 @@ ${logoColors.dim}----------------------------------------------------${logoColor
       Currently, the following regex pattern is used to pre-validate the `ITSx_tax` parameter (in schema):
       "^(?:all|
       (?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia)
-      (?:,\\s*(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia))*)$"
+      (?:,(?:alveolata|bryophyta|bacillariophyta|amoebozoa|euglenozoa|fungi|chlorophyta|rhodophyta|phaeophyceae|marchantiophyta|metazoa|oomycota|haptophyceae|raphidophyceae|rhizaria|synurophyceae|tracheophyta|eustigmatophyceae|apusozoa|parabasalia))*)$"
 
       this forbids:
       - mixing `all` with other values
       - empty elements and trailing commas
+      - whitespace (the value is passed to ITSx unquoted, so `fungi, tracheophyta` would be split by the shell)
       - invalid values
       */
 
@@ -445,6 +446,12 @@ ${logoColors.dim}----------------------------------------------------${logoColor
       }
       if (itsx_profiles.toString().trim().isEmpty()) {
         println( errorMsg("Parameter --ITSx_tax cannot be empty. Use 'all' or a comma-separated list of taxa.", params.monochrome_logs) )
+        exit(1)
+      }
+
+      // Disallow whitespace (ITSx would silently use only the profiles before the first space)
+      if (itsx_profiles.toString() =~ /\s/) {
+        println( errorMsg("Parameter --ITSx_tax: whitespace is not allowed (got '${itsx_profiles}'). Use a comma-separated list without spaces, e.g. '${itsx_profiles.toString().replaceAll(/\s+/, '')}'.", params.monochrome_logs) )
         exit(1)
       }
 
@@ -467,16 +474,6 @@ ${logoColors.dim}----------------------------------------------------${logoColor
       if (emptyIdx) {
         println( errorMsg("Parameter --ITSx_tax: empty entries are not allowed (check commas at positions: ${emptyIdx.join(', ')}).", params.monochrome_logs) )
         exit(1)
-      }
-
-      // Disallow internal whitespaces
-      def whitespaces = itsx_items.findAll { s ->
-        def tr = s.toString().trim()
-        !(tr ==~ /\S+/)   // after trimming, token must be all non-whitespace
-      }
-      if (whitespaces) {
-          println( errorMsg("Parameter --ITSx_tax: whitespace is not allowed in profile names.", params.monochrome_logs) )
-          exit(1)
       }
 
       // Detect duplicates
