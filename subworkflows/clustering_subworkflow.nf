@@ -182,17 +182,49 @@ process dada2_error_est {
     echo -e "Estimating DADA2 error rates\\n"
 
     ## DADA2 works with ACGT alphabet only
-    ## 1. So check if there are any sequences with ambiguities
-    ## 2. If any, remove them
-    ## 3. Sort by sequence abundance
-    ## 4. Convert FASTA to pseudo-FASTQ
+    ## 1. Remove sequences with ambiguities
+    ## 2. Split sequences into abundant (size >= dada2_minsize) and rare
+    ## 3. Keep only rare sequences that are similar to abundant ones
+    ##    (they carry most of the sequencing errors, but distant rare sequences would be counted as errors against a wrong ASV)
+    ## 4. Sort by sequence abundance
 
     echo -e "..Preparing sequences\\n"
+    touch abundant.fa rare.fa rare_matched.fa
     seqkit seq -w 0 ${input} \
-      | awk '{if (/^>/) {a = \$0} else {if (/^[ACGT]*\$/) {printf "%s\\n%s\\n", a, \$0}}}' \
+      | awk -v minsize=${params.dada2_minsize} '
+          /^>/ { h = \$0; s = h; sub(/^.*;size=/, "", s); sub(/;.*\$/, "", s); next }
+          /^[ACGT]+\$/ {
+            if (s + 0 >= minsize) { print h > "abundant.fa"; print > "abundant.fa" }
+            else                  { print h > "rare.fa";     print > "rare.fa" }
+          }'
+
+    if [ -s abundant.fa ] && [ -s rare.fa ]; then
+      echo -e "..Matching low-abundance sequences to abundant ones\\n"
+      vsearch \
+        --usearch_global rare.fa \
+        --db         abundant.fa \
+        --id         ${params.dada2_mapback_id} \
+        --iddef      ${params.otu_iddef} \
+        --qmask      ${params.otu_qmask} \
+        --gapopen    ${params.vsearch_gapopen} \
+        --gapext     ${params.vsearch_gapext} \
+        --query_cov  0.9 \
+        --strand     both \
+        --threads    ${task.cpus} \
+        --matched    rare_matched.fa
+    fi
+
+    echo -e "..Abundant sequences: \$(grep -c '^>' abundant.fa || true)"
+    echo -e "..Low-abundance sequences: \$(grep -c '^>' rare.fa || true)"
+    echo -e "..Low-abundance sequences used for error learning: \$(grep -c '^>' rare_matched.fa || true)\\n"
+
+    ## Sort by abundance and convert FASTA to pseudo-FASTQ
+    cat abundant.fa rare_matched.fa \
       | vsearch --sortbysize - --output - --fasta_width 0 \
       | awk 'BEGIN {RS = ">" ; FS = "\\n"} NR > 1 {print "@"\$1"\\n"\$2"\\n+"\$1"\\n"gensub(/./, "I", "g", \$2)}' \
       | gzip -${params.gzip_compression} > no_ambigs.fq.gz
+
+    rm abundant.fa rare.fa rare_matched.fa
 
     echo -e "\\n..Running DADA2 error estimation\\n"
     dada2_no_quals_1_ErrorEstimation.R \
