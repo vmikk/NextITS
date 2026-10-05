@@ -23,6 +23,8 @@ option_list <- list(
   make_option("--trace-stamp",  type = "character", default = NULL, help = "Timestamp Nextflow stamped into pipeline_info filenames"),
   make_option("--lima-summary", type = "character", default = NULL, help = "lima.lima.summary"),
   make_option("--lima-counts",  type = "character", default = NULL, help = "lima.lima.counts"),
+  make_option("--illumina-demux",  type = "character", default = NULL, help = "Demux_totals.tsv (Illumina, cutadapt)"),
+  make_option("--illumina-qcheck", type = "character", default = NULL, help = "Quality_check.tsv (Illumina)"),
   make_option("--counts-dir",   type = "character", default = NULL, help = "Directory with Counts_*.txt"),
   make_option("--itsx-dir",     type = "character", default = NULL, help = "Directory with ITSx *.summary.txt / *.positions.txt / *.problematic.txt"),
   make_option("--tagjump-scores", type = "character", default = NULL, help = "TagJump_scores.qs"),
@@ -67,6 +69,12 @@ params   <- read_params_tsv(opt$params)
 versions <- read_versions(opt$versions)
 methods  <- read_methods_text(opt$methods)
 
+## Which tool extracted the rRNA regions ("ITSx" or "ITSx2")
+itsx_tool <- getp(params, "itsx_tool", "ITSx")
+
+## Illumina paired-end reads are demultiplexed, reoriented, and merged before QC
+is_illumina <- identical(getp(params, "seqplatform", "PacBio"), "Illumina")
+
 n_samples <- nrow(per_sample)
 runs      <- sort(unique(stats::na.omit(per_sample$RunID)))
 run       <- if (nrow(per_run) > 0L) per_run[1L] else data.table()
@@ -75,7 +83,12 @@ rv <- function(nm, default = NA_real_) {
   if (nm %in% names(run)) suppressWarnings(as.numeric(run[[nm]][[1L]])) else default
 }
 
-has_itsx <- "ITSx_Extracted_Reads" %in% names(per_sample)
+## `Counts_5.ITSx_or_PrimTrim` holds the reads that survived ITS extraction, or - when
+## `its_region = "none"` - the primer-trimmed reads. Only the former is an extraction
+## stage, so the ITSx panels and the yield card are keyed off the run mode, not just
+## off the presence of the column.
+did_extract <- !identical(getp(params, "its_region", "full"), "none")
+has_itsx <- did_extract && "ITSx_Extracted_Reads" %in% names(per_sample)
 
 ## ------------------------------------------------------- per-run figures
 
@@ -87,6 +100,12 @@ reads_artef <- rv("PrimerArtefacts_Reads", sum(num0(per_sample$PrimerArtefacts_R
 reads_itsx  <- rv("Reads_ITSx_Extracted", if (has_itsx) sum(num0(per_sample$ITSx_Extracted_Reads)) else NA_real_)
 reads_final <- rv("SeqTable_NumReads", sum(num0(per_sample$SeqTable_NumReads)))
 
+## Illumina: read pairs after reorientation, merged and joined reads
+reads_reo    <- rv("Pairs_Reoriented", sum(num0(col_or(per_sample, 0, "Reoriented_Pairs"))))
+reads_merged <- rv("Reads_Merged",     sum(num0(col_or(per_sample, 0, "Merged_Reads"))))
+reads_joined <- rv("Reads_Joined",     sum(num0(col_or(per_sample, 0, "Joined_Reads"))))
+pct_merged   <- rv("Percentage_Merged", safe_pct(reads_merged, reads_reo))
+
 pct_artef <- rv("PrimerArtefacts_Percent", safe_pct(reads_artef, reads_artef + reads_prim))
 pct_itsx  <- rv("ITSx_Yield_Percent", safe_pct(reads_itsx, reads_prim))
 
@@ -97,13 +116,18 @@ pct_keep_demux <- safe_pct(reads_final, reads_demux)
 
 ## ------------------------------------------------------------ KPI cards
 
+unit <- if (is_illumina) "pairs" else "reads"
+
 kpis <- kpi_row(
-  kpi_card("Demultiplexed reads", fmt_int(reads_demux),
-           paste0(fmt_pct(safe_pct(reads_demux, reads_raw)), " of ", fmt_int(reads_raw), " raw reads")),
+  kpi_card(paste("Demultiplexed", unit), fmt_int(reads_demux),
+           paste0(fmt_pct(safe_pct(reads_demux, reads_raw)), " of ", fmt_int(reads_raw), " raw ", unit)),
+  if (is_illumina) kpi_card("Merged pairs", fmt_pct(pct_merged),
+           paste0(fmt_int(reads_merged), " of ", fmt_int(reads_reo), " reoriented pairs"),
+           grade(pct_merged, warn = 80, bad = 50)),
   kpi_card("Multiprimer artefacts", fmt_pct(pct_artef),
            paste0(fmt_int(reads_artef), " reads of ", fmt_int(reads_artef + reads_prim), " primer-screened"),
            grade(pct_artef, warn = opt$`max-artefact-pct` / 2, bad = opt$`max-artefact-pct`, higher_better = FALSE)),
-  if (has_itsx) kpi_card("ITSx yield", fmt_pct(pct_itsx),
+  if (has_itsx) kpi_card(paste0(itsx_tool, " yield"), fmt_pct(pct_itsx),
            paste0(fmt_int(reads_itsx), " of ", fmt_int(reads_prim), " primer-checked reads"),
            grade(pct_itsx, warn = 80, bad = opt$`min-itsx-pct`)),
   kpi_card("Reads retained", fmt_pct(pct_keep_raw),
@@ -129,7 +153,7 @@ rules <- list(
        "Multiprimer artefacts", "%d sample(s) above the artefact ceiling",
        paste0("≥ ", fmt_pct(opt$`max-artefact-pct`, 0))),
   if (has_itsx) flag(per_sample, num0(per_sample$ITSx_Yield_Percent) < opt$`min-itsx-pct`,
-       "ITSx yield", "%d sample(s) below the yield floor",
+       paste0(itsx_tool, " yield"), "%d sample(s) below the yield floor",
        paste0("< ", fmt_pct(opt$`min-itsx-pct`, 0))),
   flag(per_sample, num0(per_sample$Percentage_Reads_Retained) < opt$`min-retained-pct`,
        "Reads retained", "%d sample(s) below the retention floor",
@@ -148,6 +172,19 @@ fate <- data.table(
 fate[, itsx_ok := if (has_itsx) num0(per_sample$ITSx_Extracted_Reads) else primer_ok]
 fate[, no_itsx := pmax(primer_ok - itsx_ok, 0)]
 
+## Illumina: losses prior to primer screening
+## (pairs without primers, non-merged pairs, merged reads that failed QC)
+if (is_illumina) {
+  reo    <- num0(col_or(per_sample, 0, "Reoriented_Pairs"))
+  merged <- num0(col_or(per_sample, 0, "Merged_Reads"))
+  joined <- num0(col_or(per_sample, 0, "Joined_Reads"))
+  qc_ok  <- num0(col_or(per_sample, 0, "QC_Reads"))
+  fate[, not_merged := pmax(reo - merged - joined, 0)]
+  fate[, failed_qc  := pmax(merged - qc_ok, 0)]
+  fate[, no_primers := pmax(demux - reo, 0) + pmax(qc_ok + joined - artefacts - primer_ok, 0)]
+  setnames(fate, c("not_merged", "failed_qc", "no_primers"), c("Not merged", "Failed QC", "No primers"))
+}
+
 chim_denovo <- num0(col_or(per_sample, 0, "DeNovoChimeras_NumReads"))
 chim_ref    <- num0(col_or(per_sample, 0, "ReferenceBasedChimera_Reads"))
 recovered   <- num0(col_or(per_sample, 0, "Recovered_ReferenceBasedChimea_Reads",
@@ -164,9 +201,11 @@ fate[, budget := NULL]
 
 setnames(fate,
   c("artefacts", "no_itsx", "chimeric", "tagjump", "other", "retained"),
-  c("Primer artefacts", "No ITSx detection", "Chimeric", "Tag jumps", "Other filtering", "Retained"))
+  c("Primer artefacts", "No ITS detection", "Chimeric", "Tag jumps", "Other filtering", "Retained"))
 
-FATE_CATS <- c("Retained", "Primer artefacts", "No ITSx detection",
+FATE_CATS <- c("Retained",
+               if (is_illumina) c("No primers", "Not merged", "Failed QC"),
+               "Primer artefacts", "No ITS detection",
                "Chimeric", "Tag jumps", "Other filtering")
 FATE_CATS <- FATE_CATS[vapply(FATE_CATS, function(k) sum(fate[[k]]) > 0 || k == "Retained", logical(1))]
 
@@ -179,33 +218,51 @@ setorder(fate, -demux, Sample)
 NODE_COL <- c(FATE_COL,
   "Raw reads"      = "#2e7d4f", "Passed QC"      = "#2e7d4f",
   "Demultiplexed"  = "#2e7d4f", "Primer-checked" = "#2e7d4f",
-  "ITSx extracted" = "#2e7d4f")
+  "ITS extracted" = "#2e7d4f")
 
 lk <- data.table(source = character(), target = character(), value = numeric())
 add_link <- function(from, to, value) {
   if (is.finite(value) && value > 0) lk <<- rbind(lk, data.table(source = from, target = to, value = value))
 }
 
-entry <- "Raw reads"
-if (is.finite(reads_raw) && is.finite(reads_qc)) {
-  add_link("Raw reads", "Passed QC", reads_qc)
-  add_link("Raw reads", "Failed QC", reads_raw - reads_qc)
-  entry <- "Passed QC"
-} else if (is.finite(reads_raw)) {
+if (is_illumina) {
+  ## Raw pairs -> demultiplexed -> reoriented -> merged (+ joined) -> passed QC -> primer-checked
+  NODE_COL <- c(NODE_COL, "Raw pairs" = "#2e7d4f", "Reoriented" = "#2e7d4f",
+                "Merged" = "#2e7d4f", "Joined" = "#2e7d4f")
+  add_link("Raw pairs", "Demultiplexed", reads_demux)
+  add_link("Raw pairs", "Undemultiplexed", reads_raw - reads_demux)
+  add_link("Demultiplexed", "Reoriented", reads_reo)
+  add_link("Demultiplexed", "No primers", reads_demux - reads_reo)
+  add_link("Reoriented", "Merged", reads_merged)
+  add_link("Reoriented", "Joined", reads_joined)
+  add_link("Reoriented", "Not merged", reads_reo - reads_merged - reads_joined)
+  add_link("Merged", "Passed QC", reads_qc)
+  add_link("Merged", "Failed QC", reads_merged - reads_qc)
+  add_link("Joined", "Passed QC", reads_joined)
+  add_link("Passed QC", "Primer artefacts", reads_artef)
+  add_link("Passed QC", "Primer-checked", reads_prim)
+} else {
   entry <- "Raw reads"
+  if (is.finite(reads_raw) && is.finite(reads_qc)) {
+    add_link("Raw reads", "Passed QC", reads_qc)
+    add_link("Raw reads", "Failed QC", reads_raw - reads_qc)
+    entry <- "Passed QC"
+  } else if (is.finite(reads_raw)) {
+    entry <- "Raw reads"
+  }
+  add_link(entry, "Demultiplexed", reads_demux)
+  add_link(entry, "Undemultiplexed", (if (is.finite(reads_qc)) reads_qc else reads_raw) - reads_demux)
+  add_link("Demultiplexed", "Primer artefacts", reads_artef)
+  add_link("Demultiplexed", "Primer-checked", reads_prim)
 }
-add_link(entry, "Demultiplexed", reads_demux)
-add_link(entry, "Undemultiplexed", (if (is.finite(reads_qc)) reads_qc else reads_raw) - reads_demux)
-add_link("Demultiplexed", "Primer artefacts", reads_artef)
-add_link("Demultiplexed", "Primer-checked", reads_prim)
 
 last <- "Primer-checked"
 if (has_itsx && is.finite(reads_itsx)) {
-  add_link("Primer-checked", "ITSx extracted", reads_itsx)
-  add_link("Primer-checked", "No ITSx detection", reads_prim - reads_itsx)
-  last <- "ITSx extracted"
+  add_link("Primer-checked", "ITS extracted", reads_itsx)
+  add_link("Primer-checked", "No ITS detection", reads_prim - reads_itsx)
+  last <- "ITS extracted"
 }
-for (k in setdiff(FATE_CATS, c("Retained", "Primer artefacts", "No ITSx detection"))) {
+for (k in setdiff(FATE_CATS, c("Retained", "Primer artefacts", "No ITS detection"))) {
   add_link(last, k, sum(fate[[k]]))
 }
 add_link(last, "Retained", reads_final)
@@ -220,10 +277,17 @@ sankey_fig <- if (nrow(lk) > 0L) {
 ## ------------------------------------------------------------ stage table
 
 stage_tbl <- rbindlist(list(
-  data.table(Stage = "Quality filtering", In = reads_raw,   Out = reads_qc),
-  data.table(Stage = "Demultiplexing",    In = reads_qc,    Out = reads_demux),
-  data.table(Stage = "Primer screening",  In = reads_demux, Out = reads_prim),
-  if (has_itsx) data.table(Stage = "ITSx extraction", In = reads_prim, Out = reads_itsx),
+  if (is_illumina) rbindlist(list(
+    data.table(Stage = "Demultiplexing (pairs)",  In = reads_raw,   Out = reads_demux),
+    data.table(Stage = "Reorientation (pairs)",   In = reads_demux, Out = reads_reo),
+    data.table(Stage = "Read merging",            In = reads_reo,   Out = reads_merged + reads_joined),
+    data.table(Stage = "Quality filtering",       In = reads_merged + reads_joined, Out = reads_qc + reads_joined),
+    data.table(Stage = "Primer screening",        In = reads_qc + reads_joined,     Out = reads_prim)))
+  else rbindlist(list(
+    data.table(Stage = "Quality filtering", In = reads_raw,   Out = reads_qc),
+    data.table(Stage = "Demultiplexing",    In = reads_qc,    Out = reads_demux),
+    data.table(Stage = "Primer screening",  In = reads_demux, Out = reads_prim))),
+  if (has_itsx) data.table(Stage = "ITS extraction", In = reads_prim, Out = reads_itsx),
   data.table(Stage = "Chimera / tag-jump filtering",
              In = if (has_itsx) reads_itsx else reads_prim, Out = reads_final)
 ), fill = TRUE)
@@ -271,7 +335,9 @@ spread_fig <- {
 }
 
 sample_cols <- intersect(c(
-  "Sample", "RunID", "Demultiplexed_Reads", "PrimerChecked_Reads",
+  "Sample", "RunID", "Demultiplexed_Reads",
+  "Reoriented_Pairs", "Merged_Reads", "Merged_Percent", "Joined_Reads", "QC_Reads",
+  "PrimerChecked_Reads",
   "PrimerArtefacts_Reads", "PrimerArtefacts_Percent",
   "ITSx_Extracted_Reads", "ITSx_Yield_Percent",
   "DeNovoChimeras_NumReads", "TagJump_Reads", "TagJump_Events",
@@ -283,15 +349,21 @@ setorderv(sample_view, "Demultiplexed_Reads", order = -1L, na.last = TRUE)
 if (length(runs) < 2L && "RunID" %in% names(sample_view)) sample_view[, RunID := NULL]
 
 sample_fmt <- list(
+  Merged_Percent            = "pct",
   PrimerArtefacts_Percent   = "pct",
   ITSx_Yield_Percent        = "pct",
   Percentage_Reads_Retained = "pct")
 
 sample_labels <- c(
   Sample = "Sample", RunID = "Run",
-  Demultiplexed_Reads = "Demultiplexed", PrimerChecked_Reads = "Primer-checked",
+  Demultiplexed_Reads = if (is_illumina) "Demultiplexed pairs" else "Demultiplexed",
+  Reoriented_Pairs = "Reoriented pairs", Merged_Reads = "Merged", Merged_Percent = "Merged, %",
+  Joined_Reads = "Joined", QC_Reads = "Passed QC",
+  PrimerChecked_Reads = "Primer-checked",
   PrimerArtefacts_Reads = "Artefact reads", PrimerArtefacts_Percent = "Artefacts",
-  ITSx_Extracted_Reads = "ITSx reads", ITSx_Yield_Percent = "ITSx yield",
+  ## In `its_region = "none"` runs this column counts primer-trimmed reads, not extracted ones
+  ITSx_Extracted_Reads = if (did_extract) "ITSx reads" else "Primer-trimmed reads",
+  ITSx_Yield_Percent   = if (did_extract) "ITSx yield" else "Primer-trimmed",
   DeNovoChimeras_NumReads = "Chimeric reads", TagJump_Reads = "Tag-jump reads",
   TagJump_Events = "Tag-jump events", SeqTable_NumReads = "Final reads",
   SeqTable_NumUniqSeqs = "Unique seqs", Percentage_Reads_Retained = "Retained")
@@ -374,6 +446,64 @@ demux_section <- {
   if (length(bits) == 0L) NULL else bits
 }
 
+## ------------------------------------------- demultiplexing (Illumina)
+
+illumina_demux <- if (is_usable_file(opt$`illumina-demux`)) {
+  tryCatch(fread(opt$`illumina-demux`, sep = "\t", colClasses = "character", showProgress = FALSE),
+           error = function(e) NULL)
+} else NULL
+
+illumina_qcheck <- if (is_usable_file(opt$`illumina-qcheck`)) {
+  tryCatch(fread(opt$`illumina-qcheck`, sep = "\t", colClasses = list(character = "QValues"), showProgress = FALSE),
+           error = function(e) NULL)
+} else NULL
+
+if (is_illumina) {
+  bits <- list()
+  if (!is.null(illumina_demux) && nrow(illumina_demux) > 0L) {
+    dv <- function(m) suppressWarnings(as.numeric(illumina_demux[Metric == m, Value][1L]))
+    dl <- function(m) illumina_demux[Metric == m, Value][1L]
+    n_in <- dv("Input_Pairs")
+    bits <- c(bits, list(
+      kpi_row(
+        kpi_card("Input pairs", fmt_int(n_in)),
+        kpi_card("Both tags agree", fmt_int(dv("Strict_Pairs")), fmt_pct(safe_pct(dv("Strict_Pairs"), n_in))),
+        kpi_card("Rescued (one tag)", fmt_int(dv("Rescued_Pairs")), fmt_pct(safe_pct(dv("Rescued_Pairs"), n_in))),
+        kpi_card("Tag jumps", fmt_int(dv("TagJump_Pairs")), fmt_pct(safe_pct(dv("TagJump_Pairs"), n_in)),
+                 grade(safe_pct(dv("TagJump_Pairs"), n_in), warn = 5, bad = 15, higher_better = FALSE)),
+        kpi_card("Unassigned", fmt_int(dv("Unassigned_Pairs")), fmt_pct(safe_pct(dv("Unassigned_Pairs"), n_in)))),
+      p(class = "hint", paste0(
+        "Tag layout: ", dl("Tag_layout"),
+        if (!identical(dl("Reverse_tag_orientation"), "NA")) paste0("; reverse tags used in ", dl("Reverse_tag_orientation"), " orientation") else "",
+        ". Tag jumps are pairs in which both mates carry a known tag, but not the tags of the same sample."))))
+  }
+  dm <- per_sample[order(-num0(Demultiplexed_Reads))]
+  if (nrow(dm) > 0L) {
+    o <- bar_option(dm$Sample, num0(dm$Demultiplexed_Reads), y_name = "Read pairs")
+    o$series[[1L]]$markLine <- markline_y(round(mean(num0(dm$Demultiplexed_Reads)), 1), "mean")
+    bits <- c(bits, list(
+      subhead("demux-samples", "Read pairs per sample"),
+      echart(o, height = 320,
+        caption = "Even sample representation is expected; a strong skew points at unbalanced pooling or a failing tag.")))
+  }
+  if (!is.null(illumina_qcheck) && nrow(illumina_qcheck) > 0L) {
+    qv <- illumina_qcheck[, .(Mate, Reads = NumReads, `Max length` = MaxReadLength,
+                              `Distinct Q` = NumDistinctQ, `Q values` = QValues,
+                              `Poly-G tails, %` = PolyG_Percent, `Q type` = QualityType)]
+    bits <- c(bits, list(
+      subhead("demux-qscores", "Quality-score encoding"),
+      p(class = "hint", paste0(
+        "Phred scores of the first reads of the run. Binned scores (few distinct values) are typical for ",
+        "NovaSeq and NextSeq (`-profile novaseq`), continuous scores for MiSeq (`-profile miseq`).")),
+      dt_table(qv, fmt = list(Reads = "int", `Max length` = "int", `Distinct Q` = "int",
+                              `Q values` = "chr", `Poly-G tails, %` = "num", `Q type` = "chr"),
+               search = FALSE, cols_menu = FALSE, download = "quality_check.tsv")))
+  }
+  demux_section_illumina <- if (length(bits) == 0L) NULL else bits
+} else {
+  demux_section_illumina <- NULL
+}
+
 ## ------------------------------------------------------------------ ITSx
 
 itsx_dir <- opt$`itsx-dir`
@@ -383,12 +513,17 @@ itsx_files <- if (!is.null(itsx_dir) && dir.exists(itsx_dir)) {
        problematic = list.files(itsx_dir, pattern = "\\.problematic\\.txt$", full.names = TRUE))
 } else list(summary = character(), positions = character(), problematic = character())
 
+## Parse a summary report of the ITS extractor.
+## ITSx and ITSx2 report the same quantities under different names, and ITSx2 has no
+## notion of chimeras, so `chimeric` stays NA there (the column is dropped downstream).
 parse_itsx_summary <- function(path) {
   lines <- readLines(path, warn = FALSE)
-  get1 <- function(pat) {
-    hit <- grep(pat, lines, value = TRUE)[1L]
-    if (is.na(hit)) return(NA_real_)
-    suppressWarnings(as.numeric(trimws(sub("^.*:\\s*", "", hit))))
+  get1 <- function(...) {
+    for (pat in c(...)) {
+      hit <- grep(pat, lines, value = TRUE)[1L]
+      if (!is.na(hit)) return(suppressWarnings(as.numeric(trimws(sub("^.*:\\s*", "", hit)))))
+    }
+    NA_real_
   }
   start <- grep("by preliminary origin", lines)[1L]
   origins <- NULL
@@ -405,8 +540,9 @@ parse_itsx_summary <- function(path) {
     }
   }
   list(sample = sub("\\.summary\\.txt$", "", basename(path)),
-       input = get1("Number of sequences in input file"),
-       detected = get1("Sequences detected as ITS by ITSx"),
+       ## ITSx key                                 ## ITSx2 key
+       input    = get1("Number of sequences in input file", "Sequences processed"),
+       detected = get1("Sequences detected as ITS by ITSx", "Sequences with a detected cistron"),
        chimeric = get1("Sequences detected as chimeric by ITSx"),
        origins = origins)
 }
@@ -425,19 +561,22 @@ itsx_section <- if (length(itsx) > 0L) {
     cbind(Sample = s$sample, s$origins)
   }), fill = TRUE)
 
+  ## ITSx2 does not screen for chimeras, so the column is meaningless there
+  has_chimeric <- any(is.finite(det$Chimeric))
+
   det_mat <- det[, .(Sample, Detected = num0(Detected), `Not detected`, Chimeric = num0(Chimeric))]
   det_cats <- c("Detected", "Not detected", "Chimeric")
   det_cats <- det_cats[vapply(det_cats, function(k) sum(det_mat[[k]]) > 0, logical(1))]
 
   bits <- list(
     callout(HTML(paste0(
-      "ITSx runs on dereplicated sequences, so the counts in this section are ",
+      itsx_tool, " runs on dereplicated sequences, so the counts in this section are ",
       "<b>unique sequences</b>, not reads."))),
     subhead("itsx-detection", "Detection rate"),
     echart(stacked_bar_option(det_mat, det_cats,
         colours = c(Detected = "#2a9d6e", `Not detected` = "#9b5de5", Chimeric = "#c9184a"),
         y_name = "Unique sequences"),
-      height = 340, title = "ITSx detection per sample"))
+      height = 340, title = paste0(itsx_tool, " detection per sample")))
 
   if (!is.null(origins) && nrow(origins) > 0L) {
     keep <- origins[, .(N = sum(N)), by = Origin][N > 0][order(-N)]$Origin
@@ -480,7 +619,8 @@ itsx_section <- if (length(itsx) > 0L) {
       if (!is.null(o)) bits <- c(bits, list(
         subhead("itsx-regions", "Detected region lengths"),
         echart(o, height = 320,
-          caption = "Length distribution of each rRNA region detected by ITSx, pooled across samples.")))
+          caption = paste0("Length distribution of each rRNA region detected by ", itsx_tool,
+                           ", pooled across samples."))))
     }
   }
 
@@ -499,11 +639,15 @@ itsx_section <- if (length(itsx) > 0L) {
     }
   }
 
+  det_cols <- c("Sample", "Input", "Detected", "Not detected",
+                if (has_chimeric) "Chimeric", "Detection rate")
+  det_fmt  <- list(Input = "int", Detected = "int", `Not detected` = "int",
+                   Chimeric = "int", `Detection rate` = "pct")
+
   c(bits, list(
-    subhead("itsx-table", "Per-sample ITSx counts"),
-    dt_table(det[, .(Sample, Input, Detected, `Not detected`, Chimeric, `Detection rate`)],
-             fmt = list(Input = "int", Detected = "int", `Not detected` = "int",
-                        Chimeric = "int", `Detection rate` = "pct"),
+    subhead("itsx-table", paste0("Per-sample ", itsx_tool, " counts")),
+    dt_table(det[, ..det_cols],
+             fmt = det_fmt[intersect(names(det_fmt), det_cols)],
              bar_cols = "Input", download = "itsx_per_sample.tsv", cols_menu = FALSE)))
 } else NULL
 
@@ -634,14 +778,21 @@ len_section <- {
   ## Per-stage read length, straight out of the seqkit stat tables.
   stages <- list(
     c("Counts_3.Demux.txt",           "Demultiplexed"),
+    if (is_illumina) c("Counts_2.QC.txt",     "Merged, passed QC"),
+    if (is_illumina) c("Counts_3.Joined.txt", "Joined"),
     c("Counts_4.PrimerCheck.txt",     "Primer-checked"),
     c("Counts_4.PrimerArtefacts.txt", "Primer artefacts"))
+  stages <- Filter(Negate(is.null), stages)
   len <- rbindlist(lapply(stages, function(s) {
     f <- counts_file(s[[1L]])
     if (is.null(f)) return(NULL)
     x <- tryCatch(fread(f, sep = "\t", showProgress = FALSE), error = function(e) NULL)
     if (is.null(x) || !"avg_len" %in% names(x)) return(NULL)
-    data.table(Stage = s[[2L]], Sample = clean_sample_name(x$file),
+    smp <- clean_sample_name(x$file)
+    ## Joined (non-merged) Illumina reads are kept apart, their length differs from merged reads
+    joined <- grepl("_JoinedPE$", smp)
+    data.table(Stage = ifelse(joined, paste0(s[[2L]], " (joined)"), s[[2L]]),
+               Sample = sub("_JoinedPE$", "", smp),
                Min = x$min_len, Avg = x$avg_len, Max = x$max_len, N = x$num_seqs)
   }), fill = TRUE)
 
@@ -746,9 +897,16 @@ sections <- list(
   if (!is.null(demux_section)) sec("demux", "Demultiplexing", demux_section,
       note = "PacBio lima barcode assignment."),
 
-  if (!is.null(itsx_section)) sec("itsx", "ITSx", itsx_section,
-      note = paste0("rRNA region extraction with ITSx (target group: ",
-                    getp(params, "ITSx_tax", "unspecified"), ").")),
+  if (!is.null(demux_section_illumina)) sec("demux", "Demultiplexing and read merging", demux_section_illumina,
+      note = "Illumina paired-end reads: tag assignment with cutadapt, read merging with USEARCH or VSEARCH."),
+
+  if (!is.null(itsx_section)) sec("itsx", itsx_tool, itsx_section,
+      ## Taxonomic profiles are an ITSx 1.x feature; ITSx2 delimits pan-eukaryotically
+      note = if (identical(itsx_tool, "ITSx2"))
+               "rRNA region extraction with ITSx2 (pan-eukaryotic covariance models)."
+             else
+               paste0("rRNA region extraction with ITSx (target group: ",
+                      getp(params, "ITSx_tax", "unspecified"), ").")),
 
   if (!is.null(chim_section)) sec("chimeras", "Chimeras and tag jumps", chim_section),
 
