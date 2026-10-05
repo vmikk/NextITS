@@ -1049,6 +1049,9 @@ process read_counts {
       path(chimera_recovered, stageAs: "8_chimrecov/*")
       path(samples_tj)
       path(seqtab)
+      path(pe_reorient, stageAs: "pe_reorient_stats.tsv")   // Illumina: per-sample input and reoriented pairs
+      path(pe_merge, stageAs: "pe_merge_stats.tsv")         // Illumina: per-sample merged reads
+      path(pe_joined, stageAs: "3_joined/*")                // Illumina: joined non-merged reads
 
     output:
       path "Run_summary.xlsx",                  emit: xlsx
@@ -1057,6 +1060,7 @@ process read_counts {
       path "Counts_1.RawData.txt",              emit: counts_1_raw
       path "Counts_2.QC.txt",                   emit: counts_2_qc
       path "Counts_3.Demux.txt",                emit: counts_3_demux,        optional: true
+      path "Counts_3.Joined.txt",               emit: counts_3_joined,       optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,       optional: true
       path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef,  optional: true
       path "Counts_5.ITSx_or_PrimTrim.txt",     emit: counts_5_itsx_ptrim,   optional: true
@@ -1089,10 +1093,33 @@ process read_counts {
       2_qc/* > Counts_2.QC.txt
     
     ## Count demultiplexed reads
+    ## (for Illumina, the number of demultiplexed pairs is taken from the reorientation stats)
     echo -e "\\n..Demultiplexed data"
-    seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
-      3_demux/* > Counts_3.Demux.txt
+    if [ `find 3_demux -name no_demux 2>/dev/null` ]
+    then
+      echo -e "... Demultiplexed read pairs are taken from the reorientation stats"
+      touch Counts_3.Demux.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
+        3_demux/* > Counts_3.Demux.txt
+    fi
+
+    ## Count joined non-merged read pairs (Illumina)
+    if [ ! `find 3_joined -name no_joined 2>/dev/null` ]
+    then
+      echo -e "\\n..Joined read pairs"
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
+        3_joined/* > Counts_3.Joined.txt
+    fi
     
+    ## Illumina-specific options of the read count summary
+    ILLUMINA_OPTS=""
+    if [ -s pe_reorient_stats.tsv ]; then
+      ILLUMINA_OPTS="--reoriented pe_reorient_stats.tsv --merged pe_merge_stats.tsv"
+      if [ -f Counts_3.Joined.txt ]; then
+        ILLUMINA_OPTS="\$ILLUMINA_OPTS --joined Counts_3.Joined.txt"
+      fi
+    fi
 
     ## Count primer-checked reads
     echo -e "\\n..Primer-checked data"
@@ -1219,7 +1246,8 @@ process read_counts {
       --tj           ${samples_tj} \
       --seqtab       ${seqtab} \
       --maxchim      ${params.max_ChimeraScore} \
-      --threads      ${task.cpus}
+      --threads      ${task.cpus} \
+      \$ILLUMINA_OPTS
 
     """
 }
