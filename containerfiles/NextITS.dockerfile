@@ -9,28 +9,33 @@
 # docker build --target test --tag nextits-test --file NextITS.dockerfile .
 
 ## Build stage 1.1 - Rust and Cargo
-FROM rust:1.95.0-slim AS rust
+FROM rust:1.99.0-slim AS rust
 RUN cargo install runiq sd
 
 ## Build stage 1.2 - papa2 (libpapa2.so)
-## need to use rocker image to link against the same glibc as the final image 
-FROM rocker/r-ver:4.6.0 AS papa2_build
+## need to use rocker image to link against the same glibc
+FROM rocker/r-ver:4.6.1 AS papa2_build
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
     ca-certificates git zlib1g-dev build-essential \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN git clone --depth 1 https://github.com/rec3141/papa2.git . \
+RUN git clone https://github.com/rec3141/papa2.git . \
+  && git describe --tags \
   && make libpapa2.so
 
+## Build stage 1.3 - ITSx2 source (empty by default)
+## Replaced with a local directory via `--build-context itsx2_src=/path/to/itsx2`
+FROM scratch AS itsx2_src
+
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.6.0 AS main
+FROM rocker/r-ver:4.6.1 AS main
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV SHELL=/bin/bash
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
-LABEL org.opencontainers.image.version="1.2.3"
+LABEL org.opencontainers.image.version="1.2.4"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
@@ -58,7 +63,10 @@ RUN install2.r --error --skipinstalled --ncpus -1 \
     doFuture \
     openxlsx \
     yaml \
-    qs2
+    qs2 \
+    htmltools \
+    jsonlite \
+    vegan
 
 RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("ShortRead",  ask = FALSE)' \
@@ -67,7 +75,7 @@ RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
     && R -e 'BiocManager::install("phyloseq",   ask = FALSE)' \
     && rm -rf /tmp/downloaded_packages
 
-RUN    install2.r --error --skipinstalled \
+RUN install2.r --error --skipinstalled \
       geodist \
       phytools \
       ggdendro \
@@ -79,15 +87,16 @@ RUN    install2.r --error --skipinstalled \
     && rm -rf /tmp/downloaded_packages
 
 ## Install conda
+ARG MINIFORGE_VERSION=26.3.2-3
 RUN mkdir -p /opt/software \
   && cd /opt/software \
-  && curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" \
-  && bash Miniforge3-Linux-x86_64.sh -u -b -p /opt/software/conda \
-  && rm Miniforge3-Linux-x86_64.sh \
+  && curl -fsSL "https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-${MINIFORGE_VERSION}-Linux-x86_64.sh" -o miniforge.sh \
+  && bash miniforge.sh -b -p /opt/software/conda \
+  && rm miniforge.sh \
+  && /opt/software/conda/bin/conda config --system --add pinned_packages 'python=3.13' \
   && /opt/software/conda/bin/conda config --add channels bioconda \
   && /opt/software/conda/bin/mamba update -y --all \
-  && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes \
-  && /opt/software/conda/bin/conda clean -afy
+  && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes
 
 ## Create conda initialization script (for Singularity compatibility)
 RUN cd /opt/software \
@@ -107,52 +116,42 @@ RUN cd /opt/software \
 
 ## Create conda environment and install software
 RUN /opt/software/conda/bin/mamba install -y \
-    "lima>=2.13.0" \
+    "lima>=26.2.1" \
     "pbtk>=3.5.0" \
-    "vsearch>=2.31.0" \
-    "swarm>=3.1.6" \
-    "seqkit>=2.13.0" \
-    "seqfu>=1.26.0" \
-    "fastp>=1.3.3" \
+    "vsearch>=2.32.0" \
+    "swarm>=3.2.0" \
+    "seqkit>=2.14.0" \
+    "seqfu>=1.30.0" \
+    "fastp>=1.3.7" \
     "blast>=2.17.0" \
     "bioawk" \
-    "miller>=6.18.1" \
+    "miller>=6.22.0" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20260422" \
-    "csvtk>=0.37.0" \
+    "parallel>=20260722" \
+    "csvtk>=0.38.0" \
     "cutadapt>=5.2" \
     "itsx>=1.1.3" \
-    "bbmap>=39.81" \
+    "infernal>=1.1.5" \
+    "bbmap>=40.02" \
     "ripgrep>=15.1.0" \
-    "fd-find>=10.4.2" \
+    "fd-find>=10.5.0" \
     "mmseqs2" \
   && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes \
   && /opt/software/conda/bin/conda clean -afy
 
-## papa2: Python package + libpapa2.so in conda site-packages
-# (avoids pip install . rebuilding native code)
-COPY --from=papa2_build /build/libpapa2.so /tmp/libpapa2.so
-COPY --from=papa2_build /build/papa2 /tmp/papa2_pkg
-RUN SITE=$(/opt/software/conda/bin/python -c "import site; print(site.getsitepackages()[0])") \
-  && /opt/software/conda/bin/pip install --no-cache-dir numpy pandas \
-  && cp -r /tmp/papa2_pkg "$SITE/papa2" \
-  && cp /tmp/libpapa2.so "$SITE/libpapa2.so" \
-  && mkdir -p "$SITE/papa2-0.1.0.dist-info" \
-  && printf 'Metadata-Version: 2.1\nName: papa2\nVersion: 0.1.0\n' > "$SITE/papa2-0.1.0.dist-info/METADATA" \
-  && printf 'papa2\npapa2-0.1.0.dist-info\n' > "$SITE/papa2-0.1.0.dist-info/RECORD" \
-  && cp /tmp/libpapa2.so /usr/local/lib/libpapa2.so \
-  && ldconfig \
-  && rm -rf /tmp/papa2_pkg /tmp/libpapa2.so \
-  && /opt/software/conda/bin/python -c "import papa2; print('papa2 OK', papa2.__version__)"
+## papa2
+RUN --mount=type=bind,from=papa2_build,source=/build,target=/tmp/papa2_src,rw \
+    /opt/software/conda/bin/pip install --no-cache-dir /tmp/papa2_src \
+  && SITE=$(/opt/software/conda/bin/python -c "import site; print(site.getsitepackages()[0])") \
+  && ln -s papa2/libpapa2.so "$SITE/libpapa2.so" \
+  && /opt/software/conda/bin/python -c "import sys, papa2, papa2.io; print('papa2 OK', papa2.__version__); \
+       sys.exit(papa2.__version__.startswith('0.0.0') or not papa2.io._HAS_C_DEREP)"
 
-## Install cutadapt (with dependencies) from pip - it fails with conda (Python 3.13 confilict)
-# RUN /opt/software/conda/bin/pip install --no-cache-dir \
-#   "dnaio>=1.2.3" "xopen>=2.0.2" "cutadapt>=5.1"
   
-## Add new tools (seqhasher, phredsort, ucs)
+## seqhasher, phredsort, ucs
 RUN cd /opt/software \
-    && wget https://github.com/vmikk/seqhasher/releases/download/1.1.2/seqhasher \
+    && wget https://github.com/vmikk/seqhasher/releases/download/1.2.0/seqhasher \
     && chmod +x seqhasher \
     && mv seqhasher /opt/software/conda/bin/ \
     && wget https://github.com/vmikk/phredsort/releases/download/1.4.0/phredsort \
@@ -161,6 +160,12 @@ RUN cd /opt/software \
     && wget https://github.com/vmikk/ucs/releases/download/0.8.0/ucs \
     && chmod +x ucs \
     && mv ucs /opt/software/conda/bin/
+
+## USEARCH v11
+RUN cd /opt/software \
+    && wget https://github.com/rcedgar/usearch_old_binaries/raw/main/bin/usearch11.0.667_i86linux64 \
+    && chmod +x usearch11.0.667_i86linux64 \
+    && mv usearch11.0.667_i86linux64 /opt/software/conda/bin/usearch
 
 ## fqgrep
 RUN git clone --depth 1 https://github.com/indraniel/fqgrep \
@@ -171,7 +176,7 @@ RUN git clone --depth 1 https://github.com/indraniel/fqgrep \
   && rm -r fqgrep
 
 ## rush
-RUN wget https://github.com/shenwei356/rush/releases/download/v0.9.0/rush_linux_amd64.tar.gz \
+RUN wget https://github.com/shenwei356/rush/releases/download/v0.11.0/rush_linux_amd64.tar.gz \
   && tar -xzf rush_linux_amd64.tar.gz \
   && mv rush /opt/software/conda/bin/ \
   && rm rush_linux_amd64.tar.gz
@@ -196,17 +201,31 @@ COPY --from=rust /usr/local/cargo/bin/sd    /opt/software/conda/bin/sd
 
 ## Update ITSx databases
 RUN cd /opt/software \
-    && git clone --depth 1 https://github.com/USDA-ARS-GBRU/ITS_HMMs/ \
-    && find ITS_HMMs/ITSx_db/HMMs/ -name "*.hmm" | grep -v "N.hmm" \
+    && git clone --depth 1 https://github.com/Mycology-Microbiology-Center/ITSx_HMMs \
+    && find ITSx_HMMs/HMMs/ \( -name "*.h3f" -o -name "*.h3i" -o -name "*.h3m" -o -name "*.h3p" \) -delete \
+    && find ITSx_HMMs/HMMs/ -name "*.hmm" | grep -v "N.hmm" \
        | /opt/software/conda/bin/parallel -j1 "/opt/software/conda/bin/hmmpress {}" \
     && rm /opt/software/conda/bin/ITSx_db/HMMs/* \
-    && mv ITS_HMMs/ITSx_db/HMMs/* /opt/software/conda/bin/ITSx_db/HMMs/ \
-    && rm -r ITS_HMMs \
+    && mv ITSx_HMMs/HMMs/* /opt/software/conda/bin/ITSx_db/HMMs/ \
+    && rm -r ITSx_HMMs \
     && sed -i '/#push(@profileSet,"Y")/s/#//' /opt/software/conda/bin/ITSx
 
-## Install DuckDB
+## ITSx2
+## If a local source is supplied via `--build-context itsx2_src=...`, it is installed instead of ITSX2_SPEC
+ARG ITSX2_SPEC="itsx2 @ git+https://github.com/"
+RUN --mount=type=bind,from=itsx2_src,target=/tmp/itsx2_src,rw \
+    if [ -f /tmp/itsx2_src/pyproject.toml ]; then \
+      rm -rf /tmp/itsx2_src/build /tmp/itsx2_src/dist /tmp/itsx2_src/src/*.egg-info \
+      && SPEC="/tmp/itsx2_src"; \
+    else \
+      SPEC="${ITSX2_SPEC}"; \
+    fi \
+    && /opt/software/conda/bin/pip install --no-cache-dir "${SPEC}" \
+    && /opt/software/conda/bin/itsx2 itsx --version
+
+## DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.5.2/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.5.6/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
     && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
     && rm duckdb_cli-linux-amd64.zip
 
