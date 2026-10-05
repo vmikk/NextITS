@@ -19,7 +19,7 @@ def parameterSummary(workflow, params) {
     // Step-specific parameters
     if (params.step == "Step1" || params.step == "seqstats") {
         
-        if (params.seqplatform == "PacBio") {
+        if (params.seqplatform == "PacBio" || params.demultiplexed) {
             if (params.input) {
                 summary += "  ${colors.green}input${colors.reset}            : ${colors.cyan}${params.input}${colors.reset}\n"
             }
@@ -30,6 +30,13 @@ def parameterSummary(workflow, params) {
             if (params.input_R2) {
                 summary += "  ${colors.green}input_R2${colors.reset}         : ${colors.cyan}${params.input_R2}${colors.reset}\n"
             }
+        }
+        if (params.seqplatform == "Illumina") {
+            summary += "  ${colors.green}seqplatform${colors.reset}      : ${colors.cyan}Illumina${colors.reset}\n"
+            if (!params.demultiplexed) {
+                summary += "  ${colors.green}tag layout${colors.reset}       : ${colors.cyan}${params.illumina_barcodetype}${colors.reset}\n"
+            }
+            summary += "  ${colors.green}pe_merger${colors.reset}        : ${colors.cyan}${params.pe_merger}${colors.reset}\n"
         }
         
         if (params.barcodes && !params.demultiplexed) {
