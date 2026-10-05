@@ -19,6 +19,11 @@
 #   --seqtab       Seqs.parquet \
 #   --maxchim     0.6 \
 #   --threads      4
+#
+## Illumina paired-end reads (optional):
+#   --reoriented   Reorient_stats.tsv   (per sample: Input_Pairs, Reoriented_Pairs)
+#   --merged       Merge_stats.tsv      (per sample: Merged_Reads, NotMerged_Pairs)
+#   --joined       Counts_3.Joined.txt  (seqkit counts of joined non-merged pairs)
 
 
 ############################################## Parse input parameters
@@ -49,6 +54,9 @@ option_list <- list(
   make_option("--tj",         action="store", default=NA, type='character', help="Tag jump removal data (serialized in qs format)"),
   make_option("--seqtab",     action="store", default=NA, type='character', help="Final seq table (Parquet format)"),
   make_option("--maxchim",    action="store", default=0.6, type='numeric',  help = "Maximum de novo chimera score to remove"),
+  make_option("--reoriented", action="store", default=NA, type='character', help="Illumina: per-sample input and reoriented read pairs"),
+  make_option("--merged",     action="store", default=NA, type='character', help="Illumina: per-sample merged reads"),
+  make_option("--joined",     action="store", default=NA, type='character', help="Illumina: counts of joined non-merged read pairs"),
   make_option(c("-t", "--threads"), action="store", default=4L, type='integer', help="Number of CPU threads for arrow, default 4")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -84,7 +92,13 @@ CHIMRECOVU  <- opt$chimrecovu
 TJ          <- opt$tj
 SEQTAB      <- opt$seqtab
 MAXCHIM     <- opt$maxchim
+REORIENTED  <- opt$reoriented
+MERGED      <- opt$merged
+JOINED      <- opt$joined
 CPUTHREADS  <- as.numeric( opt$threads )
+
+## Illumina paired-end data?
+ILLUMINA <- !is.na(REORIENTED) && file.exists(REORIENTED)
 
 ## Log assigned variables
 cat(paste("Counts - RawData: " ,     RAW, "\n", sep=""))
@@ -102,6 +116,9 @@ cat(paste("Counts - Chimera Ref-based recoverd, unique sequences: " ,  CHIMRECOV
 cat(paste("Tag-jump data: " ,                TJ, "\n", sep=""))
 cat(paste("Final sequence table: " ,         SEQTAB,  "\n", sep=""))
 cat(paste("Maximum de novo chimera score: ", MAXCHIM, "\n", sep=""))
+cat(paste("Illumina - reoriented pairs: ", REORIENTED, "\n", sep=""))
+cat(paste("Illumina - merged reads: ",     MERGED,     "\n", sep=""))
+cat(paste("Illumina - joined pairs: ",     JOINED,     "\n", sep=""))
 cat(paste("Number of CPU threads to use: ",  CPUTHREADS,    "\n", sep=""))
 
 cat("\n")
@@ -172,7 +189,29 @@ SEQKITCOUNTS <- list()
 CUSTOMCOUNTS <- list()
 
 cat("..Loading demux counts\n")
-SEQKITCOUNTS$DEMUXED <- fread(DEMUXED)
+if(ILLUMINA){
+  ## Demultiplexed read pairs = input of the reorientation step
+  REORIENT_data <- fread(REORIENTED)
+  SEQKITCOUNTS$DEMUXED <- REORIENT_data[ , .(file = SampleID, num_seqs = Input_Pairs) ]
+} else {
+  SEQKITCOUNTS$DEMUXED <- fread(DEMUXED)
+}
+
+if(ILLUMINA){
+  cat("..Loading Illumina-specific counts (reorientation, merging, QC, joining)\n")
+  CUSTOMCOUNTS$REORIENTED <- REORIENT_data[ , .(SampleID, NumReads = Reoriented_Pairs) ]
+
+  MERGE_data <- fread(MERGED)
+  CUSTOMCOUNTS$MERGED    <- MERGE_data[ , .(SampleID, NumReads = Merged_Reads) ]
+  CUSTOMCOUNTS$NOTMERGED <- MERGE_data[ , .(SampleID, NumReads = NotMerged_Pairs) ]
+
+  ## QC is performed per sample (on merged reads)
+  SEQKITCOUNTS$QC <- copy(QC)
+
+  if(!is.na(JOINED) && file.exists(JOINED)){
+    SEQKITCOUNTS$JOINED <- fread(JOINED)
+  }
+}
 
 cat("..Loading primer-checked data counts\n")
 SEQKITCOUNTS$PRIMER      <- fread(PRIMER)
@@ -250,6 +289,10 @@ seqkit_process <- function(x){
     x[ , file := sub(pattern = "_RescuedChimera$",      replacement = "", x = file) ]
     x[ , file := sub(pattern = "^Rescued_Chimeric_sequences.part_", replacement = "", x = file) ]
 
+    ## Joined non-merged Illumina reads are pooled with the merged reads of the same sample
+    x[ , file := sub(pattern = "_JoinedPE$", replacement = "", x = file) ]
+    x <- x[ , .(num_seqs = sum(num_seqs, na.rm = TRUE)), by = "file" ]
+
   }
   return(x)
 }
@@ -276,6 +319,10 @@ custom_process <- function(x){
 
     ## Dereplicated primer-trimmed sequences (`its_region = "none"`): `<sample>.fa`
     x[ , file := sub(pattern = "\\.fa$", replacement = "", x = file) ]
+
+    ## Joined non-merged Illumina reads are pooled with the merged reads of the same sample
+    x[ , file := sub(pattern = "_JoinedPE$", replacement = "", x = file) ]
+    x <- x[ , .(NumReads = sum(NumReads, na.rm = TRUE)), by = "file" ]
 
   }
   return(x)
@@ -320,6 +367,21 @@ setnames(x = SEQKITCOUNTS$CHIMRECOVU, old = "num_seqs", new = "Recovered_Referen
 
 if(!is.null(CUSTOMCOUNTS$ITSX)){
 setnames(x = CUSTOMCOUNTS$ITSX,       old = "NumReads", new = "ITSx_Extracted_Reads", skip_absent = TRUE)
+}
+if(!is.null(SEQKITCOUNTS$QC)){
+setnames(x = SEQKITCOUNTS$QC,         old = "num_seqs", new = "QC_Reads", skip_absent = TRUE)
+}
+if(!is.null(SEQKITCOUNTS$JOINED)){
+setnames(x = SEQKITCOUNTS$JOINED,     old = "num_seqs", new = "Joined_Reads", skip_absent = TRUE)
+}
+if(!is.null(CUSTOMCOUNTS$REORIENTED)){
+setnames(x = CUSTOMCOUNTS$REORIENTED, old = "NumReads", new = "Reoriented_Pairs", skip_absent = TRUE)
+}
+if(!is.null(CUSTOMCOUNTS$MERGED)){
+setnames(x = CUSTOMCOUNTS$MERGED,     old = "NumReads", new = "Merged_Reads", skip_absent = TRUE)
+}
+if(!is.null(CUSTOMCOUNTS$NOTMERGED)){
+setnames(x = CUSTOMCOUNTS$NOTMERGED,  old = "NumReads", new = "NotMerged_Pairs", skip_absent = TRUE)
 }
 if(!is.null(CUSTOMCOUNTS$CHIMREFN)){
 setnames(x = CUSTOMCOUNTS$CHIMREFN,   old = "NumReads", new = "ReferenceBasedChimera_Reads", skip_absent = TRUE)
@@ -429,6 +491,12 @@ rm(j)
 cat("Estimating percentage of reads retained\n")
 PER_SAMPLE_COUNTS_merged[ , Percentage_Reads_Retained := round( SeqTable_NumReads / Demultiplexed_Reads * 100, 2) ]
 
+## Percentage of merged read pairs (Illumina)
+if("Merged_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
+  PER_SAMPLE_COUNTS_merged[ Reoriented_Pairs > 0, Merged_Percent := round( Merged_Reads / Reoriented_Pairs * 100, 2) ]
+  PER_SAMPLE_COUNTS_merged[ is.na(Merged_Percent), Merged_Percent := 0 ]
+}
+
 ## Estimate percentage of reads retained after ITSx
 if("ITSx_Extracted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
   PER_SAMPLE_COUNTS_merged[ , ITSx_Yield_Percent := round( ITSx_Extracted_Reads / PrimerChecked_Reads * 100, 2) ]
@@ -444,6 +512,7 @@ setcolorder(PER_SAMPLE_COUNTS_merged,
   skip_absent = TRUE,
   neworder = c(
     "file", "Demultiplexed_Reads",
+    "Reoriented_Pairs", "Merged_Reads", "NotMerged_Pairs", "Merged_Percent", "Joined_Reads", "QC_Reads",
     "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent", 
     "ReferenceBasedChimera_Reads", "ReferenceBasedChimera_NumUniqSequences", 
     "Recovered_ReferenceBasedChimea_Reads", "Recovered_ReferenceBasedChimea_NumUniqSequences", 
@@ -470,6 +539,15 @@ PER_RUN_COUNTS_merged <- data.table(
 
 if("ITSx_Extracted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
   PER_RUN_COUNTS_merged[ , Reads_ITSx_Extracted := sum(PER_SAMPLE_COUNTS_merged$ITSx_Extracted_Reads, na.rm = TRUE) ]
+}
+
+if(ILLUMINA){
+  PER_RUN_COUNTS_merged[ , Pairs_Reoriented := sum(PER_SAMPLE_COUNTS_merged$Reoriented_Pairs, na.rm = TRUE) ]
+  PER_RUN_COUNTS_merged[ , Reads_Merged     := sum(PER_SAMPLE_COUNTS_merged$Merged_Reads,     na.rm = TRUE) ]
+  PER_RUN_COUNTS_merged[ , Percentage_Merged := round(Reads_Merged / Pairs_Reoriented * 100, 1) ]
+  if("Joined_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
+    PER_RUN_COUNTS_merged[ , Reads_Joined := sum(PER_SAMPLE_COUNTS_merged$Joined_Reads, na.rm = TRUE) ]
+  }
 }
 
 ## Estimate percentage of reads passed primer checking
