@@ -273,7 +273,7 @@ if (length(runs) < 2L) sample_tbl[, RunID := NULL]
 
 rank_fig <- {
   o <- list(
-    grid = list(left = 8, right = 20, top = 22, bottom = 10, containLabel = TRUE),
+    grid = list(left = 8, right = 20, top = 22, bottom = 10),
     tooltip = list(trigger = "item", formatter = js_fn("scatterPoint", "rank", "reads", "")),
     xAxis = list(type = "value", name = "Rank", nameLocation = "middle", nameGap = 30, min = 1),
     yAxis = list(type = "log", name = "Reads", nameLocation = "middle", nameGap = 50),
