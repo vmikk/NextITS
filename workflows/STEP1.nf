@@ -1710,29 +1710,23 @@ workflow S1 {
   ch_chimrescued = CHIMERA_REMOVAL.out.rescued.flatten().collect().ifEmpty(file("no_chimrescued"))
 
   // Count reads and prepare summary stats for the run
-  // Currently, implemented only for PacBio
-  // For Illumina, need replace:
-  //   `ch_input` -> `ch_inputR1` & `ch_inputR2`
-  //   `qc_se`    -> `qc_pe`
-
-  if(params.seqplatform == "PacBio"){
-
-    read_counts(
-      ch_counts_1,             // input data (single multiplexed file or several demultiplexed files)
-      ch_counts_2,             // data that passed QC (single or several demuxed files)
-      ch_all_demux,            // demultiplexed sequences per sample
-      ch_all_primerchecked,    // primer-cheched sequences
-      ch_all_primerartefacts,  // multiprimer artefacts
-      ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
-      ch_homopolymers,         // Homopolymer stats
-      ch_chimref,              // Reference-based chimeras
-      ch_chimdenovo,           // De novo chimeras
-      ch_chimrescued,          // Rescued chimeras
-      ch_tj_scores,            // Tag-jump filtering scores
-      prep_seqtab.out.seq_pq   // Final table with sequences (in Parquet format)
-      )
-
-  } // end of read_counts for PacBio
+  read_counts(
+    ch_counts_1,             // input data (single multiplexed file or several demultiplexed files)
+    ch_counts_2,             // data that passed QC (single or several demuxed files)
+    ch_all_demux,            // demultiplexed sequences per sample
+    ch_all_primerchecked,    // primer-cheched sequences
+    ch_all_primerartefacts,  // multiprimer artefacts
+    ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
+    ch_homopolymers,         // Homopolymer stats
+    ch_chimref,              // Reference-based chimeras
+    ch_chimdenovo,           // De novo chimeras
+    ch_chimrescued,          // Rescued chimeras
+    ch_tj_scores,            // Tag-jump filtering scores
+    prep_seqtab.out.seq_pq,  // Final table with sequences (in Parquet format)
+    ch_pe_reorient,          // Illumina: per-sample input and reoriented read pairs
+    ch_pe_merge,             // Illumina: per-sample merged reads
+    ch_pe_joined             // Illumina: joined non-merged reads
+    )
 
 
   
