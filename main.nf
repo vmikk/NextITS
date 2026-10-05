@@ -401,17 +401,28 @@ ${logoColors.dim}----------------------------------------------------${logoColor
       }
     }
 
-    if (run_hp && params.seqplatform == "Illumina" && keep_notmerged) {
-        println( errorMsg("Homopolymer compression is not implemented for Illumina non-merged reads (add `--hp false` to your command).", params.monochrome_logs))
-        exit(1)
-    }
-    if (params.seqplatform == "Illumina" && is_demultiplexed) {
-        println( errorMsg("Handling demultiplexed data for Illumina is not implemented yet.", params.monochrome_logs))
-        exit(1)
-    }
-
-    if (params.seqplatform == "Illumina" && keep_notmerged && params.its_region != "none") {
-        println( warningMsg("Unmerged Illumina reads are not compatible with ITSx. Amplicons will be primer-trimmed.", params.monochrome_logs))
+    // Illumina-specific validation
+    if (params.seqplatform == "Illumina") {
+        if (!(params.illumina_barcodetype in ["dual_symmetric", "dual_asymmetric", "single"])) {
+            println( errorMsg("Parameter --illumina_barcodetype must be 'dual_symmetric', 'dual_asymmetric', or 'single' (got: '${params.illumina_barcodetype}').", params.monochrome_logs) )
+            exit(1)
+        }
+        if (!(params.illumina_revtag_orient in ["auto", "forward", "revcomp"])) {
+            println( errorMsg("Parameter --illumina_revtag_orient must be 'auto', 'forward', or 'revcomp' (got: '${params.illumina_revtag_orient}').", params.monochrome_logs) )
+            exit(1)
+        }
+        if (!(params.pe_merger in ["usearch", "vsearch"])) {
+            println( errorMsg("Parameter --pe_merger must be 'usearch' or 'vsearch' (got: '${params.pe_merger}').", params.monochrome_logs) )
+            exit(1)
+        }
+        if (keep_notmerged && run_hp) {
+            println( errorMsg("Homopolymer compression is not implemented for joined (non-merged) Illumina reads. Add `--hp false` or `--illumina_keep_notmerged false` to your command.", params.monochrome_logs))
+            exit(1)
+        }
+        if (keep_notmerged && params.its_region != "none") {
+            println( errorMsg("Joined (non-merged) Illumina reads contain an N-pad and are not compatible with ITS extraction. Add `--its_region none` or `--illumina_keep_notmerged false` to your command.", params.monochrome_logs))
+            exit(1)
+        }
     }
 
     // ITSx extractor validation
