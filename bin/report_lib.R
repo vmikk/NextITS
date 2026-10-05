@@ -173,8 +173,10 @@ FATE_COL <- c(
   "Retained"          = "#2e7d4f",
   "Undemultiplexed"   = "#8a9d90",
   "Failed QC"         = "#5f7a67",
+  "No primers"        = "#7a8fa6",
+  "Not merged"        = "#4f6d8f",
   "Primer artefacts"  = "#d98324",
-  "No ITSx detection" = "#9b5de5",
+  "No ITS detection" = "#9b5de5",
   "Chimeric"          = "#c9184a",
   "Tag jumps"         = "#b45309",
   "Other filtering"   = "#adbcb1"
@@ -584,7 +586,7 @@ heatmap_option <- function(dt, x_levels, y_levels, x_name, y_name,
   data <- Map(function(a, b, c) list(a, b, c), xi, yi, v)
   vmax <- max(v[is.finite(v)], na.rm = TRUE)
   list(
-    grid = list(left = 8, right = 84, top = 14, bottom = 10, containLabel = TRUE),
+    grid = list(left = 8, right = 84, top = 14, bottom = 10),
     tooltip = list(trigger = "item"),
     xAxis = list(type = "category", data = x_levels, name = x_name,
                  nameLocation = "middle", nameGap = 30,
