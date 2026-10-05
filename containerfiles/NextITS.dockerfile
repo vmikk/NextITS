@@ -267,7 +267,7 @@ ENTRYPOINT ["/opt/software/entrypoint.sh"]
 FROM main AS test
 
 # Set environment variable for R version testing
-ENV R_VERSION=4.6.0
+ENV R_VERSION=4.6.1
 
 RUN echo "=== Testing R installation and packages ===" \
   && R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')" \
@@ -276,7 +276,7 @@ RUN echo "=== Testing R installation and packages ===" \
     'required_packages <- c("optparse", "data.table", "arrow", "duckdb",' \
     '                      "plyr", "dplyr", "ggplot2", "openxlsx", "yaml",' \
     '                      "Biostrings", "DECIPHER", "dada2", "phyloseq",' \
-    '                      "metagMisc", "qs2")' \
+    '                      "metagMisc", "qs2", "htmltools", "jsonlite", "vegan")' \
     '' \
     'for(pkg in required_packages) {' \
     '  cat("Testing package:", pkg, "... ")' \
@@ -295,7 +295,7 @@ RUN echo "=== Testing R installation and packages ===" \
   && Rscript test_packages.R \
   && rm test_packages.R \
   && echo "=== Testing conda/mamba installed tools ===" \
-  && tools_conda="lima bam2fastq vsearch swarm seqkit seqfu fastp blastn bioawk mlr xsv bedtools parallel csvtk ITSx cutadapt bbduk.sh rg fd mmseqs" \
+  && tools_conda="lima bam2fastq vsearch swarm seqkit seqfu fastp blastn bioawk mlr xsv bedtools parallel csvtk ITSx cmsearch itsx2 cutadapt bbduk.sh rg fd mmseqs" \
   && for tool in $tools_conda; do \
        echo -n "Testing $tool... " \
        && if command -v $tool >/dev/null 2>&1; then \
@@ -305,7 +305,7 @@ RUN echo "=== Testing R installation and packages ===" \
           fi; \
      done \
   && echo "=== Testing manually installed tools ===" \
-  && tools_manual="seqhasher phredsort ucs fqgrep rush brename mumu duckdb runiq sd" \
+  && tools_manual="seqhasher phredsort ucs usearch fqgrep rush brename mumu duckdb runiq sd" \
   && for tool in $tools_manual; do \
        echo -n "Testing $tool... " \
        && if command -v $tool >/dev/null 2>&1; then \
@@ -316,4 +316,7 @@ RUN echo "=== Testing R installation and packages ===" \
      done \
   && echo "=== Testing Python / papa2 ===" \
   && python3 -c "import papa2; print('papa2 version:', papa2.__version__)" \
+  && papa2 --version \
+  && echo "=== Testing ITSx2 ===" \
+  && itsx2 itsx --version \
   && echo "=== All tests passed! Container looks ready for use ==="
