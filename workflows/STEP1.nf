@@ -1761,6 +1761,38 @@ workflow S1 {
     ch_versions_yml,
     ch_params_tsv)
 
+  // LIMA diagnostics (PacBio)
+  if( !is_illumina && !is_demultiplexed ){
+    ch_lima_summary = demux.out.lima_summary
+    ch_lima_counts  = demux.out.lima_counts
+  } else {
+    ch_lima_summary = file("no_lima")
+    ch_lima_counts  = file("no_limacounts")
+  }
+
+  // Demultiplexing and quality-score diagnostics (Illumina)
+  if( is_illumina ){
+    ch_illumina_demux  = ILLUMINA_PE.out.demux_totals.ifEmpty(file("no_illumina_demux"))
+    ch_illumina_qcheck = ILLUMINA_PE.out.qcheck.ifEmpty(file("no_illumina_qcheck"))
+  } else {
+    ch_illumina_demux  = file("no_illumina_demux")
+    ch_illumina_qcheck = file("no_illumina_qcheck")
+  }
+
+  ch_report_counts = read_counts.out.counts_1_raw
+    .mix(
+      read_counts.out.counts_2_qc,
+      read_counts.out.counts_3_demux,
+      read_counts.out.counts_4_primer,
+      read_counts.out.counts_4_primerartef,
+      read_counts.out.counts_5_itsx_ptrim,
+      read_counts.out.counts_7_chimdenov)
+    .flatten().collect().ifEmpty(file("no_counts"))
+
+  // ITSx / ITSx2 diagnostics (summary, positions, problematic sequences)
+  ch_report_itsx = ITS_EXTRACTION.out.report_itsx
+
+
 }
 
 
