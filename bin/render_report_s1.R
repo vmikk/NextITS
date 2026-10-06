@@ -215,10 +215,11 @@ setorder(fate, -demux, Sample)
 
 ## Trunk nodes share one colour so the eye follows the surviving reads
 ## each loss branch keeps its own hue from FATE_COL
+TRUNK <- "var(--fate-trunk)"
 NODE_COL <- c(FATE_COL,
-  "Raw reads"      = "#2e7d4f", "Passed QC"      = "#2e7d4f",
-  "Demultiplexed"  = "#2e7d4f", "Primer-checked" = "#2e7d4f",
-  "ITS extracted" = "#2e7d4f")
+  "Raw reads"      = TRUNK, "Passed QC"      = TRUNK,
+  "Demultiplexed"  = TRUNK, "Primer-checked" = TRUNK,
+  "ITS extracted"  = TRUNK)
 
 lk <- data.table(source = character(), target = character(), value = numeric())
 add_link <- function(from, to, value) {
@@ -227,8 +228,8 @@ add_link <- function(from, to, value) {
 
 if (is_illumina) {
   ## Raw pairs -> demultiplexed -> reoriented -> merged (+ joined) -> passed QC -> primer-checked
-  NODE_COL <- c(NODE_COL, "Raw pairs" = "#2e7d4f", "Reoriented" = "#2e7d4f",
-                "Merged" = "#2e7d4f", "Joined" = "#2e7d4f")
+  NODE_COL <- c(NODE_COL, "Raw pairs" = TRUNK, "Reoriented" = TRUNK,
+                "Merged" = TRUNK, "Joined" = TRUNK)
   add_link("Raw pairs", "Demultiplexed", reads_demux)
   add_link("Raw pairs", "Undemultiplexed", reads_raw - reads_demux)
   add_link("Demultiplexed", "Reoriented", reads_reo)
@@ -416,7 +417,7 @@ demux_section <- {
     if (!is.null(lima$marginals) && nrow(lima$marginals) > 0L) {
       m <- lima$marginals[ZMWs > 0][order(-ZMWs)]
       if (nrow(m) > 0L) {
-        o <- bar_option(m$Reason, m$ZMWs, y_name = "ZMWs", colour = "#d98324")
+        o <- bar_option(m$Reason, m$ZMWs, y_name = "ZMWs", colour = "var(--viz-loss)")
         o$xAxis$axisLabel$rotate <- 30
         o$grid$bottom <- 30
         bits <- c(bits, list(
@@ -574,17 +575,31 @@ itsx_section <- if (length(itsx) > 0L) {
       "<b>unique sequences</b>, not reads."))),
     subhead("itsx-detection", "Detection rate"),
     echart(stacked_bar_option(det_mat, det_cats,
-        colours = c(Detected = "#2a9d6e", `Not detected` = "#9b5de5", Chimeric = "#c9184a"),
+        colours = c(Detected = FATE_COL[["Retained"]], `Not detected` = FATE_COL[["No ITS detection"]],
+                    Chimeric = FATE_COL[["Chimeric"]]),
         y_name = "Unique sequences"),
       height = 340, title = paste0(itsx_tool, " detection per sample")))
 
   if (!is.null(origins) && nrow(origins) > 0L) {
     keep <- origins[, .(N = sum(N)), by = Origin][N > 0][order(-N)]$Origin
     if (length(keep) > 0L) {
-      wide <- dcast(origins[Origin %in% keep], Sample ~ Origin, value.var = "N", fill = 0)
+      org <- origins[Origin %in% keep]
+      ## Each origin keeps its own colour up to the eight categorical slots;
+      ## past that the tail folds into one neutral band instead of repeating hues
+      if (length(keep) > length(PAL)) {
+        top <- keep[seq_len(length(PAL) - 1L)]
+        org[!Origin %in% top, Origin := "Other origins"]
+        keep <- c(top, "Other origins")
+      }
+      wide <- dcast(org, Sample ~ Origin, value.var = "N", fill = 0, fun.aggregate = sum)
       setorderv(wide, keep[[1L]], order = -1L)
-      pal <- setNames(c("#2a9d6e", PAL[-3L], rep(PAL, 3L))[seq_along(keep)], keep)
-      if ("Fungi" %in% keep) pal[["Fungi"]] <- "#2a9d6e"
+      ## The target group (Fungi, or else the most abundant origin) takes slot 1,
+      ## the colour of retained reads; the rest follow in order of abundance
+      lead <- if ("Fungi" %in% keep) "Fungi" else keep[[1L]]
+      rest <- setdiff(keep, c(lead, "Other origins"))
+      pal <- setNames(rep(PAL_OTHER, length(keep)), keep)
+      pal[[lead]] <- PAL[[1L]]
+      pal[rest] <- PAL[seq_along(rest) + 1L]
       oid <- new_chart_id()
       vars <- list(counts  = stacked_bar_option(wide, keep, colours = pal, percent = FALSE, y_name = "Unique sequences"),
                    percent = stacked_bar_option(wide, keep, colours = pal, percent = TRUE,  y_name = "Unique sequences"))
@@ -676,7 +691,7 @@ chim_section <- {
 
   if (!is.null(all_scores) && length(all_scores) > 0L) {
     o <- hist_option(all_scores, bins = 40L, x_name = "VSEARCH de novo chimera score",
-                     y_name = "Sequences", colour = "#1d6fa5",
+                     y_name = "Sequences", colour = "var(--viz-dist)",
                      marklines = bin_markline(all_scores, 40L, cutoff,
                                               paste0("max_ChimeraScore = ", cutoff)),
                      log_y = TRUE)
@@ -695,7 +710,7 @@ chim_section <- {
     if (!is.null(sc) && nrow(sc) > 0L) {
       if (is.null(all_scores)) {
         o <- hist_option(sc$Score, bins = 40L, x_name = "VSEARCH de novo chimera score",
-                         y_name = "Sequences", colour = "#c9184a", log_y = TRUE)
+                         y_name = "Sequences", colour = FATE_COL[["Chimeric"]], log_y = TRUE)
         if (!is.null(o)) bits <- c(bits, list(
           subhead("chim-scores", "De novo chimera scores"),
           echart(o, height = 320, title = "Score distribution of flagged sequences",
@@ -850,7 +865,7 @@ len_section <- {
       v <- st$MEEP[is.finite(st$MEEP)]
       ml <- bin_markline(v, 40L, meep_cut, paste0("max_MEEP = ", meep_cut))
       o <- hist_option(v, bins = 40L, x_name = "MEEP (max expected errors per 100 bp)",
-                       y_name = "Sequences", colour = "#1d6fa5", marklines = ml, log_y = TRUE)
+                       y_name = "Sequences", colour = "var(--viz-dist)", marklines = ml, log_y = TRUE)
       if (!is.null(o)) bits <- c(bits, list(
         subhead("len-meep", "Expected error rate"),
         echart(o, height = 300,
