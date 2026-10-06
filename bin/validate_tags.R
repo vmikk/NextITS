@@ -359,8 +359,25 @@ if(any(DUAL) == TRUE){
     cat("..Number of swapped-pair tag combinations: ", nrow(swapped), "\n")
     cat("..Swapped-pair tag combinations: ", "\n")
     print(swapped[ , .(samples, tag_pair_unordered) ])
-    stop("\nIt is impossible to assign sample ID to sequences with swapped-pair tag combinations!\nPlease fix the tag sequences (e.g., combine primer sequence with the tag sequence!\n")
+    stop("\nIt is impossible to assign sample ID to sequences with swapped-pair tag combinations!\nPlease fix the tag sequences (e.g., combine primer sequence with the tag sequence!\n Note however, that LIMA supports only ACTG bases - IUPAC degenerate bases are not supported)!\n Alternatively, use cutadapt to demultiplex the reads.\n")
   }
+
+
+  ## Tags for cutadapt-based demultiplexing (Illumina paired-end reads)
+  ## The i-th records of the two files belong to the same sample (`cutadapt --pair-adapters`)
+  cat("\nExporting per-sample tags: 'tags_fwd.fasta' and 'tags_rev.fasta'\n")
+
+  dtt_cut <- dtt[ order(SampleID) ]
+
+  tags_fwd <- DNAStringSet(x = dtt_cut$Tag1)
+  names(tags_fwd) <- dtt_cut$SampleID
+  writeXStringSet(x = tags_fwd, filepath = "tags_fwd.fasta", compress = FALSE, format = "fasta", width = 9999)
+
+  tags_rev <- DNAStringSet(x = dtt_cut$Tag2)
+  names(tags_rev) <- dtt_cut$SampleID
+  writeXStringSet(x = tags_rev, filepath = "tags_rev.fasta", compress = FALSE, format = "fasta", width = 9999)
+
+  rm(dtt_cut, tags_fwd, tags_rev)
 
 
   ## Prepare biosample table for LIMA
