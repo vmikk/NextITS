@@ -192,7 +192,7 @@ funnel_fig <- if (!is.null(funnel) && nrow(funnel) > 1L) {
   ## Each step keeps some sequences and folds the rest into their parents
   ## the folded ones branch off so the widths add up at every stage
   lk <- data.table(source = character(), target = character(), value = numeric())
-  cols <- c(setNames(rep("#2e7d4f", nrow(funnel)), funnel$Stage))
+  cols <- c(setNames(rep("var(--fate-trunk)", nrow(funnel)), funnel$Stage))
   for (i in seq_len(nrow(funnel) - 1L)) {
     from <- funnel$Stage[[i]]
     to   <- funnel$Stage[[i + 1L]]
@@ -205,7 +205,7 @@ funnel_fig <- if (!is.null(funnel) && nrow(funnel) > 1L) {
       ## Sankey node names must be unique.
       while (lab %in% names(cols)) lab <- paste0(lab, " ")
       lk <- rbind(lk, data.table(source = from, target = lab, value = gone))
-      cols[[lab]] <- "#adbcb1"
+      cols[[lab]] <- "var(--fate-other)"
     }
   }
   if (nrow(lk) > 0L) {
@@ -258,7 +258,7 @@ rare_fig <- if (n_samples >= 2L && n_samples <= opt$`rarefaction-max` &&
     series <- Filter(Negate(is.null), series)
     if (length(series) > 0L) {
       o <- line_option(series, "Reads sampled", paste0(unit, " expected"),
-                       show_legend = length(series) <= 12L, smooth = FALSE)
+                       show_legend = length(series) <= length(PAL), smooth = FALSE)
       o$tooltip <- list(trigger = "item", formatter = js_fn("scatterPoint", "reads", unit, ""))
       echart(o, height = 380, title = "Rarefaction curves",
         caption = "Expected richness as a function of sampling effort. Curves that have flattened are sequenced deeply enough; curves still rising are not.")
@@ -278,8 +278,8 @@ rank_fig <- {
     xAxis = list(type = "value", name = "Rank", nameLocation = "middle", nameGap = 30, min = 1),
     yAxis = list(type = "log", name = "Reads", nameLocation = "middle", nameGap = 50),
     series = list(list(type = "line", showSymbol = FALSE, smooth = FALSE,
-                       lineStyle = list(width = 1.8, color = PAL[[1L]]),
-                       areaStyle = list(color = PAL[[1L]], opacity = 0.12),
+                       lineStyle = list(width = 2, color = PAL[[1L]]),
+                       areaStyle = list(color = "var(--viz-wash)"),
                        data = Map(function(a, b) list(a, b), seq_len(n_otu), otu_tot$Total))))
   if (n_otu > 200L) {
     o$dataZoom <- list(list(type = "inside"), list(type = "slider", height = 18, bottom = 4))
@@ -320,8 +320,7 @@ len_fig <- if (is_usable_file(opt$otus) && requireNamespace("Biostrings", quietl
       if (is.finite(hi)) paste0("ampliconlen_max = ", hi))), collapse = ", ")
     if (!is.null(o)) echart(o, height = 300, title = paste0(unit, " length distribution"),
       caption = paste0("Length of the ", fmt_int(length(sq)), " representative sequences. ",
-                       "A secondary mode well away from the target amplicon usually means off-target amplification.",
-                       if (nzchar(bounds)) paste0(" Dashed line: ", bounds, ".") else ""))
+                      if (nzchar(bounds)) paste0(" Dashed line: ", bounds, ".") else ""))
   }
 }
 
