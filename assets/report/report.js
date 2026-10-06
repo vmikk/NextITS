@@ -3,44 +3,72 @@
 (function () {
   "use strict";
 
-  document.documentElement.classList.remove("no-js");
+  var root = document.documentElement;
+  root.classList.remove("no-js");
 
-  var $  = function (sel, root) { return (root || document).querySelector(sel); };
-  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var $  = function (sel, ctx) { return (ctx || document).querySelector(sel); };
+  var $$ = function (sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); };
 
   /* ------------------------------------------------------------- theme */
 
+  /* The <head> script in report_lib.R sets data-theme before first paint,
+     using the same key; this keeps it in sync and handles the toggle */
   var THEME_KEY = "nextits-report-theme";
+  var darkQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 
-  function systemDark() {
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  }
   function storedTheme() {
     try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
   }
   function isDark() {
     var t = storedTheme();
-    return t ? t === "dark" : systemDark();
+    return t ? t === "dark" : !!(darkQuery && darkQuery.matches);
   }
-  function applyTheme(dark) {
-    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  function themeIsDark() { return root.getAttribute("data-theme") === "dark"; }
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function setThemeAttr(dark) {
+    root.setAttribute("data-theme", dark ? "dark" : "light");
     var btn = $(".theme-toggle");
     if (btn) {
-      btn.textContent = dark ? "☀ Light" : "☾ Dark";
-      btn.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+      var label = dark ? "Switch to light theme" : "Switch to dark theme";
+      btn.setAttribute("aria-label", label);
+      btn.setAttribute("title", label);
     }
+  }
+  function applyTheme(dark) {
+    setThemeAttr(dark);
     redrawCharts();
   }
 
   function initTheme() {
-    applyTheme(isDark());
+    setThemeAttr(isDark());
     var btn = $(".theme-toggle");
-    if (!btn) return;
-    btn.addEventListener("click", function () {
-      var next = !isDark();
-      try { localStorage.setItem(THEME_KEY, next ? "dark" : "light"); } catch (e) { /* private mode */ }
-      applyTheme(next);
-    });
+    if (btn) {
+      btn.addEventListener("click", function () {
+        var next = !themeIsDark();
+        try { localStorage.setItem(THEME_KEY, next ? "dark" : "light"); } catch (e) { /* private mode */ }
+        if (reducedMotion()) { applyTheme(next); return; }
+        /* The page colours cross-fade (CSS) while the charts fade out; they are
+           repainted in the new theme once hidden, then fade back in.
+           The icon spins out and back in on the same beat */
+        root.classList.add("theme-xfade");
+        btn.classList.add("spin");
+        setThemeAttr(next);
+        setTimeout(function () {
+          redrawCharts();
+          btn.classList.remove("spin");
+          root.classList.remove("theme-xfade");
+        }, 170);
+      });
+    }
+    /* Follow the OS setting until the reader picks a theme */
+    if (darkQuery) {
+      var follow = function (e) { if (!storedTheme()) applyTheme(e.matches); };
+      if (darkQuery.addEventListener) darkQuery.addEventListener("change", follow);
+      else if (darkQuery.addListener) darkQuery.addListener(follow);
+    }
   }
 
   /* --------------------------------------------------------------- nav */
@@ -54,7 +82,11 @@
     if (!targets.length) return;
 
     function mark(el) {
-      links.forEach(function (a) { a.classList.toggle("active", a.hash === "#" + el.id); });
+      links.forEach(function (a) {
+        var on = a.hash === "#" + el.id;
+        a.classList.toggle("active", on);
+        if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+      });
     }
 
     if ("IntersectionObserver" in window) {
@@ -89,7 +121,12 @@
     var rows = $$("tr", tbody);
     var headers = $$("thead th", table);
     var counter = $(".count", wrap);
+    var scroller = $(".tbl-scroll", wrap);
     var total = rows.length;
+
+    /* Read the labels before the sort icons go in: they feed the column
+       menu and the TSV header */
+    var labels = headers.map(function (th) { return th.textContent.trim(); });
 
     function updateCount(n) {
       if (counter) counter.textContent = n === total ? total + " rows" : n + " of " + total + " rows";
@@ -99,13 +136,16 @@
     /* sort ------------------------------------------------------------ */
     headers.forEach(function (th, idx) {
       if (th.hasAttribute("data-nosort")) return;
-      th.insertAdjacentHTML("beforeend", ' <span class="arrow">▴▾</span>');
-      th.addEventListener("click", function () {
+      var arrow = document.createElement("span");
+      arrow.className = "arrow";
+      arrow.setAttribute("aria-hidden", "true");
+      th.appendChild(arrow);
+      th.tabIndex = 0;
+
+      function sortBy() {
         var asc = th.getAttribute("aria-sort") !== "ascending";
-        headers.forEach(function (h) { h.removeAttribute("aria-sort"); h.querySelector(".arrow") && (h.querySelector(".arrow").textContent = "▴▾"); });
+        headers.forEach(function (h) { h.removeAttribute("aria-sort"); });
         th.setAttribute("aria-sort", asc ? "ascending" : "descending");
-        var arrow = th.querySelector(".arrow");
-        if (arrow) arrow.textContent = asc ? "▴" : "▾";
 
         rows.sort(function (ra, rb) {
           var a = cellValue(ra.cells[idx]), b = cellValue(rb.cells[idx]);
@@ -119,13 +159,24 @@
         var frag = document.createDocumentFragment();
         rows.forEach(function (r) { frag.appendChild(r); });
         tbody.appendChild(frag);
+      }
+      th.addEventListener("click", sortBy);
+      th.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortBy(); }
       });
     });
+
+    /* Lift the sticky header off the rows once they scroll under it */
+    if (scroller) {
+      scroller.addEventListener("scroll", function () {
+        scroller.classList.toggle("scrolled", scroller.scrollTop > 0);
+      }, { passive: true });
+    }
 
     /* search ---------------------------------------------------------- */
     var search = $("input[type=search]", wrap);
     if (search) {
-      search.addEventListener("input", function () {
+      var filter = function () {
         var q = search.value.trim().toLowerCase();
         var shown = 0;
         rows.forEach(function (r) {
@@ -134,6 +185,10 @@
           if (hit) shown++;
         });
         updateCount(shown);
+      };
+      search.addEventListener("input", filter);
+      search.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && search.value) { e.preventDefault(); search.value = ""; filter(); }
       });
     }
 
@@ -142,6 +197,8 @@
     if (menu) {
       var list = $(".cols-list", menu);
       var toggle = $(".btn", menu);
+      toggle.setAttribute("aria-haspopup", "true");
+      toggle.setAttribute("aria-expanded", "false");
       headers.forEach(function (th, idx) {
         var label = document.createElement("label");
         var cb = document.createElement("input");
@@ -152,19 +209,25 @@
           rows.forEach(function (r) { if (r.cells[idx]) r.cells[idx].hidden = !cb.checked; });
         });
         label.appendChild(cb);
-        label.appendChild(document.createTextNode(th.textContent.replace(/[▴▾]/g, "").trim()));
+        label.appendChild(document.createTextNode(labels[idx]));
         list.appendChild(label);
       });
-      toggle.addEventListener("click", function (e) { e.stopPropagation(); list.classList.toggle("open"); });
-      document.addEventListener("click", function (e) { if (!menu.contains(e.target)) list.classList.remove("open"); });
+      var setOpen = function (open) {
+        list.classList.toggle("open", open);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+      toggle.addEventListener("click", function (e) { e.stopPropagation(); setOpen(!list.classList.contains("open")); });
+      document.addEventListener("click", function (e) { if (!menu.contains(e.target)) setOpen(false); });
+      menu.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && list.classList.contains("open")) { setOpen(false); toggle.focus(); }
+      });
     }
 
     /* TSV download ----------------------------------------------------- */
     var dl = $("[data-download]", wrap);
     if (dl) {
       dl.addEventListener("click", function () {
-        var names = headers.map(function (h) { return h.textContent.replace(/[▴▾]/g, "").trim(); });
-        var lines = [names.join("\t")];
+        var lines = [labels.join("\t")];
         rows.forEach(function (r) {
           if (r.hidden) return;
           lines.push(Array.prototype.map.call(r.cells, function (td) {
@@ -190,7 +253,7 @@
   var charts = [];   /* {el, spec, inst} */
 
   function fmtNum(v) {
-    if (v === null || v === undefined || v === "") return "\u2014";
+    if (v === null || v === undefined || v === "") return "—";
     var n = +v;
     if (!isFinite(n)) return String(v);
     return Math.abs(n - Math.round(n)) < 1e-9
@@ -201,14 +264,14 @@
   /* ECharts takes callbacks for a handful of fields, but a report embeds its
      options as JSON, and JSON has no functions. The R side emits
      {"__fn": "name", "args": [...]} placeholders which are swapped for real
-     functions here, after theming (which round-trips through JSON) */
+     functions here */
   var FNS = {
     intValue: function () {
       return function (v) { return fmtNum(v); };
     },
     pctValue: function (digits) {
       return function (v) {
-        return (v === null || v === undefined || v === "") ? "\u2014" : (+v).toFixed(digits || 0) + "%";
+        return (v === null || v === undefined || v === "") ? "—" : (+v).toFixed(digits || 0) + "%";
       };
     },
     sqrtSize: function (lo, hi) {
@@ -228,57 +291,96 @@
     }
   };
 
-  function resolveFns(o) {
-    if (Array.isArray(o)) return o.map(resolveFns);
+  /* Colours that follow the theme arrive from R as "var(--token)" strings and
+     are looked up in the active theme's CSS custom properties.
+     One pass rebuilds the option tree, swapping both those strings and the
+     function placeholders, so the spec stored for each chart is never mutated */
+  var TOKEN = /^var\((--[\w-]+)\)$/;
+
+  function tokenReader() {
+    var cs = getComputedStyle(root);
+    var cache = {};
+    return function (name) {
+      if (Object.prototype.hasOwnProperty.call(cache, name)) return cache[name];
+      var v = cs.getPropertyValue(name).trim();
+      if (!v) {
+        if (window.console) console.warn("NextITS report: unknown colour token " + name);
+        v = cs.getPropertyValue("--ink-3").trim() || "#888888";
+      }
+      cache[name] = v;
+      return v;
+    };
+  }
+
+  function resolve(o, tok) {
+    if (typeof o === "string") {
+      var m = TOKEN.exec(o);
+      return m ? tok(m[1]) : o;
+    }
+    if (Array.isArray(o)) {
+      var arr = new Array(o.length);
+      for (var i = 0; i < o.length; i++) arr[i] = resolve(o[i], tok);
+      return arr;
+    }
     if (o && typeof o === "object") {
       if (typeof o.__fn === "string" && FNS[o.__fn]) {
         return FNS[o.__fn].apply(null, o.args || []);
       }
       var out = {};
       for (var k in o) {
-        if (Object.prototype.hasOwnProperty.call(o, k)) out[k] = resolveFns(o[k]);
+        if (Object.prototype.hasOwnProperty.call(o, k)) out[k] = resolve(o[k], tok);
       }
       return out;
     }
     return o;
   }
 
-  function themeColors() {
-    var cs = getComputedStyle(document.documentElement);
-    var get = function (n) { return cs.getPropertyValue(n).trim(); };
+  function themeColors(tok) {
+    var dark = themeIsDark();
+    var viz = [];
+    for (var i = 1; i <= 8; i++) viz.push(tok("--viz-" + i));
     return {
-      ink:  get("--ink"),
-      ink2: get("--ink-2"),
-      ink3: get("--ink-3"),
-      line: get("--line"),
-      surface: get("--surface"),
-      dark: document.documentElement.getAttribute("data-theme") === "dark"
+      dark: dark,
+      font: getComputedStyle(document.body).fontFamily,
+      ink: tok("--ink"), ink2: tok("--ink-2"), ink3: tok("--ink-3"),
+      line: tok("--line"), line2: tok("--line-2"),
+      surface: tok("--surface"), surface2: tok("--surface-2"),
+      accent: tok("--accent"), accentStrong: tok("--accent-strong"),
+      grid: tok("--viz-grid"), axis: tok("--viz-axis"),
+      zoomFill: tok("--zoom-fill"), tooltipBg: tok("--tooltip-bg"),
+      viz: viz,
+      onAccent: dark ? "#0c0f0d" : "#ffffff",
+      pointer: dark ? "rgba(255,255,255,0.05)" : "rgba(25,32,27,0.05)",
+      tipShadow: dark ? "0 12px 32px -8px rgba(0,0,0,.65)" : "0 12px 32px -10px rgba(25,32,27,.28)"
     };
   }
 
-  /* Recursively stamp theme-dependent colours onto an option tree
-     The R side emits only data and layout;
-     every colour that must follow the theme is left out there and injected here */
-  function themeOption(opt) {
-    var c = themeColors();
-    var o = JSON.parse(JSON.stringify(opt));
-
+  /* Stamp the theme's chrome onto a resolved option tree.
+     The R side emits data, layout and colour tokens; everything else that
+     must follow the theme is set here */
+  function themeOption(o, c) {
     o.backgroundColor = "transparent";
-    o.textStyle = Object.assign({ color: c.ink2, fontFamily: getComputedStyle(document.body).fontFamily }, o.textStyle || {});
+    o.color = c.viz;
+    o.textStyle = Object.assign({ color: c.ink2, fontFamily: c.font }, o.textStyle || {});
     o.animation = false;
 
     /* Every chart gets the same toolbox, so readers can lift a figure out of
        the report or inspect the numbers behind it without leaving the page */
     o.toolbox = Object.assign({
-      right: 8,
-      top: 2,
-      itemSize: 13,
-      itemGap: 8,
-      iconStyle: { borderColor: c.ink3 },
-      emphasis: { iconStyle: { borderColor: c.ink } },
+      right: 10,
+      top: 4,
+      itemSize: 14,
+      itemGap: 10,
+      iconStyle: { borderColor: c.ink3, borderWidth: 1.2 },
+      emphasis: { iconStyle: { borderColor: c.accent, textFill: c.ink2, textBackgroundColor: c.surface, textPadding: [2, 4] } },
       feature: {
         saveAsImage: { title: "Save as PNG", pixelRatio: 2, backgroundColor: c.surface },
-        dataView: { title: "View data", readOnly: true, lang: ["Chart data", "Close", "Refresh"] },
+        dataView: {
+          title: "View data", readOnly: true, lang: ["Chart data", "Close", "Refresh"],
+          backgroundColor: c.surface, textColor: c.ink,
+          textareaColor: c.surface2, textareaBorderColor: c.line,
+          buttonColor: c.accent, buttonTextColor: c.onAccent
+        },
         restore: { title: "Reset" }
       }
     }, o.toolbox || {});
@@ -292,28 +394,41 @@
     }
     if (o.legend) {
       o.legend = [].concat(o.legend).map(function (l) {
-        l.textStyle = Object.assign({ color: c.ink2 }, l.textStyle || {});
-        l.inactiveColor = c.ink3;
+        l.textStyle = Object.assign({ color: c.ink2, fontSize: 12 }, l.textStyle || {});
+        l.inactiveColor = c.line2;
+        l.inactiveBorderColor = c.line2;
+        if (l.itemGap === undefined) l.itemGap = 14;
+        l.pageIconColor = c.ink2;
+        l.pageIconInactiveColor = c.line2;
+        l.pageTextStyle = { color: c.ink3 };
         return l;
       });
     }
     if (o.tooltip) {
       o.tooltip = [].concat(o.tooltip).map(function (t) {
-        t.backgroundColor = c.surface;
+        t.backgroundColor = c.tooltipBg;
         t.borderColor = c.line;
-        t.textStyle = Object.assign({ color: c.ink, fontSize: 12 }, t.textStyle || {});
-        t.extraCssText = "box-shadow:0 4px 18px rgba(0,0,0,.18);border-radius:6px;";
+        t.borderWidth = 1;
+        t.padding = [8, 11];
+        t.confine = true;
+        t.textStyle = Object.assign({ color: c.ink, fontSize: 12, fontFamily: c.font }, t.textStyle || {});
+        t.extraCssText = "border-radius:10px;box-shadow:" + c.tipShadow +
+          ";backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);";
+        if (t.axisPointer && t.axisPointer.type === "shadow") {
+          t.axisPointer.shadowStyle = Object.assign({ color: c.pointer }, t.axisPointer.shadowStyle || {});
+        }
         return t;
       });
     }
     ["xAxis", "yAxis"].forEach(function (k) {
       if (!o[k]) return;
       o[k] = [].concat(o[k]).map(function (ax) {
-        ax.axisLine  = Object.assign({ lineStyle: { color: c.line } }, ax.axisLine || {});
-        ax.axisTick  = Object.assign({ lineStyle: { color: c.line } }, ax.axisTick || {});
-        ax.axisLabel = Object.assign({ color: c.ink2, fontSize: 11 }, ax.axisLabel || {});
-        ax.nameTextStyle = Object.assign({ color: c.ink3, fontSize: 11 }, ax.nameTextStyle || {});
-        ax.splitLine = Object.assign({ lineStyle: { color: c.line, type: "dashed" } }, ax.splitLine || {});
+        var cat = ax.type === "category";
+        ax.axisLine  = Object.assign({ lineStyle: { color: c.axis } }, ax.axisLine || {});
+        ax.axisTick  = Object.assign({ show: cat, length: 4, lineStyle: { color: c.axis } }, ax.axisTick || {});
+        ax.axisLabel = Object.assign({ color: c.ink3, fontSize: 11 }, ax.axisLabel || {});
+        ax.nameTextStyle = Object.assign({ color: c.ink3, fontSize: 11, fontWeight: 500 }, ax.nameTextStyle || {});
+        ax.splitLine = Object.assign({ lineStyle: { color: c.grid, type: "solid", width: 1 } }, ax.splitLine || {});
         return ax;
       });
     });
@@ -321,9 +436,14 @@
       o.dataZoom = [].concat(o.dataZoom).map(function (dz) {
         if (dz.type === "slider") {
           dz.borderColor = c.line;
+          dz.backgroundColor = "transparent";
+          dz.fillerColor = c.zoomFill;
           dz.textStyle = { color: c.ink3, fontSize: 10 };
-          dz.handleStyle = { color: c.surface, borderColor: c.ink3 };
-          dz.fillerColor = c.dark ? "rgba(90,171,221,.14)" : "rgba(29,111,165,.10)";
+          dz.handleStyle = { color: c.surface, borderColor: c.line2 };
+          dz.moveHandleStyle = { color: c.line2, opacity: 1 };
+          dz.dataBackground = { lineStyle: { color: c.line2, width: 1 }, areaStyle: { color: c.surface2, opacity: 1 } };
+          dz.selectedDataBackground = { lineStyle: { color: c.accentStrong, width: 1 }, areaStyle: { color: c.zoomFill, opacity: 1 } };
+          dz.emphasis = { handleStyle: { borderColor: c.accentStrong }, moveHandleStyle: { color: c.accentStrong } };
         }
         return dz;
       });
@@ -331,18 +451,34 @@
     if (o.visualMap) {
       o.visualMap = [].concat(o.visualMap).map(function (vm) {
         vm.textStyle = Object.assign({ color: c.ink2, fontSize: 11 }, vm.textStyle || {});
+        vm.handleStyle = Object.assign({ borderColor: c.ink3 }, vm.handleStyle || {});
         return vm;
       });
     }
     if (o.series) {
       o.series = [].concat(o.series).map(function (s) {
+        if (s.type === "bar") {
+          s.blur = Object.assign({ itemStyle: { opacity: 0.28 } }, s.blur || {});
+        }
+        if (s.type === "line") {
+          /* Lines drawn without symbols only react to hover with this on */
+          s.triggerLineEvent = true;
+          s.blur = Object.assign({ lineStyle: { opacity: 0.15 }, areaStyle: { opacity: 0.05 } }, s.blur || {});
+        }
+        if (s.type === "scatter") {
+          s.itemStyle = Object.assign({ borderColor: c.surface, borderWidth: 1.5 }, s.itemStyle || {});
+        }
         if (s.type === "sankey") {
-          s.label = Object.assign({ color: c.ink, fontSize: 11 }, s.label || {});
-          s.lineStyle = Object.assign({ color: "gradient", opacity: c.dark ? 0.32 : 0.22, curveness: 0.5 }, s.lineStyle || {});
+          s.label = Object.assign({ color: c.ink, fontSize: 12, fontWeight: 500 }, s.label || {});
+          s.lineStyle = Object.assign({ color: "gradient", opacity: c.dark ? 0.26 : 0.22, curveness: 0.5 }, s.lineStyle || {});
           s.itemStyle = Object.assign({ borderColor: c.surface, borderWidth: 1 }, s.itemStyle || {});
+          s.emphasis = Object.assign({}, s.emphasis || {}, { lineStyle: { opacity: 0.55 } });
         }
         if (s.markLine) {
-          s.markLine.label = Object.assign({ color: c.ink2, fontSize: 10 }, s.markLine.label || {});
+          s.markLine.label = Object.assign({
+            color: c.ink2, fontSize: 10.5,
+            backgroundColor: c.surface, padding: [2, 5], borderRadius: 4
+          }, s.markLine.label || {});
         }
         return s;
       });
@@ -359,16 +495,30 @@
     return o;
   }
 
-  function renderChart(rec) {
+  /* opts.animate: morph from the previous render (variant switches);
+     opts.print: draw everything in one pass, so nothing is left for a later frame */
+  function renderChart(rec, opts) {
     if (!window.echarts) return;
+    opts = opts || {};
     if (!rec.inst) {
       rec.inst = echarts.init(rec.el, null, { renderer: rec.spec.renderer || "canvas" });
     }
-    rec.inst.setOption(resolveFns(themeOption(rec.spec.option)), true);
+    var tok = tokenReader();
+    var o = themeOption(resolve(rec.spec.option, tok), themeColors(tok));
+    if (opts.animate && !reducedMotion()) {
+      o.animation = true;
+      o.animationDuration = 0;
+      o.animationDurationUpdate = 350;
+      o.animationEasingUpdate = "cubicOut";
+    }
+    if (opts.print && o.series) {
+      o.series.forEach(function (s) { s.progressive = 0; });
+    }
+    rec.inst.setOption(o, true);
   }
 
-  function redrawCharts() {
-    charts.forEach(function (rec) { if (rec.inst) renderChart(rec); });
+  function redrawCharts(opts) {
+    charts.forEach(function (rec) { if (rec.inst) renderChart(rec, opts); });
   }
 
   function initCharts() {
@@ -384,11 +534,11 @@
     });
 
     /* Render everything up front
-       A report carries on the order of ten small charts, 
+       A report carries on the order of ten small charts,
        and ECharts' canvas renderer handles those in a few hundred milliseconds;
        deferring them only makes printing, PDF export and screenshotting miss panels
        Heavy series carry `large`/`progressive` instead */
-    charts.forEach(renderChart);
+    charts.forEach(function (rec) { renderChart(rec); });
 
     var t = null;
     window.addEventListener("resize", function () {
@@ -397,9 +547,30 @@
         charts.forEach(function (rec) { if (rec.inst) rec.inst.resize(); });
       }, 120);
     });
-    /* Canvas charts do not reflow for the print stylesheet on their own */
+
+    /* Print on the light theme, at the printed width.
+       `html.printing` applies the print layout on screen for the moment the
+       charts are re-measured; the canvases do not reflow on their own */
+    var printDark = null;
     window.addEventListener("beforeprint", function () {
-      charts.forEach(function (rec) { if (rec.inst) rec.inst.resize(); });
+      printDark = themeIsDark();
+      root.classList.add("printing");
+      if (printDark) setThemeAttr(false);
+      charts.forEach(function (rec) {
+        if (!rec.inst) return;
+        rec.inst.resize();
+        renderChart(rec, { print: true });
+      });
+    });
+    window.addEventListener("afterprint", function () {
+      root.classList.remove("printing");
+      if (printDark) setThemeAttr(true);
+      printDark = null;
+      charts.forEach(function (rec) {
+        if (!rec.inst) return;
+        rec.inst.resize();
+        renderChart(rec);
+      });
     });
   }
 
@@ -413,17 +584,19 @@
 
   function initFigureControls() {
     $$("[data-fig-switch]").forEach(function (btn) {
+      btn.setAttribute("aria-pressed", btn.classList.contains("on") ? "true" : "false");
       btn.addEventListener("click", function () {
         var rec = recFor(btn.getAttribute("data-fig-switch"));
         if (!rec || !rec.spec.variants) return;
         var key = btn.getAttribute("data-variant");
         var variant = rec.spec.variants[key];
-        if (!variant) return;
+        if (!variant || rec.spec.option === variant) return;
         $$('[data-fig-switch="' + btn.getAttribute("data-fig-switch") + '"]').forEach(function (b) {
           b.classList.toggle("on", b === btn);
+          b.setAttribute("aria-pressed", b === btn ? "true" : "false");
         });
         rec.spec.option = variant;
-        renderChart(rec);
+        renderChart(rec, { animate: true });
       });
     });
   }
@@ -432,16 +605,20 @@
 
   function initCopy() {
     $$("[data-copy]").forEach(function (btn) {
+      var timer = null;
       btn.addEventListener("click", function () {
         var src = document.getElementById(btn.getAttribute("data-copy"));
         if (!src) return;
         var text = src.textContent;
         var done = function (ok) {
           var note = btn.parentNode.querySelector(".copied");
-          if (note) {
-            note.textContent = ok ? "Copied" : "Press Ctrl+C";
-            setTimeout(function () { note.textContent = ""; }, 2000);
-          }
+          if (note) note.textContent = ok ? "Copied" : "Press Ctrl+C";
+          btn.classList.toggle("is-copied", ok);
+          clearTimeout(timer);
+          timer = setTimeout(function () {
+            if (note) note.textContent = "";
+            btn.classList.remove("is-copied");
+          }, 1800);
         };
         /* navigator.clipboard is unavailable on file:// in some browsers */
         if (navigator.clipboard && navigator.clipboard.writeText) {
