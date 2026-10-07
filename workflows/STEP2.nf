@@ -911,6 +911,12 @@ workflow S2 {
         derepuc_ch,
         derep_ch
       )
+
+      ch_s2_otutab    = summarize_dereplicated_data.out.otutablong
+      ch_s2_otus      = summarize_dereplicated_data.out.seqs
+      ch_s2_uc        = summarize_dereplicated_data.out.uc
+      ch_s2_lulu      = file("no_lulu")
+      ch_s2_lulustats = file("no_lulustats")
     
     } else {
 
