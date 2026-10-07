@@ -259,6 +259,8 @@ process bucketize {
 
     script:
     numchunks = params.chunking_n ? "--numbuckets ${params.chunking_n}" : ""
+    // Size check for R-based DADA2 (`num_seq * len_seq` must be < 2^31)
+    dada2size = (params.preclustering == "dada2" && params.dada2_engine == "dada2") ? "--dada2_minsize ${params.dada2_minsize}" : ""
     """
     echo -e "..Bucketizing sequences\\n"
 
@@ -266,6 +268,7 @@ process bucketize {
       --db      ${clusters} \
       --fasta   ${sequences} \
       ${numchunks} \
+      ${dada2size} \
       --summary bucket_summary.txt \
       --threads ${task.cpus}
   
