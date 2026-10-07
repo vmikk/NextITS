@@ -15,13 +15,16 @@
 
 /*
  * Typed pipeline parameters (Nextflow 26+)
- * Config-time defaults (outdir, tracedir, primers, chunking_n, storagemode)
+ * Config-time defaults (outdir, tracedir, primers, chunking_n, storagemode,
+ * its_region, pe_merger, qc_polyglen, preclustering, clustering)
  * are in conf/params.config and must not be duplicated here
+ * (trace_timestamp is computed in nextflow.config)
  */
 params {
     // Config-time parameters (defaults in conf/params.config)
     outdir: String
     tracedir: String
+    trace_timestamp: String
 
     // Step selection
     step: String = "Step1"
@@ -38,7 +41,7 @@ params {
     seqplatform: String = "PacBio"      // "PacBio" or "Illumina"
     
     // ITS part selector
-    its_region: String = "full"
+    its_region: String   // default in conf/params.config ("full")
     //   "full" = default (full-length ITS sequence, after trimming SSU and LSU regions by ITSx)
     //   "ITS1" or "ITS2"
     //   "none" = just trim primers
@@ -52,7 +55,7 @@ params {
     qc_maxn: Integer = 4
 
     // QC for Illumina reads
-    qc_polyglen: Integer? = 10          // trim 3' poly-G tails of at least this length prior to read merging (null = no trimming)
+    qc_polyglen: Integer?               // default in conf/params.config (10); trim 3' poly-G tails of at least this length prior to read merging (null = no trimming)
     qc_binned: Boolean? = null          // expected type of Phred scores (set by `-profile miseq` or `-profile novaseq`; used only for a warning)
 
 
@@ -82,7 +85,7 @@ params {
     barcode_minlen: Integer = 50        // min read length after tag removal
 
     // Illumina paired-end read merging
-    pe_merger: String = "usearch"       // "usearch" or "vsearch"
+    pe_merger: String                   // "usearch" (default in conf/params.config) or "vsearch"
     pe_maxdiffs: Integer = 10           // max number of mismatches in the overlap
     pe_pctid: Integer = 80              // min percent identity in the overlap
     pe_minoverlap: Integer = 16         // min overlap length
@@ -178,10 +181,10 @@ params {
     
     // Number of chunks to split the dataset into prior clustering
     chunking_n: Integer?       // number of chunks
-    chunking_id: Float = 0.6   // minimum sequence identity for clustering
+    chunking_id: Float = 0.9   // minimum sequence identity for linking sequences into the same chunk
 
     // Sequence denoising or pre-clustering ("none", "unoise", "dada2", "swarm_d1", "homopolymer")
-    preclustering: String = "none"
+    preclustering: String   // default in conf/params.config ("none")
     
     // Denoising with UNOISE
     unoise_alpha: Float = 6.0
@@ -206,7 +209,7 @@ params {
     dada2_mapback_unmapped: String = "keep"    // "keep" or "discard" excluded sequences that do not match any ASV
 
     // Sequence clustering method ("none" / "vsearch" / "swarm" / "shmatching")
-    clustering: String = "vsearch"
+    clustering: String   // default in conf/params.config ("vsearch")
     
     // VSEARCH clustering
     otu_id: Float = 0.98
