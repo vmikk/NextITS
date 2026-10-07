@@ -192,8 +192,22 @@ process linclust {
       ${input} \
       mmseqs_db
 
+    ## Sequence weights = abundance (from `;size=`), scaled to stay below `--cluster-weight-threshold`
+    ## By default, linclust uses the longest sequence of each k-mer group as its center,
+    ## which in amplicon data is often a low-abundance artifact (e.g., a chimera),
+    ## so similar abundant sequences might end up in different clusters
+    ## With weights, the most abundant sequence becomes the center
+    ## NB! sequences with weight > threshold are never assigned to a center,
+    ## and thresholds >= 1e6 are not accepted (they are passed to kmermatcher as `1e+06`)
+    echo -e "..Preparing sequence weights\\n"
+    awk -F'\\t' \
+      '{ n = split(\$2, a, ";size="); printf "%s\\t%.10g\\n", \$1, (n > 1 ? a[2] + 0 : 1) * 1e-10 }' \
+      mmseqs_db.lookup \
+      > mmseqs_weights.tsv
 
-    ## Run (cascaded) clustering
+    ## Run clustering
+    ## Connected components keep transitively linked sequences together
+    ## (set cover splits groups of similar sequences between different representatives)
     echo -e "..Lin-Clustering\\n"
 
     mmseqs linclust \
@@ -201,14 +215,17 @@ process linclust {
       linclusters_db \
       tmplc \
       --min-seq-id ${params.chunking_id} \
-      --cluster-mode 0 \
+      --cluster-mode 1 \
       --similarity-type 2 \
+      --alignment-mode 3 \
       -c 0.7 --cov-mode 0 \
       -k 15 \
-      --kmer-per-seq 100 \
-      --kmer-per-seq-scale 0.3 \
+      --kmer-per-seq 21 \
+      --kmer-per-seq-scale 0.2 \
       --spaced-kmer-mode 0 \
       --mask 0 \
+      --weights mmseqs_weights.tsv \
+      --cluster-weight-threshold 0.9 \
       --split-memory-limit 100G \
       --remove-tmp-files 1 \
       --threads ${task.cpus}
