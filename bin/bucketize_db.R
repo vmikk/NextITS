@@ -37,6 +37,7 @@ option_list <- list(
   make_option(c("-f", "--fasta"),      action="store", default="Input.fa.gz",        type='character', help="Input sequences in FASTA format"),
   make_option(c("-s", "--summary"),    action="store", default="bucket_summary.txt", type='character', help="Output file summary information"),
   make_option(c("-n", "--numbuckets"), action="store", default=NA,   type='integer', help="Number of output buckets (NA, for automatic selection)"),
+  make_option(c("-m", "--dada2_minsize"), action="store", default=NA, type='integer', help="Minimum abundance of sequences denoised with DADA2 (NA, to skip the DADA2 size check)"),
   make_option(c("-t", "--threads"),    action="store", default=4,    type='integer', help="Number of CPU threads to use")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -58,6 +59,7 @@ DATABASE <- opt$db
 FASTA    <- opt$fasta
 SUMMARY  <- opt$summary
 NBUCKETS <- opt$numbuckets
+MINSIZE  <- opt$dada2_minsize
 THREADS  <- opt$threads
 
 ## Log assigned variables
@@ -69,6 +71,9 @@ if(is.na(NBUCKETS)){
   cat(paste("Number of buckets: ",        "auto",   "\n", sep = ""))
 } else {
   cat(paste("Number of buckets: ",        NBUCKETS, "\n", sep = ""))
+}
+if(!is.na(MINSIZE)){
+  cat(paste("DADA2 minimum abundance: ",  MINSIZE,  "\n", sep = ""))
 }
 
 cat(paste("CPU threads: ",                THREADS,  "\n", sep = ""))
@@ -201,6 +206,20 @@ setorder(datt, -sum_len, -num_seqs)
 cluster_ids      <- datt[[ "Cluster"  ]]
 cluster_num_seqs <- datt[[ "num_seqs" ]]
 cluster_sum_len  <- datt[[ "sum_len"  ]]
+
+## Clusters are never split between buckets, so the largest cluster sets the minimum size of the largest bucket
+cat("...Largest cluster: ", format(max(cluster_num_seqs), big.mark = ","), " sequences (",
+  round(max(cluster_num_seqs) / sum(cluster_num_seqs) * 100, 2), "% of all sequences)\n", sep = "")
+
+## DADA2 requires `num_seq * len_seq` < 2^31 (sequences with abundance < minsize are not denoised)
+if(!is.na(MINSIZE)){
+  max_denoised <- DB[ Size >= MINSIZE, .N, by = "Cluster" ][ , max(c(0L, N)) ]
+  cat("...Largest cluster, sequences with abundance >= ", MINSIZE, ": ", format(max_denoised, big.mark = ","), "\n", sep = "")
+  if(max_denoised * max_seq_width >= 2^31){
+    cat("WARNING: the largest cluster exceeds the DADA2 size limit (number of sequences * max length >= 2^31),\n",
+        "         DADA2 will probably fail for this chunk (consider increasing `--chunking_id` or `--dada2_minsize`)\n", sep = "")
+  }
+}
 
 
 cat("..Bucketizing\n")
