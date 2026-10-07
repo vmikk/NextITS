@@ -1014,13 +1014,19 @@ workflow S2 {
         summarize.out.seqs
         // cluster_ch        // In the Clustered.fa.gz, there are seqs excluded from OTU table
       )
+      ch_s2_lulu      = lulu.out.lulu
+      ch_s2_lulustats = lulu.out.stats
+    } else {
+      ch_s2_lulu      = file("no_lulu")
+      ch_s2_lulustats = file("no_lulustats")
     }
+
+    ch_s2_otutab = summarize.out.otutablong
+    ch_s2_otus   = summarize.out.seqs
+    ch_s2_uc     = merge_uc.out.uc
 
   } // end of preclustering == "none" & clustering == "none"
 
-
-  // Run statistics
-  // run_summary()
 
   // Dump the software versions to a file
   ch_versions_yml = software_versions_to_yaml(channel.topic('versions'))
