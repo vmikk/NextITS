@@ -348,8 +348,8 @@
         },
         "chunking_id": {
           "type": "number",
-          "default": 0.6,
-          "description": "Minimum sequence identity for clustering"
+          "default": 0.9,
+          "description": "Minimum sequence identity for linking sequences into the same chunk (chunks are connected components)"
         },
         "preclustering": {
           "type": "string",
@@ -387,13 +387,8 @@
         },
         "dada2_nbases": {
           "type": "number",
-          "default": 100000000,
-          "description": "DADA2 number of bases"
-        },
-        "dada2_maxreadsperseq": {
-          "type": "integer",
-          "default": 1000,
-          "description": "Maximum number of reads per sequence for error rate estimation (set to 0 to disable)"
+          "default": 500000000,
+          "description": "Target number of read bases (abundance x length) for DADA2 error rate learning; for chunked runs, the subset is spread over at least 5 buckets (smaller values subsample the buckets more strongly, which inflates the estimated error rates)"
         },
         "dada2_bandsize": {
           "type": "integer",
@@ -439,6 +434,25 @@
           "type": "integer",
           "default": -8,
           "description": "DADA2 gap penalty"
+        },
+        "dada2_minsize": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 1,
+          "description": "Minimum sequence abundance for DADA2 denoising; less abundant sequences (and sequences with ambiguous bases) are mapped to ASVs after denoising"
+        },
+        "dada2_mapback_id": {
+          "type": "number",
+          "default": 0.99,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum similarity for mapping sequences excluded from DADA2 denoising to ASVs"
+        },
+        "dada2_mapback_unmapped": {
+          "type": "string",
+          "default": "keep",
+          "enum": ["keep", "discard"],
+          "description": "What to do with sequences excluded from DADA2 denoising that do not match any ASV: keep them as separate sequences, or discard them"
         },
         "clustering": {
           "type": "string",
@@ -640,6 +654,12 @@
           "fa_icon": "fas fa-folder-minus",
           "description": "Directory to store pipeline execution logs"
         },
+        "trace_timestamp": {
+          "type": "string",
+          "fa_icon": "far fa-calendar",
+          "description": "Timestamp suffix for the execution report file names (default: launch time, yyyy-MM-dd_HH-mm)",
+          "hidden": true
+        },
         "version": {
           "type": "boolean",
           "description": "Display version and exit",
@@ -714,85 +734,129 @@
       "properties": {
         "input_R1": {
           "type": "string",
-          "description": "File with R1 reads for Illumina"
+          "format": "file-path",
+          "description": "File with multiplexed R1 reads (Illumina paired-end, FASTQ.gz)",
+          "fa_icon": "fas fa-file"
         },
         "input_R2": {
           "type": "string",
-          "description": "File with R2 reads for Illumina"
+          "format": "file-path",
+          "description": "File with multiplexed R2 reads (Illumina paired-end, FASTQ.gz)",
+          "fa_icon": "fas fa-file"
         },
-        "qc_avgphred": {
-          "type": "integer",
-          "description": "Average Phred score threshold (for Illumina PE reads only)"
-        },
-        "qc_twocolor": {
-          "type": "boolean",
-          "description": "Reduced resolution Phred-scores (two-color Illumina chemistry)"
-        },
-        "pe_minoverlap": {
-          "type": "integer",
-          "default": 20,
-          "description": "Paired-end reads minimum overlap (Illumina only)"
-        },
-        "pe_diffperclimit": {
-          "type": "integer",
-          "default": 20,
-          "description": "Paired-end reads max percentage difference for the overlap (Illumina only)"
-        },
-        "pe_difflimit": {
-          "type": "integer",
-          "default": 5,
-          "description": "Paired-end reads max difference for the overlap (Illumina only)"
-        },
-        "pe_nlimit": {
-          "type": "integer",
-          "default": 10
-        },
-        "pe_minlen": {
-          "type": "integer",
-          "default": 30
-        },
-        "barcode_errors": {
-          "type": "integer",
-          "default": 1,
-          "description": "Number of allowed erros in demultiplexing (Illumina only)"
-        },
-        "illumina_keep_notmerged": {
-          "type": "boolean",
-          "default": true
-        },
-        "illumina_joinpadgap": {
+        "illumina_pe_pattern": {
           "type": "string",
-          "default": "NNNNNNNNNN"
+          "default": "*_R{1,2}*.{fastq,fq}.gz",
+          "description": "File pattern of per-sample read pairs in the `--input` directory (with `--demultiplexed true`)"
         },
-        "illumina_joinpadqual": {
+        "illumina_barcodetype": {
           "type": "string",
-          "default": "IIIIIIIIII"
+          "default": "dual_symmetric",
+          "enum": [
+            "dual_symmetric",
+            "dual_asymmetric",
+            "single"
+          ],
+          "description": "Tag layout: the same tag on both mates (`dual_symmetric`), different tags on the mates (`dual_asymmetric`, `fwd...rev` FASTA format), or a tag on one mate only (`single`)"
+        },
+        "illumina_demux_rescue": {
+          "type": "boolean",
+          "default": true,
+          "description": "Rescue read pairs with a single readable tag (only tags used by a single sample)"
+        },
+        "illumina_revtag_orient": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "forward",
+            "revcomp"
+          ],
+          "description": "Orientation of reverse tags in the `fwd...rev` format (as read at the 5' end of a mate = `forward`); `auto` = detected from the data"
         },
         "barcode_window": {
           "type": "integer",
           "default": 30,
-          "description": "(Illumina only)"
+          "description": "Tag search window at the 5' end of reads (0 = tag is anchored at the read start)"
+        },
+        "barcode_errors": {
+          "type": "integer",
+          "default": 2,
+          "description": "Max number of mismatches in a tag"
         },
         "barcode_overlap": {
           "type": "integer",
           "default": 11,
-          "description": "(Illumina only)"
+          "description": "Min overlap of a read with a tag"
         },
-        "trim_minlen": {
+        "barcode_minlen": {
           "type": "integer",
-          "default": 10
+          "default": 50,
+          "description": "Min read length after tag removal"
         },
-        "qc_phredmin": {
-          "type": "integer",
-          "description": "Min Phred score threshold of unqualified bases (for two-color Illumina only)"
+        "pe_merger": {
+          "type": "string",
+          "default": "usearch",
+          "enum": [
+            "usearch",
+            "vsearch"
+          ],
+          "description": "Tool for merging of paired-end reads"
         },
-        "qc_phredperc": {
+        "pe_maxdiffs": {
           "type": "integer",
-          "description": "Max percentage of unqualified bases per read (for two-color Illumina only)"
+          "default": 10,
+          "description": "Max number of mismatches in the overlap of paired-end reads"
+        },
+        "pe_pctid": {
+          "type": "integer",
+          "default": 80,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Min percent identity in the overlap of paired-end reads"
+        },
+        "pe_minoverlap": {
+          "type": "integer",
+          "default": 16,
+          "description": "Min overlap length of paired-end reads"
+        },
+        "pe_minlen": {
+          "type": "integer",
+          "default": 50,
+          "description": "Min length of a merged read"
+        },
+        "pe_maxlen": {
+          "type": "integer",
+          "description": "Max length of a merged read"
         },
         "qc_polyglen": {
           "type": "integer",
-          "description": "Max poly-G length (for two-color Illumina only)"
+          "default": 10,
+          "description": "Trim 3' poly-G tails (two-colour chemistry) of at least this length prior to read merging; null = no trimming"
+        },
+        "qc_binned": {
+          "type": "boolean",
+          "description": "Expected type of Phred scores (binned or not); set by `-profile novaseq` or `-profile miseq`, used only to warn about a mismatch with the data"
+        },
+        "illumina_keep_notmerged": {
+          "type": "boolean",
+          "default": false,
+          "description": "Join non-merged read pairs with an N-pad (requires `--its_region none` and `--hp false`)"
+        },
+        "illumina_joinpadgap": {
+          "type": "string",
+          "default": "NNNNNNNNNN",
+          "description": "Padding sequence for joined read pairs"
+        },
+        "illumina_joinpadqual": {
+          "type": "string",
+          "default": "IIIIIIIIII",
+          "description": "Quality string of the padding"
+        },
+        "trim_minlen": {
+          "type": "integer",
+          "default": 10,
+          "description": "Min sequence length after primer trimming"
         }
       },
       "description": "EXPERIMENTAL",
