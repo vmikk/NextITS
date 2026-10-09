@@ -539,6 +539,11 @@ ${logoColors.dim}----------------------------------------------------${logoColor
       exit(1)
     }
 
+    // Chunks are connected components, so low identity thresholds can chain most sequences into a single chunk
+    if (params.chunking_n != null && params.chunking_n > 1 && params.chunking_id < 0.85) {
+      println warningMsg("`--chunking_id ${params.chunking_id}` is low; sequences can chain into a few very large chunks (recommended: 0.9).", params.monochrome_logs)
+    }
+
   }  // end of Step-2 parameter validation
 
 
