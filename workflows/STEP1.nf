@@ -1367,6 +1367,66 @@ process document_analysis_s1 {
 }
 
 
+// HTML run report for Step-1
+process render_report_s1 {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/08_RunSummary", mode: "${params.storagemode}"
+    // cpus 2
+
+    input:
+      path per_sample
+      path per_run
+      path versions
+      path params_tsv
+      path methods
+      path lima_summary
+      path lima_counts
+      path illumina_demux
+      path illumina_qcheck
+      path counts,  stageAs: "counts/*"
+      path itsx,    stageAs: "itsx/*"
+      path tj_scores
+      path seqtab
+      path seq_quals
+      path command, stageAs: "execution_command.txt"
+      path logo,    stageAs: "nextits_logo.svg"
+      path lib,     stageAs: "report_lib.R"
+      path assets,  stageAs: "report_assets"
+      val  stamp
+
+    output:
+      path "Step1_report.html", emit: html
+
+    script:
+    """
+    echo -e "Rendering Step-1 HTML report\\n"
+
+    render_report_s1.R \
+      --per-sample      ${per_sample} \
+      --per-run         ${per_run} \
+      --params          ${params_tsv} \
+      --versions        ${versions} \
+      --methods         ${methods} \
+      --command         execution_command.txt \
+      --logo            nextits_logo.svg \
+      --trace-stamp     "${stamp}" \
+      --lima-summary    ${lima_summary} \
+      --lima-counts     ${lima_counts} \
+      --illumina-demux  ${illumina_demux} \
+      --illumina-qcheck ${illumina_qcheck} \
+      --counts-dir      counts \
+      --itsx-dir        itsx \
+      --tagjump-scores  ${tj_scores} \
+      --seqtab          ${seqtab} \
+      --seq-quals       ${seq_quals} \
+      --assets          report_assets \
+      --out             Step1_report.html
+    """
+}
+
+
 
 
 //  The default workflow - Step-1
