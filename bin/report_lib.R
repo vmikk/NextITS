@@ -2,7 +2,12 @@
 ## (sourced by `render_report_s1.R` and `render_report_s2.R`)
 ##
 ## The R side emits structure and data only
-## Colours that must follow the light/dark theme, and all interactivity comes from `assets/report/report.js`
+## Interactivity comes from `assets/report/report.js`
+##
+## Chart colours are never hex here. They are CSS custom-property tokens written as
+## "var(--viz-1)", "var(--fate-retained)", ... which report.js swaps for the active
+## theme's value from `assets/report/report.css` at render time, so charts follow the
+## light/dark toggle. Any colour field in an ECharts option may carry a token
 
 suppressPackageStartupMessages({
   library(htmltools)
@@ -165,30 +170,43 @@ nextits_version_label <- function(versions) {
 
 ## --------------------------------------------------------------- palette
 
-PAL <- c("#2e7d4f", "#d98324", "#0f766e", "#9b5de5", "#c9184a",
-         "#6f9c1f", "#b45309", "#5f7a67", "#3f6fa5", "#6d4c8f")
+## Categorical slots, in a fixed order that was validated for colour-vision-deficiency
+## separation in both themes (see report.css). Assign in order; never cycle past 8
+PAL <- sprintf("var(--viz-%d)", 1:8)
+PAL_OTHER <- "var(--viz-other)"
 
-## Read-fate colours: greens are kept reads, everything else is a named loss
+## Read-fate colours: green is kept reads, everything else is a named loss
 FATE_COL <- c(
-  "Retained"          = "#2e7d4f",
-  "Undemultiplexed"   = "#8a9d90",
-  "Failed QC"         = "#5f7a67",
-  "No primers"        = "#7a8fa6",
-  "Not merged"        = "#4f6d8f",
-  "Primer artefacts"  = "#d98324",
-  "No ITS detection" = "#9b5de5",
-  "Chimeric"          = "#c9184a",
-  "Tag jumps"         = "#b45309",
-  "Other filtering"   = "#adbcb1"
+  "Retained"          = "var(--fate-retained)",
+  "Undemultiplexed"   = "var(--fate-undemux)",
+  "Failed QC"         = "var(--fate-failedqc)",
+  "No primers"        = "var(--fate-noprimers)",
+  "Not merged"        = "var(--fate-notmerged)",
+  "Primer artefacts"  = "var(--fate-artefacts)",
+  "No ITS detection"  = "var(--fate-noits)",
+  "Chimeric"          = "var(--fate-chimeric)",
+  "Tag jumps"         = "var(--fate-tagjump)",
+  "Other filtering"   = "var(--fate-other)"
 )
+
+## Colour for a named category, falling back to the neutral slot
+## (`[[` on a missing name errors rather than returning NULL)
+col_for <- function(colours, k) {
+  if (k %in% names(colours)) unname(colours[[k]]) else PAL_OTHER
+}
 
 ## ----------------------------------------------------------------- cards
 
 ## status: one of "ok", "warn", "bad", or NA for a neutral card.
+## The chip reads as a grade (Good / Fair / Poor), not as a pass/fail verdict: the
+## QC panel below the cards is where rules pass or fail
 kpi_card <- function(label, value, sub = NULL, status = NA_character_) {
   cls <- paste("kpi", if (!is.na(status)) status else "")
   div(class = trimws(cls),
-      div(class = "k-label", label),
+      div(class = "k-head",
+        div(class = "k-label", label),
+        if (!is.na(status)) span(class = paste("k-status", status),
+          switch(status, ok = "Good", warn = "Fair", bad = "Poor", status))),
       div(class = "k-value", value),
       if (!is.null(sub)) div(class = "k-sub", sub))
 }
@@ -307,7 +325,8 @@ dt_table <- function(dt, cols = NULL, labels = NULL, fmt = NULL,
 
   toolbar <- if (search || cols_menu || !is.null(download)) {
     div(class = "tbl-bar",
-      if (search) tags$input(type = "search", placeholder = "Filter rows…", `aria-label` = "Filter table rows"),
+      if (search) span(class = "search",
+        tags$input(type = "search", placeholder = "Filter rows…", `aria-label` = "Filter table rows")),
       if (cols_menu) div(class = "cols-menu",
         tags$button(type = "button", class = "btn", "Columns"),
         div(class = "cols-list")),
@@ -319,7 +338,7 @@ dt_table <- function(dt, cols = NULL, labels = NULL, fmt = NULL,
     toolbar,
     div(class = "tbl-scroll",
       HTML(paste0('<table class="dt"><thead>', head, '</thead><tbody>', body, '</tbody></table>'))),
-    if (!is.null(caption)) div(style = "padding:8px 12px 10px", class = "empty", caption))
+    if (!is.null(caption)) div(class = "tbl-caption", caption))
 }
 
 ## ---------------------------------------------------------------- charts
@@ -367,7 +386,7 @@ switch_buttons <- function(chart_id, labels, keys, active = 1L) {
 ## Common scaffolding; colours that depend on the theme are added in report.js
 .base_opt <- function(legend = FALSE, grid = list(left = 8, right = 18, top = 34, bottom = 8)) {
   o <- list(grid = grid, tooltip = list(trigger = "axis", axisPointer = list(type = "shadow")))
-  if (legend) o$legend <- list(top = 0, itemWidth = 11, itemHeight = 11, icon = "roundRect")
+  if (legend) o$legend <- list(top = 0, itemWidth = 10, itemHeight = 10, icon = "roundRect")
   o
 }
 
@@ -379,10 +398,15 @@ stacked_bar_option <- function(
 
   samples <- as.character(mat$Sample)
   tot <- Reduce(`+`, lapply(categories, function(k) num0(mat[[k]])))
+  ## A hairline in the surface colour separates the segments. Zoomed-out bars are
+  ## too thin for it, and it would paint over their smallest segments
+  zoomed <- length(samples) > zoom_above
   series <- lapply(categories, function(k) {
     v <- num0(mat[[k]])
-    list(name = k, type = "bar", stack = "fate", barMaxWidth = 26,
-         itemStyle = list(color = unname(colours[[k]] %||% "#8296ad")),
+    style <- list(color = col_for(colours, k))
+    if (!zoomed) style <- c(style, list(borderColor = "var(--surface)", borderWidth = 1))
+    list(name = k, type = "bar", stack = "fate", barMaxWidth = 24,
+         itemStyle = style,
          emphasis = list(focus = "series"),
          data = if (percent) round(safe_pct(v, tot), 3) else v)
   })
@@ -421,8 +445,8 @@ bar_option <- function(labels, values, y_name = "Reads", colour = PAL[[1L]],
                   nameTextStyle = list(align = "left"),
                   axisLabel = list(formatter = js_fn("intValue")))
   o$tooltip$valueFormatter <- js_fn("intValue")
-  o$series <- list(list(type = "bar", barMaxWidth = 26, data = values,
-                        itemStyle = list(color = colour, borderRadius = c(2, 2, 0, 0)),
+  o$series <- list(list(type = "bar", barMaxWidth = 24, data = values,
+                        itemStyle = list(color = colour, borderRadius = c(3, 3, 0, 0)),
                         emphasis = list(focus = "series")))
   if (length(labels) > zoom_above) {
     span <- max(10, round(zoom_above / length(labels) * 100))
@@ -471,6 +495,9 @@ hist_option <- function(values, bins = 40L, x_name = "Value", y_name = "Count",
   brk <- seq(rng[1L], rng[2L], length.out = bins + 1L)
   h   <- hist(values, breaks = brk, plot = FALSE)
   mid <- signif(h$mids, 4)   # not round(): the values may all be very small
+  ## Empty bins carry no bar at all: a zero-height bar would still draw its
+  ## surface-coloured edge over the baseline (and cannot sit on a log axis)
+  counts <- ifelse(h$counts > 0, h$counts, NA)
   o <- .base_opt(grid = list(left = 8, right = 18, top = 34, bottom = 10))
   o$xAxis <- list(type = "category", data = mid, name = x_name,
                   nameLocation = "middle", nameGap = 30,
@@ -478,8 +505,9 @@ hist_option <- function(values, bins = 40L, x_name = "Value", y_name = "Count",
   o$yAxis <- list(type = if (log_y) "log" else "value", min = if (log_y) NULL else 0,
                   name = y_name, nameLocation = "end", nameGap = 12,
                   nameTextStyle = list(align = "left"))
-  o$series <- list(list(type = "bar", data = h$counts, barCategoryGap = "0%",
-                        itemStyle = list(color = colour), markLine = marklines))
+  o$series <- list(list(type = "bar", data = counts, barCategoryGap = "0%",
+                        itemStyle = list(color = colour, borderColor = "var(--surface)", borderWidth = 1),
+                        markLine = marklines))
   o
 }
 
@@ -503,7 +531,7 @@ bin_markline <- function(values, bins, cutoff, label) {
 ## A vertical reference line, e.g. a filtering cut-off
 markline_x <- function(value, label) {
   list(silent = TRUE, symbol = "none",
-       lineStyle = list(color = "#c9184a", type = "dashed", width = 1.4),
+       lineStyle = list(color = "var(--viz-ref)", type = "dashed", width = 1.2),
        label = list(formatter = label, position = "insideMiddleTop",
                     rotate = 0, fontSize = 10, padding = c(0, 0, 0, 6),
                     align = "left"),
@@ -512,7 +540,7 @@ markline_x <- function(value, label) {
 
 markline_y <- function(value, label) {
   list(silent = TRUE, symbol = "none",
-       lineStyle = list(color = "#c9184a", type = "dashed", width = 1.4),
+       lineStyle = list(color = "var(--viz-ref)", type = "dashed", width = 1.2),
        label = list(formatter = label, position = "insideEndTop",
                     rotate = 0, fontSize = 10),
        data = list(list(yAxis = value)))
@@ -533,8 +561,9 @@ box_option <- function(groups, y_name = "Value", colour = PAL[[1L]]) {
   o$yAxis <- list(type = "value", name = y_name, nameLocation = "end", nameGap = 12,
                   nameTextStyle = list(align = "left"), scale = TRUE)
   o$tooltip <- list(trigger = "item")
-  o$series <- list(list(type = "boxplot", data = unname(stats),
-                        itemStyle = list(color = colour, borderColor = colour, borderWidth = 1.4)))
+  o$series <- list(list(type = "boxplot", data = unname(stats), boxWidth = c(12, 56),
+                        itemStyle = list(color = "var(--viz-wash)", borderColor = colour, borderWidth = 1.5),
+                        emphasis = list(itemStyle = list(borderWidth = 2))))
   o
 }
 
@@ -550,12 +579,16 @@ line_option <- function(series, x_name, y_name, x_log = FALSE, y_log = FALSE,
                   nameTextStyle = list(align = "left"), scale = TRUE,
                   min = if (y_log) NULL else 0)
   o$tooltip <- list(trigger = "item")
+  ## Up to eight series take the categorical slots in order. Past that, hues would
+  ## repeat, so every line shares slot 1 at low opacity and hovering one lifts it
+  one_hue <- length(series) > length(PAL)
   o$series <- lapply(seq_along(series), function(i) {
     s <- series[[i]]
+    col <- if (one_hue) PAL[[1L]] else PAL[[i]]
     list(name = s$name, type = "line", smooth = smooth, showSymbol = FALSE,
-         lineStyle = list(width = 1.6, color = PAL[[(i - 1L) %% length(PAL) + 1L]]),
-         itemStyle = list(color = PAL[[(i - 1L) %% length(PAL) + 1L]]),
-         emphasis = list(focus = "series", lineStyle = list(width = 3)),
+         lineStyle = list(width = if (one_hue) 1.5 else 2, color = col, opacity = if (one_hue) 0.45 else 1),
+         itemStyle = list(color = col),
+         emphasis = list(focus = "series", lineStyle = list(width = 3, opacity = 1)),
          data = Map(function(a, b) list(a, b), s$x, s$y))
   })
   o
@@ -564,7 +597,7 @@ line_option <- function(series, x_name, y_name, x_log = FALSE, y_log = FALSE,
 ## Sankey. `nodes` is a character vector of names (optionally with a colours lookup); `links` a data.table of source/target/value
 sankey_option <- function(nodes, links, colours = FATE_COL, value_fmt = NULL) {
   node_data <- lapply(nodes, function(n)
-    list(name = n, itemStyle = list(color = unname(colours[[n]] %||% PAL[[1L]]))))
+    list(name = n, itemStyle = list(color = col_for(colours, n))))
   link_data <- lapply(seq_len(nrow(links)), function(i)
     list(source = links$source[[i]], target = links$target[[i]], value = links$value[[i]]))
   list(
@@ -600,9 +633,9 @@ heatmap_option <- function(dt, x_levels, y_levels, x_name, y_name,
     visualMap = list(min = 0, max = vmax, calculable = TRUE, orient = "vertical",
                      right = 6, top = "middle", itemHeight = 140, itemWidth = 12,
                      text = list(value_name, ""),
-                     inRange = list(color = c("#eef6f0", "#a9d8bb", "#3f8f63", "#0c3d26"))),
+                     inRange = list(color = sprintf("var(--seq-%d)", 0:5))),
     series = list(list(type = "heatmap", data = data, progressive = 2000,
-                       emphasis = list(itemStyle = list(borderColor = "#1c2938", borderWidth = 1)))))
+                       emphasis = list(itemStyle = list(borderColor = "var(--ink)", borderWidth = 1)))))
 }
 
 ## ----------------------------------------------------------- copy blocks
@@ -718,7 +751,8 @@ sec <- function(id, title, ..., note = NULL, subs = NULL) {
   if (length(body) == 0L) return(NULL)
   list(id = id, title = title, subs = subs,
        tag = tags$section(class = "panel", id = id,
-         h2(title),
+         h2(title, tags$a(class = "anchor", href = paste0("#", id),
+                          `aria-label` = paste0("Link to section: ", title), "#")),
          if (!is.null(note)) p(class = "panel-note", note),
          body))
 }
@@ -747,6 +781,15 @@ default_footer <- function() {
     'Charts use <a href="https://echarts.apache.org/">Apache ECharts</a>'))
 }
 
+## Runs in <head>, before the stylesheet is applied, so the page paints in the reader's
+## theme at once. report.js reads the same key. Dropping `no-js` here too keeps the
+## "needs JavaScript" chart placeholders from flashing while ECharts loads
+theme_boot_js <- paste0(
+  "(function(d){var t=null;",
+  "try{t=localStorage.getItem('nextits-report-theme')}catch(e){}",
+  "if(t!=='dark'&&t!=='light'){t=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}",
+  "d.setAttribute('data-theme',t);d.classList.remove('no-js')})(document.documentElement);")
+
 ## meta: named character vector rendered as the header strapline.
 report_page <- function(title, meta, sections, assets_dir, out,
                         footer = NULL, logo = NULL) {
@@ -764,15 +807,18 @@ report_page <- function(title, meta, sections, assets_dir, out,
     '<meta charset="utf-8">\n',
     '<meta name="viewport" content="width=device-width, initial-scale=1">\n',
     "<title>", htmlEscape(title), "</title>\n",
+    "<script>", theme_boot_js, "</script>\n",
     "<style>\n", read_asset(assets_dir, "report.css"), "\n</style>\n",
     "</head>")
 
   body <- tags$body(
-    tags$button(type = "button", class = "btn theme-toggle", "☾ Dark"),
     div(class = "layout",
       tags$aside(class = "sidebar",
         div(class = "brand", logo_tag(logo) %||% div(class = "brand-text", "NextITS")),
-        div(class = "brand-sub", title),
+        div(class = "brand-row",
+          div(class = "brand-sub", title),
+          tags$button(type = "button", class = "btn theme-toggle",
+                      `aria-label` = "Switch theme", title = "Switch theme")),
         nav),
       tags$main(class = "main",
         div(class = "page-head",
