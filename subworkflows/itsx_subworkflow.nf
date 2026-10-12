@@ -141,6 +141,98 @@ process primer_trim {
 }
 
 
+// Remove long chimeras (rRNA in both orientations, or repeated rRNA regions)
+// Dereplicated sequences are screened with cmsearch (HMM-only mode, both strands)
+// against the eukaryotic 5.8S, SSU 3'-end, and LSU 5'-end models bundled with ITSx2
+process long_chimera {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03_LongChimera", mode: "${params.storagemode}", pattern: "*_LongChimera.{fa,tsv}.gz"
+    // cpus 4
+
+    tag "${meta.id}"
+
+    input:
+      tuple val(meta), path(input)   // FASTA file with dereplicated sequences (gz-compressed, `;size=` annotations)
+
+    output:
+      tuple val(meta), path("filtered/${meta.id}.fa.gz"),      emit: derep,  optional: true
+      tuple val(meta), path("${meta.id}_LongChimera.fa.gz"),   emit: chimeric, optional: true
+      tuple val(meta), path("${meta.id}_LongChimera.tsv.gz"),  emit: report,   optional: true
+      tuple val(meta), path("${meta.id}_LongChimera_counts.tsv"), emit: counts
+      tuple val("${task.process}"), val('Infernal'), eval('cmsearch -h 2>&1 | sed -n "s/^# INFERNAL \\([0-9][0-9a-z.]*\\).*/\\1/p" | head -n 1'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'), topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'), topic: versions
+      tuple val("${task.process}"), val('Biostrings'), eval('Rscript -e "cat(as.character(packageVersion(\'Biostrings\')))"'), topic: versions
+
+    script:
+    def sampID = "${meta.id}"
+    """
+    echo -e "Long-chimera detection\\n"
+    echo -e "Input sample: " ${sampID}
+    echo -e "Min bit score: " ${params.long_chimera_minbits}
+    echo -e "Min model coverage: " ${params.long_chimera_mincov}
+
+    ## rRNA covariance models bundled with ITSx2
+    MODELS=\$(python -c "import itsx2; print(itsx2.DEFAULT_MODEL_DIR)")
+    echo -e "Models: " "\$MODELS"
+    cat \
+      "\$MODELS"/5_8S_RF00002.cm \
+      "\$MODELS"/RF01960_ssu3p.cm \
+      "\$MODELS"/RF02543_lsu5p.cm \
+      > euk_rRNA.cm
+
+    ## Decompress input
+    gunzip -c ${input} > inp.fa
+
+    ## Search for rRNA on both strands
+    ## (HMM-only mode is ~60x faster than the CM mode and reports model coordinates of the hits)
+    echo -e "\\nSearching for rRNA regions"
+    cmsearch \
+      --hmmonly \
+      --noali \
+      -T 20 \
+      --cpu ${task.cpus} \
+      --tblout hits.tbl \
+      -o /dev/null \
+      euk_rRNA.cm inp.fa
+
+    echo -e "..Done"
+
+    ## Classify sequences
+    echo -e "\\nDetecting long chimeras"
+    long_chimera.R \
+      --hits    hits.tbl \
+      --cm      euk_rRNA.cm \
+      --fasta   inp.fa \
+      --sample  ${sampID} \
+      --minbits ${params.long_chimera_minbits} \
+      --mincov  ${params.long_chimera_mincov} \
+      --threads ${task.cpus}
+
+    ## Remove long chimeras
+    echo -e "\\nRemoving long chimeras"
+    mkdir -p filtered
+    seqkit grep --invert-match --pattern-file flagged_ids.txt -w 0 inp.fa \
+      > filtered/${sampID}.fa
+
+    NUMSEQS=\$(grep -c '^>' filtered/${sampID}.fa || true)
+    echo -e "Number of sequences retained: " \$NUMSEQS
+    if [ "\$NUMSEQS" -gt 0 ]; then
+      gzip -${params.gzip_compression} filtered/${sampID}.fa
+    else
+      echo -e "..No sequences retained"
+      rm filtered/${sampID}.fa
+    fi
+
+    rm inp.fa hits.tbl euk_rRNA.cm
+    echo -e "..Done"
+    """
+}
+
+
 // Extract rRNA regions with ITSx (v1.x) from a single chunk of dereplicated sequences
 // NB. In input data, sequence header should not contain spaces!
 process itsx {
