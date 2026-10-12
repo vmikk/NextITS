@@ -72,6 +72,8 @@
   --fate-notmerged:  #9d562b;
   --fate-failedqc:   #a962a7;
   --fate-artefacts:  #e39420;
+  --fate-lcinv:      #9b274e;   /* long chimeras, inverted */
+  --fate-lcrep:      #2a4c6f;   /* long chimeras, repeat */
   --fate-noits:      #674eb0;
   --fate-chimeric:   #cf4047;
   --fate-tagjump:    #1ba8b5;
@@ -176,6 +178,8 @@
     --fate-notmerged:  #b36739;
     --fate-failedqc:   #ba76b7;
     --fate-artefacts:  #c98212;
+    --fate-lcinv:      #a8355e;
+    --fate-lcrep:      #9dbde0;
     --fate-noits:      #8976cd;
     --fate-chimeric:   #dd5559;
     --fate-tagjump:    #01a0ad;
