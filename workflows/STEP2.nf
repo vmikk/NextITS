@@ -1110,4 +1110,19 @@ workflow S2 {
     ch_versions_yml,
     ch_params_tsv)
 
+  render_report_s2(
+    ch_s2_otutab,
+    ch_s2_otus,
+    ch_s2_lulu,
+    ch_s2_lulustats,
+    ch_s2_uc,
+    ch_versions_yml,
+    ch_params_tsv,
+    document_analysis_s2.out.docs,
+    ch_command_txt,
+    file("${projectDir}/images/NextITS_logo.svg"),
+    file("${projectDir}/bin/report_lib.R"),
+    file("${projectDir}/assets/report"),
+    params.trace_timestamp)
+
 }
