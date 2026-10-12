@@ -165,10 +165,22 @@ emit_preclustering <- function(p, v) {
         implemented in VSEARCH v.{getv(v,'unoise','vsearch')} (Rognes et al., 2016) \\
         with alpha parameter {getp(p,'unoise_alpha',6.0)} and minimum size {getp(p,'unoise_minsize',1)}."),
 
-    "dada2" = glue(
+    "dada2" = {
+      dada_txt <- glue(
         "Sequence denoising was performed using \\
-        DADA2 v.{getv(v,'dada2','dada2')} (Callahan et al., 2016)"),
+        DADA2 v.{getv(v,'dada2','dada2')} (Callahan et al., 2016).")
         # using {getp(p,'dada2_pooling','global')} pooling strategy."
+      if(as.numeric(getp(p, "dada2_minsize", 2)) > 1){
+        unmapped_txt <- ifelse(getp(p, "dada2_mapback_unmapped", "keep") == "keep",
+          yes = "retained as separate sequences", no = "discarded")
+        dada_txt <- glue(
+          "{dada_txt} Sequences with fewer than {getp(p,'dada2_minsize',2)} reads \\
+          or with ambiguous nucleotides were excluded from denoising \\
+          and mapped to the inferred ASVs using VSEARCH (similarity threshold {getp(p,'dada2_mapback_id',0.99)}); \\
+          sequences without a match were {unmapped_txt}.")
+      }
+      dada_txt
+    },
 
     "swarm_d1" = glue(
         "Pre-clustering was performed using \\
