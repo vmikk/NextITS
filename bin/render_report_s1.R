@@ -90,6 +90,11 @@ rv <- function(nm, default = NA_real_) {
 did_extract <- !identical(getp(params, "its_region", "full"), "none")
 has_itsx <- did_extract && "ITSx_Extracted_Reads" %in% names(per_sample)
 
+## Long chimeras are removed after primer trimming, before ITS extraction
+## (the columns are present only if the `long_chimera` filter was enabled)
+has_longchim <- all(c("LongChimera_Inverted_Reads", "LongChimera_Repeat_Reads") %in% names(per_sample))
+LONGCHIM_CATS <- c("Long chimera (inverted)", "Long chimera (repeat)")
+
 ## ------------------------------------------------------- per-run figures
 
 reads_raw   <- rv("Total_Number_Of_Reads")
@@ -98,6 +103,9 @@ reads_demux <- rv("Reads_Demultiplexed", sum(num0(per_sample$Demultiplexed_Reads
 reads_prim  <- rv("Reads_PrimerChecked", sum(num0(per_sample$PrimerChecked_Reads)))
 reads_artef <- rv("PrimerArtefacts_Reads", sum(num0(per_sample$PrimerArtefacts_Reads)))
 reads_itsx  <- rv("Reads_ITSx_Extracted", if (has_itsx) sum(num0(per_sample$ITSx_Extracted_Reads)) else NA_real_)
+reads_lcinv <- if (has_longchim) rv("LongChimera_Inverted_Reads", sum(num0(per_sample$LongChimera_Inverted_Reads))) else 0
+reads_lcrep <- if (has_longchim) rv("LongChimera_Repeat_Reads",   sum(num0(per_sample$LongChimera_Repeat_Reads)))   else 0
+reads_lc    <- reads_lcinv + reads_lcrep
 reads_final <- rv("SeqTable_NumReads", sum(num0(per_sample$SeqTable_NumReads)))
 
 ## Illumina: read pairs after reorientation, merged and joined reads
@@ -169,8 +177,10 @@ fate <- data.table(
   primer_ok  = num0(per_sample$PrimerChecked_Reads),
   retained   = num0(per_sample$SeqTable_NumReads)
 )
-fate[, itsx_ok := if (has_itsx) num0(per_sample$ITSx_Extracted_Reads) else primer_ok]
-fate[, no_itsx := pmax(primer_ok - itsx_ok, 0)]
+fate[, lc_inv  := num0(col_or(per_sample, 0, "LongChimera_Inverted_Reads"))]
+fate[, lc_rep  := num0(col_or(per_sample, 0, "LongChimera_Repeat_Reads"))]
+fate[, itsx_ok := if (has_itsx) num0(per_sample$ITSx_Extracted_Reads) else pmax(primer_ok - lc_inv - lc_rep, 0)]
+fate[, no_itsx := pmax(primer_ok - lc_inv - lc_rep - itsx_ok, 0)]
 
 ## Illumina: losses prior to primer screening
 ## (pairs without primers, non-merged pairs, merged reads that failed QC)
@@ -200,12 +210,12 @@ fate[, other    := pmax(budget - chimeric - tagjump, 0)]
 fate[, budget := NULL]
 
 setnames(fate,
-  c("artefacts", "no_itsx", "chimeric", "tagjump", "other", "retained"),
-  c("Primer artefacts", "No ITS detection", "Chimeric", "Tag jumps", "Other filtering", "Retained"))
+  c("artefacts", "lc_inv", "lc_rep", "no_itsx", "chimeric", "tagjump", "other", "retained"),
+  c("Primer artefacts", LONGCHIM_CATS, "No ITS detection", "Chimeric", "Tag jumps", "Other filtering", "Retained"))
 
 FATE_CATS <- c("Retained",
                if (is_illumina) c("No primers", "Not merged", "Failed QC"),
-               "Primer artefacts", "No ITS detection",
+               "Primer artefacts", if (has_longchim) LONGCHIM_CATS, "No ITS detection",
                "Chimeric", "Tag jumps", "Other filtering")
 FATE_CATS <- FATE_CATS[vapply(FATE_CATS, function(k) sum(fate[[k]]) > 0 || k == "Retained", logical(1))]
 
@@ -258,12 +268,14 @@ if (is_illumina) {
 }
 
 last <- "Primer-checked"
+add_link("Primer-checked", LONGCHIM_CATS[[1L]], reads_lcinv)
+add_link("Primer-checked", LONGCHIM_CATS[[2L]], reads_lcrep)
 if (has_itsx && is.finite(reads_itsx)) {
   add_link("Primer-checked", "ITS extracted", reads_itsx)
-  add_link("Primer-checked", "No ITS detection", reads_prim - reads_itsx)
+  add_link("Primer-checked", "No ITS detection", reads_prim - reads_lc - reads_itsx)
   last <- "ITS extracted"
 }
-for (k in setdiff(FATE_CATS, c("Retained", "Primer artefacts", "No ITS detection"))) {
+for (k in setdiff(FATE_CATS, c("Retained", "Primer artefacts", LONGCHIM_CATS, "No ITS detection"))) {
   add_link(last, k, sum(fate[[k]]))
 }
 add_link(last, "Retained", reads_final)
@@ -288,9 +300,10 @@ stage_tbl <- rbindlist(list(
     data.table(Stage = "Quality filtering", In = reads_raw,   Out = reads_qc),
     data.table(Stage = "Demultiplexing",    In = reads_qc,    Out = reads_demux),
     data.table(Stage = "Primer screening",  In = reads_demux, Out = reads_prim))),
-  if (has_itsx) data.table(Stage = "ITS extraction", In = reads_prim, Out = reads_itsx),
+  if (has_longchim) data.table(Stage = "Long-chimera removal", In = reads_prim, Out = reads_prim - reads_lc),
+  if (has_itsx) data.table(Stage = "ITS extraction", In = reads_prim - reads_lc, Out = reads_itsx),
   data.table(Stage = "Chimera / tag-jump filtering",
-             In = if (has_itsx) reads_itsx else reads_prim, Out = reads_final)
+             In = if (has_itsx) reads_itsx else reads_prim - reads_lc, Out = reads_final)
 ), fill = TRUE)
 stage_tbl <- stage_tbl[is.finite(In) & is.finite(Out)]
 stage_tbl[, Lost := pmax(In - Out, 0)]
@@ -340,6 +353,7 @@ sample_cols <- intersect(c(
   "Reoriented_Pairs", "Merged_Reads", "Merged_Percent", "Joined_Reads", "QC_Reads",
   "PrimerChecked_Reads",
   "PrimerArtefacts_Reads", "PrimerArtefacts_Percent",
+  "LongChimera_Inverted_Reads", "LongChimera_Repeat_Reads",
   "ITSx_Extracted_Reads", "ITSx_Yield_Percent",
   "DeNovoChimeras_NumReads", "TagJump_Reads", "TagJump_Events",
   "SeqTable_NumReads", "SeqTable_NumUniqSeqs", "Percentage_Reads_Retained"),
@@ -362,6 +376,7 @@ sample_labels <- c(
   Joined_Reads = "Joined", QC_Reads = "Passed QC",
   PrimerChecked_Reads = "Primer-checked",
   PrimerArtefacts_Reads = "Artefact reads", PrimerArtefacts_Percent = "Artefacts",
+  LongChimera_Inverted_Reads = "Long chimeras (inverted)", LongChimera_Repeat_Reads = "Long chimeras (repeat)",
   ## In `its_region = "none"` runs this column counts primer-trimmed reads, not extracted ones
   ITSx_Extracted_Reads = if (did_extract) "ITSx reads" else "Primer-trimmed reads",
   ITSx_Yield_Percent   = if (did_extract) "ITSx yield" else "Primer-trimmed",
