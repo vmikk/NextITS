@@ -1761,7 +1761,10 @@ workflow S1 {
   // Primer-checked and multiprimer sequences
   ch_all_primerchecked = primer_check_out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
   ch_all_primerartefacts = primer_check_out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
-      
+
+  // Long-chimera counts (empty if `long_chimera` is disabled)
+  ch_longchim = ITS_EXTRACTION.out.longchim_counts.flatten().collect().ifEmpty(file("no_longchim"))
+
   // Did the ITS extraction run? Used below for the report inputs
   run_itsx = params.its_region != "none"
 
@@ -1791,6 +1794,7 @@ workflow S1 {
     ch_all_demux,            // demultiplexed sequences per sample
     ch_all_primerchecked,    // primer-cheched sequences
     ch_all_primerartefacts,  // multiprimer artefacts
+    ch_longchim,             // long chimeras (per-sample counts)
     ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
     ch_homopolymers,         // Homopolymer stats
     ch_chimref,              // Reference-based chimeras
