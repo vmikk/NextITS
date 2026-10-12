@@ -219,6 +219,27 @@
           "fa_icon": "fas fa-database",
           "description": "Chunk size for distributed ITS extraction (number of dereplicated sequences per sample); set to 0 to put all sequences of a sample into a single chunk"
         },
+        "long_chimera": {
+          "type": "boolean",
+          "default": false,
+          "fa_icon": "fas fa-exchange-alt",
+          "description": "Remove long chimeras: sequences with rRNA in both orientations (inverted duplicates, inverted chimeras) or with repeated rRNA regions (e.g., two copies of 5.8S). Applied after primer trimming, before ITS extraction"
+        },
+        "long_chimera_minbits": {
+          "type": "number",
+          "default": 50,
+          "minimum": 0,
+          "fa_icon": "fas fa-sort-amount-up",
+          "description": "Long-chimera removal: minimum bit score of an rRNA hit (cmsearch in HMM-only mode against 5.8S, SSU 3'-end, and LSU 5'-end models)"
+        },
+        "long_chimera_mincov": {
+          "type": "number",
+          "default": 0.4,
+          "minimum": 0,
+          "maximum": 1,
+          "fa_icon": "fas fa-ruler-horizontal",
+          "description": "Long-chimera removal: minimum fraction of the rRNA model covered by a hit (also the minimum duplicated fraction of the model for repeated regions)"
+        },
         "hp": {
           "type": "boolean",
           "default": true,
