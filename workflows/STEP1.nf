@@ -1042,6 +1042,7 @@ process read_counts {
       path(samples_demux, stageAs: "3_demux/*")
       path(samples_primerch, stageAs: "4_primerch/*")
       path(samples_primermult, stageAs: "4_primerartefacts/*")
+      path(longchim, stageAs: "4_longchim/*")
       path(samples_itsx_or_primertrim, stageAs: "5_itsxtrim/*")
       path(homopolymers, stageAs: "5_homopolymers/*")
       path(samples_chimref, stageAs: "6_chimref/*")
@@ -1063,6 +1064,7 @@ process read_counts {
       path "Counts_3.Joined.txt",               emit: counts_3_joined,       optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,       optional: true
       path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef,  optional: true
+      path "Counts_4.LongChimera.txt",          emit: counts_4_longchim,     optional: true
       path "Counts_5.ITSx_or_PrimTrim.txt",     emit: counts_5_itsx_ptrim,   optional: true
       path "Counts_5.Homopolymers.txt",         emit: counts_5_homopolymers, optional: true
       path "Counts_6.ChimRef_reads.txt",        emit: counts_6_chimref_r,    optional: true
@@ -1142,6 +1144,18 @@ process read_counts {
     else
       seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_primerartefacts/* > Counts_4.PrimerArtefacts.txt
+    fi
+
+
+    ## Long chimeras (per-sample tables with the number of removed reads and unique sequences)
+    echo -e "\\n..Long chimeras"
+    if [ `find 4_longchim -name no_longchim 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.LongChimera.txt
+    else
+      ## Concatenate tables, keep a single header
+      awk 'FNR > 1 || NR == 1' 4_longchim/* > Counts_4.LongChimera.txt
     fi
 
 
@@ -1236,6 +1250,7 @@ process read_counts {
       --demuxed      Counts_3.Demux.txt \
       --primer       Counts_4.PrimerCheck.txt \
       --primerartef  Counts_4.PrimerArtefacts.txt \
+      --longchim     Counts_4.LongChimera.txt \
       --itsx         Counts_5.ITSx_or_PrimTrim.txt \
       --homopolymer  Counts_5.Homopolymers.txt \
       --chimrefn     Counts_6.ChimRef_reads.txt \
