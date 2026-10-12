@@ -8,6 +8,7 @@
 #   --demuxed      Counts_3.Demux.txt \
 #   --primer       Counts_4.PrimerCheck.txt \
 #   --primerartef  Counts_4.PrimerArtefacts.txt \
+#   --longchim     Counts_4.LongChimera.txt \
 #   --itsx         Counts_5.ITSx_or_PrimTrim.txt \
 #   --homopolymer  Counts_5.Homopolymers.txt \
 #   --chimrefn     Counts_6.ChimRef_reads.txt \
@@ -44,6 +45,7 @@ option_list <- list(
   make_option("--demuxed",    action="store", default=NA, type='character', help="Counts of demultiplexed reads"),
   make_option("--primer",     action="store", default=NA, type='character', help="Counts of reads with both primers detected"),
   make_option("--primerartef",action="store", default=NA, type='character', help="Counts of primer artefacts"),
+  make_option("--longchim",   action="store", default=NA, type='character', help="Counts of long chimeras (optional)"),
   make_option("--itsx",       action="store", default=NA, type='character', help="Read counts after ITSx or primer removal"),
   make_option("--homopolymer",action="store", default=NA, type='character', help="Homopolymer correction results"),
   make_option("--chimrefn",   action="store", default=NA, type='character', help="Number of reads for reference-based chimeras"),
@@ -82,6 +84,7 @@ QC          <- opt$qc
 DEMUXED     <- opt$demuxed
 PRIMER      <- opt$primer
 PRIMERARTEF <- opt$primerartef
+LONGCHIM    <- opt$longchim
 ITSX        <- opt$itsx
 HOMOPOLY    <- opt$homopolymer
 CHIMREFN    <- opt$chimrefn
@@ -106,6 +109,7 @@ cat(paste("Counts - QC: " ,          QC, "\n", sep=""))
 cat(paste("Counts - Demux: " ,       DEMUXED, "\n", sep=""))
 cat(paste("Counts - PrimerCheck: " , PRIMER, "\n", sep=""))
 cat(paste("Counts - Primer Artefacts: " ,                              PRIMERARTEF, "\n", sep=""))
+cat(paste("Counts - Long chimeras: " ,                                 LONGCHIM, "\n", sep=""))
 cat(paste("Counts - ITSx or Primer Trim: " ,                           ITSX, "\n", sep=""))
 cat(paste("Counts - Homopolymer correction results: " ,                HOMOPOLY, "\n", sep=""))
 cat(paste("Counts - Chimera Ref-based, reads: " ,                      CHIMREFN, "\n", sep=""))
@@ -131,6 +135,7 @@ cat("\n")
 # DEMUXED     <- "Counts_3.Demux.txt"
 # PRIMER      <- "Counts_4.PrimerCheck.txt"
 # PRIMERARTEF <- "Counts_4.PrimerArtefacts.txt"
+# LONGCHIM    <- "Counts_4.LongChimera.txt"
 # ITSX        <- "Counts_5.ITSx_or_PrimTrim.txt"
 # HOMOPOLY    <- "Counts_5.Homopolymers.txt"
 # CHIMREFN    <- "Counts_6.ChimRef_reads.txt"
@@ -216,6 +221,18 @@ if(ILLUMINA){
 cat("..Loading primer-checked data counts\n")
 SEQKITCOUNTS$PRIMER      <- fread(PRIMER)
 SEQKITCOUNTS$PRIMERARTEF <- fread(PRIMERARTEF)
+
+## Long chimeras (if the filter was enabled)
+## The table has 4 count columns per sample, so it is merged separately (not via `custom_process`)
+## Sample IDs are the same as in the primer-checked counts (`<SampleID>_PrimerChecked.fq.gz`)
+if(!is.na(LONGCHIM) && file.exists(LONGCHIM) && file.size(LONGCHIM) > 0){
+  cat("..Loading long-chimera counts\n")
+  LONGCHIM_data <- fread(LONGCHIM, colClasses = list(character = "SampleID"))
+  lcdata <- TRUE
+} else {
+  cat("..No long-chimera data found\n")
+  lcdata <- FALSE
+}
 
 cat("..Loading ITSx or primer trim counts\n")
 CUSTOMCOUNTS$ITSX <- fread(ITSX)
@@ -444,6 +461,30 @@ if(nrow(HOMOPOLY_data) > 0){
     by.x = "file", by.y = "SampleID", all.x = TRUE)
 }
 
+## Add long-chimera stats
+## (if the filter was enabled, but no sample has data - add zeros)
+if(lcdata == TRUE){
+  cat("Adding long-chimera stats\n")
+  if(nrow(LONGCHIM_data) > 0){
+    LONGCHIM_counts <- LONGCHIM_data[ , .(
+      LongChimera_Inverted_Reads = sum(Inverted_Reads, na.rm = TRUE),
+      LongChimera_Repeat_Reads   = sum(Repeat_Reads,   na.rm = TRUE),
+      LongChimera_Inverted_Uniq  = sum(Inverted_Uniq,  na.rm = TRUE),
+      LongChimera_Repeat_Uniq    = sum(Repeat_Uniq,    na.rm = TRUE)),
+      by = "SampleID" ]
+
+    PER_SAMPLE_COUNTS_merged <- merge(
+      x = PER_SAMPLE_COUNTS_merged,
+      y = LONGCHIM_counts,
+      by.x = "file", by.y = "SampleID", all.x = TRUE)
+  } else {
+    PER_SAMPLE_COUNTS_merged[ , LongChimera_Inverted_Reads := 0 ]
+    PER_SAMPLE_COUNTS_merged[ , LongChimera_Repeat_Reads   := 0 ]
+    PER_SAMPLE_COUNTS_merged[ , LongChimera_Inverted_Uniq  := 0 ]
+    PER_SAMPLE_COUNTS_merged[ , LongChimera_Repeat_Uniq    := 0 ]
+  }
+}
+
 ## Add de novo chimera stats
 cat("Adding de novo chimera stats\n")
 denovo_stats <- SEQTAB |>
@@ -498,6 +539,8 @@ if("Merged_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
 }
 
 ## Estimate percentage of reads retained after ITSx
+## NB. long chimeras (if removed) are counted in the denominator,
+##     so they reduce the yield as if ITSx failed on these reads
 if("ITSx_Extracted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
   PER_SAMPLE_COUNTS_merged[ , ITSx_Yield_Percent := round( ITSx_Extracted_Reads / PrimerChecked_Reads * 100, 2) ]
 }
@@ -514,6 +557,8 @@ setcolorder(PER_SAMPLE_COUNTS_merged,
     "file", "Demultiplexed_Reads",
     "Reoriented_Pairs", "Merged_Reads", "NotMerged_Pairs", "Merged_Percent", "Joined_Reads", "QC_Reads",
     "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent", 
+    "LongChimera_Inverted_Reads", "LongChimera_Repeat_Reads",
+    "LongChimera_Inverted_Uniq", "LongChimera_Repeat_Uniq",
     "ReferenceBasedChimera_Reads", "ReferenceBasedChimera_NumUniqSequences", 
     "Recovered_ReferenceBasedChimea_Reads", "Recovered_ReferenceBasedChimea_NumUniqSequences", 
     "DeNovoChimeras_NumReads", "DeNovoChimeras_NumUniqSeqs", 
@@ -567,6 +612,15 @@ if("PrimerArtefacts_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
   PER_RUN_COUNTS_merged[ , PrimerArtefacts_Percent := round(
     PrimerArtefacts_Reads / (Reads_PrimerChecked + PrimerArtefacts_Reads) * 100, 2) ]
   PER_RUN_COUNTS_merged[ Reads_PrimerChecked == 0 & PrimerArtefacts_Reads > 0, PrimerArtefacts_Percent := 100 ]
+}
+
+## Long chimeras
+## (number of unique sequences is summed over samples, the same sequence may be counted several times)
+if("LongChimera_Inverted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
+  PER_RUN_COUNTS_merged[ , LongChimera_Inverted_Reads := sum(PER_SAMPLE_COUNTS_merged$LongChimera_Inverted_Reads, na.rm = TRUE) ]
+  PER_RUN_COUNTS_merged[ , LongChimera_Repeat_Reads   := sum(PER_SAMPLE_COUNTS_merged$LongChimera_Repeat_Reads,   na.rm = TRUE) ]
+  PER_RUN_COUNTS_merged[ , LongChimera_Inverted_Uniq  := sum(PER_SAMPLE_COUNTS_merged$LongChimera_Inverted_Uniq,  na.rm = TRUE) ]
+  PER_RUN_COUNTS_merged[ , LongChimera_Repeat_Uniq    := sum(PER_SAMPLE_COUNTS_merged$LongChimera_Repeat_Uniq,    na.rm = TRUE) ]
 }
 
 if("ITSx_Extracted_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
