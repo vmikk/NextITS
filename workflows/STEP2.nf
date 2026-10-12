@@ -852,6 +852,57 @@ process document_analysis_s2 {
 }
 
 
+// HTML run report for Step-2
+process render_report_s2 {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/06.Report", mode: "${params.storagemode}"
+    // cpus 2
+
+    input:
+      path otutab
+      path otus
+      path lulu_otutab
+      path lulu_stats
+      path uc_pooled
+      path versions
+      path params_tsv
+      path methods
+      path command, stageAs: "execution_command.txt"
+      path logo,    stageAs: "nextits_logo.svg"
+      path lib,     stageAs: "report_lib.R"
+      path assets,  stageAs: "report_assets"
+      val  stamp
+
+    output:
+      path "Step2_report.html",  emit: html
+      path "Step2_summary.tsv",  emit: summary
+
+    script:
+    """
+    echo -e "Rendering Step-2 HTML report\\n"
+
+    render_report_s2.R \
+      --otutab       ${otutab} \
+      --otus         ${otus} \
+      --lulu-otutab  ${lulu_otutab} \
+      --lulu-stats   ${lulu_stats} \
+      --uc-pooled    ${uc_pooled} \
+      --params       ${params_tsv} \
+      --versions     ${versions} \
+      --methods      ${methods} \
+      --command      execution_command.txt \
+      --logo         nextits_logo.svg \
+      --trace-stamp  "${stamp}" \
+      --assets       report_assets \
+      --out          Step2_report.html \
+      --summary-tsv  Step2_summary.tsv
+
+    """
+}
+
+
 
 
 // Step-2 workflow
