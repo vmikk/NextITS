@@ -441,6 +441,18 @@ ${logoColors.dim}----------------------------------------------------${logoColor
         exit(1)
     }
 
+    // Long-chimera removal validation
+    if (params.long_chimera) {
+        if (params.long_chimera_minbits < 0) {
+            println( errorMsg("Parameter --long_chimera_minbits must be non-negative (got: ${params.long_chimera_minbits}).", params.monochrome_logs) )
+            exit(1)
+        }
+        if (params.long_chimera_mincov <= 0 || params.long_chimera_mincov > 1) {
+            println( errorMsg("Parameter --long_chimera_mincov must be in the range (0, 1] (got: ${params.long_chimera_mincov}).", params.monochrome_logs) )
+            exit(1)
+        }
+    }
+
     // ITSx profiles validation
     // NB. taxonomic profiles are an ITSx v1.x feature; ITSx2 delimits pan-eukaryotically
     if (params.its_region != "none" && params.itsx_tool == "ITSx") {
