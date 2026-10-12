@@ -12,6 +12,7 @@
 //
 // The workflow is as follows:
 //   1. Trim primers and dereplicate at sample level
+//      (optionally, remove long chimeras with rRNA in both orientations or repeated rRNA regions, `params.long_chimera`)
 //   2. Split the dereplicated primer-trimmed sequences (at sample level) into chunks, while preserving metadata
 //   3. Run the ITS extractor (ITSx 1.x or ITSx2) on each chunk, in parallel
 //   4. Group results back by sample ID, concatenate + convert to Parquet
