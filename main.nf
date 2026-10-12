@@ -123,6 +123,13 @@ params {
     ITSx_to_parquet: Boolean = true     // convert the extracted rRNA regions (FASTA files) to Parquet
     ITSx_chunk_size: Integer = 9999     // chunk size (number of dereplicated sequences per sample) for distributed ITS extraction; set to 0 to put all sequences of a sample into a single chunk
 
+    // Long-chimera removal (after primer trimming, before ITS extraction)
+    // Sequences with rRNA in both orientations (inverted duplicates or chimeras)
+    // or with repeated rRNA regions (e.g., two copies of 5.8S) are removed
+    long_chimera: Boolean = false
+    long_chimera_minbits: Float = 50    // min bit score of an rRNA hit (cmsearch, HMM-only mode)
+    long_chimera_mincov: Float = 0.4    // min fraction of the rRNA model covered by a hit
+
 
     // Primer trimming (for Illumina)
     trim_minlen: Integer = 10
