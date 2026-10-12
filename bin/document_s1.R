@@ -74,6 +74,9 @@ citation_db <- list(
   csvtk     = "Shen W (2025) csvtk - a cross-platform, efficient and practical CSV/TSV toolkit. URL: https://github.com/shenwei356/csvtk",
 # brename   = "Shen W (2025) brename - batch renaming safely, URL: https://github.com/shenwei356/brename",
   cutadapt  = "Martin M (2011) Cutadapt removes adapter sequences. EMBnet.journal 17(1):10-12, DOI:10.14806/ej.17.1.200",
+  usearch   = "Edgar RC (2010) Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26(19):2460-2461. DOI:10.1093/bioinformatics/btq461",
+  pemerge   = "Edgar RC, Flyvbjerg H (2015) Error filtering, pair assembly and error correction for next-generation sequencing reads. Bioinformatics 31(21):3476-3482. DOI:10.1093/bioinformatics/btv401",
+  fastp     = "Chen S, Zhou Y, Chen Y, Gu J (2018) fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics 34(17):i884-i890. DOI:10.1093/bioinformatics/bty560",
   itsx      = "Bengtsson-Palme J, et al (2013) Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods Ecol Evol 4:914-919, DOI:10.1111/2041-210X.12073",
   vsearch   = "Rognes T, Flouri T, Nichols B, Quince C, Mahé F (2016) VSEARCH: a versatile open source tool for metagenomics. PeerJ 4:e2584. DOI:10.7717/peerj.2584",
   uchime2   = "Edgar RC (2016) UCHIME2: improved chimera prediction for amplicon sequencing. bioRxiv 074252. DOI:10.1101/074252",
@@ -163,12 +166,65 @@ emit_qc_pacbio <- function(p, v) {
     or homopolymer stretches longer than {getp(p,'qc_maxhomopolymerlen',25)} nt were removed.")
 }
 
-# emit_demux_illumina <- function(p, v) {
-#   c(
-#     glue("- Illumina PE QC and merging; demultiplexed merged reads with cutadapt v.{getv(v,'primer_check','cutadapt')} using barcode window {getp(p,'barcode_window',30)}, max errors {getp(p,'barcode_errors',1)}, min overlap {getp(p,'barcode_overlap',11)}."),
-#     glue("- Non-merged reads optionally retained (join padding '{getp(p,'illumina_joinpadgap','NNNNNNNNNN')}').")
-#   )
-# }
+is_true <- function(x){ tolower(as.character(x)) %in% c("true", "t", "1") }
+is_set  <- function(x){ !is.na(x) && nzchar(x) && !tolower(as.character(x)) %in% c("null", "false") }
+
+emit_demux_illumina <- function(p, v) {
+  bt <- getp(p, "illumina_barcodetype", "dual_symmetric")
+  vs <- getv(v, "demux_illumina", "cutadapt")
+  common <- glue("allowing up to {getp(p,'barcode_errors',2)} mismatches (no indels) \\
+    within the first {getp(p,'barcode_window',30)} nt of the reads")
+  switch(bt,
+    "single" = glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011) \\
+      based on a sample tag at the 5' end of either mate, {common}."),
+    "dual_symmetric" = glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011), \\
+      {common}. Read pairs were assigned to samples only if both mates carried the tag of the same sample; \\
+      pairs in which the mates carried tags of different samples were discarded as tag jumps.\\
+      {if(is_true(getp(p,'illumina_demux_rescue',TRUE))) ' Pairs with a single readable tag were assigned based on that tag.' else ''}"),
+    "dual_asymmetric" = glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011) \\
+      based on combinations of forward and reverse tags (in both mate orientations), {common}. \\
+      Pairs carrying an unexpected combination of known tags were discarded as tag jumps.\\
+      {if(is_true(getp(p,'illumina_demux_rescue',TRUE))) ' Pairs with a single readable tag were assigned based on that tag, if the tag was used by a single sample.' else ''}"),
+    glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011)."))
+}
+
+emit_merge_illumina <- function(p, v) {
+  merger <- getp(p, "pe_merger", "usearch")
+  mv <- getv(v, "merge_pe", merger)
+  res <- glue("Read pairs were oriented based on primer sequences using \\
+    cutadapt v.{getv(v,'reorient_pe','cutadapt')}.")
+  if(is_set(getp(p, "qc_polyglen", NA))){
+    res <- c(res, glue("Poly-G tails (>= {getp(p,'qc_polyglen',10)} nt) were trimmed using \\
+      fastp v.{getv(v,'merge_pe','fastp')} (Chen et al., 2018)."))
+  }
+  if(merger %in% "usearch"){
+    res <- c(res, glue("Read pairs were merged using USEARCH v.{mv} (Edgar, 2010; Edgar & Flyvbjerg, 2015) \\
+      with a minimum overlap of {getp(p,'pe_minoverlap',16)} nt, \\
+      at most {getp(p,'pe_maxdiffs',10)} mismatches and >= {getp(p,'pe_pctid',80)}% identity in the overlap, \\
+      and a minimum merged length of {getp(p,'pe_minlen',50)} nt."))
+  } else {
+    res <- c(res, glue("Read pairs were merged using VSEARCH v.{mv} (Rognes et al., 2016) \\
+      with a minimum overlap of {getp(p,'pe_minoverlap',16)} nt, \\
+      at most {getp(p,'pe_maxdiffs',10)} mismatches and >= {getp(p,'pe_pctid',80)}% identity in the overlap, \\
+      and a minimum merged length of {getp(p,'pe_minlen',50)} nt."))
+  }
+  if(is_true(getp(p, "illumina_keep_notmerged", FALSE))){
+    res <- c(res, glue("Non-merged read pairs were quality-filtered and joined with a padding of \\
+      '{getp(p,'illumina_joinpadgap','NNNNNNNNNN')}' using VSEARCH v.{getv(v,'join_pe','vsearch')}."))
+  }
+  paste0(res, collapse = " ")
+}
+
+emit_qc_illumina <- function(p, v) {
+  maxee <- getp(p, "qc_maxee", NA)
+  ee <- if(is_set(maxee)) glue("more than {maxee} expected errors, ") else ""
+  glue("Quality control of merged reads was performed using \\
+    VSEARCH v.{getv(v,'qc_se','vsearch')} (Rognes et al., 2016) and \\
+    seqkit v.{getv(v,'qc_se','seqkit')} (Shen et al., 2024). \\
+    Reads with {ee}expected error rate >= {getp(p,'qc_maxeerate',0.01)}, \\
+    the number of ambiguous bases >= {getp(p,'qc_maxn',4)}, \\
+    or homopolymer stretches longer than {getp(p,'qc_maxhomopolymerlen',25)} nt were removed.")
+}
 
 emit_primer_check <- function(p, v) {
   glue("Primers were trimmed using \\
@@ -248,26 +304,37 @@ build_docs <- function(versions, params){
   demuxed <- tolower(as.character(getp(params, "demultiplexed", FALSE))) %in% c("true", "t", "1")
   platform <- getp(params, "seqplatform", "PacBio")
 
-  if(!demuxed){
-    if(platform %in% "PacBio"){
-  
-      body <- c(body, emit_demux_pacbio(params, versions))
-      tools_used <- c(tools_used, c("lima"))
+  if(platform %in% "Illumina"){
 
-      body <- c(body, emit_qc_pacbio(params, versions))
-      tools_used <- c(tools_used, c("vsearch", "seqkit"))
-
-    } else {
+    ## Illumina paired-end reads: demultiplexing (if required), reorientation, merging, QC
+    if(!demuxed){
       body <- c(body, emit_demux_illumina(params, versions))
       tools_used <- c(tools_used, c("cutadapt"))
     }
-  } else {
-    if(platform %in% "PacBio"){
-      body <- c(body, emit_qc_pacbio(params, versions))
-      tools_used <- c(tools_used, c("vsearch", "seqkit"))
-    } else {
-      ## TODO
+
+    body <- c(body, emit_merge_illumina(params, versions))
+    merger <- getp(params, "pe_merger", "usearch")
+    tools_used <- c(tools_used, c("cutadapt", if(merger %in% "usearch") c("usearch", "pemerge") else "vsearch"))
+    if(is_set(getp(params, "qc_polyglen", NA))){
+      tools_used <- c(tools_used, "fastp")
     }
+
+    body <- c(body, emit_qc_illumina(params, versions))
+    tools_used <- c(tools_used, c("vsearch", "seqkit"))
+
+  } else if(!demuxed){
+
+    body <- c(body, emit_demux_pacbio(params, versions))
+    tools_used <- c(tools_used, c("lima"))
+
+    body <- c(body, emit_qc_pacbio(params, versions))
+    tools_used <- c(tools_used, c("vsearch", "seqkit"))
+
+  } else {
+
+    body <- c(body, emit_qc_pacbio(params, versions))
+    tools_used <- c(tools_used, c("vsearch", "seqkit"))
+
   }
 
   ## Primer trimming
