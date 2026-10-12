@@ -183,6 +183,8 @@ FATE_COL <- c(
   "No primers"        = "var(--fate-noprimers)",
   "Not merged"        = "var(--fate-notmerged)",
   "Primer artefacts"  = "var(--fate-artefacts)",
+  "Long chimera (inverted)" = "var(--fate-lcinv)",
+  "Long chimera (repeat)"   = "var(--fate-lcrep)",
   "No ITS detection"  = "var(--fate-noits)",
   "Chimeric"          = "var(--fate-chimeric)",
   "Tag jumps"         = "var(--fate-tagjump)",
