@@ -7,6 +7,11 @@ For version numbering, we use the following convention: `MAJOR.MINOR.PATCH`.
 Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).  
 
 ## [1.2.3] - 2026-XX-XX
+
+- Containers: the Singularity Library (`library://`) is no longer used (the service is being discontinued).  
+    - All container profiles (`docker`, `podman`, `singularity`, `apptainer`) use the same Docker Hub image (`vmikk/nextits`). For Singularity and Apptainer, Nextflow automatically converts it to SIF on the first run  
+    - Container specifications are merged into a single `conf/containers.config` (replaces `conf/docker.config`, `conf/singularity.config`, and `conf/apptainer.config`)  
+    - The image is pulled by Nextflow into the cache directory (`NXF_SINGULARITY_CACHEDIR` / `NXF_APPTAINER_CACHEDIR`) instead of `apptainer.ociAutoPull`  
 - Step-1 - re-implemented ITS extraction using `--its_region "ITS1_5.8S_ITS2"` mode (`assemble_its` process superseded by `get_its` process)
 - Step-2 workflow now supports dereplication-only mode (no clustering, pre-clustering, or denoising)  
 - Fixed a bug with demultiplexing using dual tags (sometimes files were named as unknown tag combinations)  
