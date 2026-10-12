@@ -1871,6 +1871,27 @@ workflow S1 {
   // ITSx / ITSx2 diagnostics (summary, positions, problematic sequences)
   ch_report_itsx = ITS_EXTRACTION.out.report_itsx
 
+  render_report_s1(
+    read_counts.out.per_sample,
+    read_counts.out.per_run,
+    ch_versions_yml,
+    ch_params_tsv,
+    document_analysis_s1.out.docs,
+    ch_lima_summary,
+    ch_lima_counts,
+    ch_illumina_demux,
+    ch_illumina_qcheck,
+    ch_report_counts,
+    ch_report_itsx,
+    ch_tj_scores,
+    prep_seqtab.out.seq_pq,
+    seq_qual.out.quals,
+    ch_command_txt,
+    file("${projectDir}/images/NextITS_logo.svg"),
+    file("${projectDir}/bin/report_lib.R"),
+    file("${projectDir}/assets/report"),
+    params.trace_timestamp
+  )
 
 }
 
