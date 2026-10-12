@@ -763,10 +763,24 @@ workflow ITS_EXTRACTION {
     // Trim primers and dereplicate at sample level
     primer_trim(ch_seqs)
 
+    // Remove long chimeras (rRNA in both orientations, or repeated rRNA regions)
+    if( params.long_chimera ){
+      long_chimera(primer_trim.out.derep)
+      ch_derep           = long_chimera.out.derep
+      ch_longchim        = long_chimera.out.chimeric
+      ch_longchim_report = long_chimera.out.report
+      ch_longchim_counts = long_chimera.out.counts
+    } else {
+      ch_derep           = primer_trim.out.derep
+      ch_longchim        = channel.empty()
+      ch_longchim_report = channel.empty()
+      ch_longchim_counts = channel.empty()
+    }
+
     if( ! do_extract ){
 
       // No rRNA extraction - the dereplicated primer-trimmed sequences are the result
-      ch_region_seqs = primer_trim.out.derep
+      ch_region_seqs = ch_derep
 
       ch_res_itsx_full        = channel.empty()
       ch_res_itsx_ssu         = channel.empty()
@@ -811,14 +825,14 @@ workflow ITS_EXTRACTION {
       if( chunk_size <= 0 ) {
 
         // A single chunk per sample (NB. the FASTA stays gz-compressed here)
-        chunks_ch = primer_trim.out.derep
+        chunks_ch = ch_derep
           .map { meta, fasta -> [ meta + [chunk_id: 0], fasta ] }
 
       } else {
 
         // Split the dereplicated primer-trimmed sequences (at sample level) into chunks,
         // while preserving metadata (NB. the chunks are uncompressed)
-        chunks_ch = primer_trim.out.derep
+        chunks_ch = ch_derep
           .flatMap { meta, fasta ->
             def chunks = fasta.splitFasta(by: chunk_size, file: true, decompress: true, compress: false)
             def result = []
@@ -923,7 +937,7 @@ workflow ITS_EXTRACTION {
         // Assemble the near-full-length ITS from the region coordinates reported by the extractor
         // NB. the same dereplicated sequences that were fed to the extractor are reused here,
         //     so that the sequence IDs match the positions file
-        ch_get_its = primer_trim.out.derep
+        ch_get_its = ch_derep
           .map    { meta, fasta -> [ meta.id, meta, fasta ] }
           .join(
             ch_res_itsx_positions.map { meta, pos -> [ meta.id, pos ] },
@@ -985,6 +999,10 @@ workflow ITS_EXTRACTION {
     hashes           = primer_trim.out.hashes.map       { meta, file -> file }
     uc               = primer_trim.out.uc.map           { meta, file -> file }
     trimmed_seqs     = primer_trim.out.trimmed_seqs.map { meta, file -> file }
+    // Long-chimera removal results (empty if `long_chimera` is disabled)
+    longchim         = ch_longchim.map             { meta, file -> file }
+    longchim_report  = ch_longchim_report.map      { meta, file -> file }
+    longchim_counts  = ch_longchim_counts.map      { meta, file -> file }
     // Per-sample extractor results
     itsx_full        = ch_res_itsx_full.map        { meta, file -> file }
     itsx_ssu         = ch_res_itsx_ssu.map         { meta, file -> file }
