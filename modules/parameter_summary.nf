@@ -50,6 +50,9 @@ def parameterSummary(workflow, params) {
         summary += "  ${colors.green}chimera_db${colors.reset}       : ${colors.cyan}${params.chimera_db}${colors.reset}\n"
         if(params.step == "Step1") {
             summary += "  ${colors.green}its_region${colors.reset}       : ${colors.cyan}${params.its_region}${colors.reset}\n"
+            if (params.long_chimera) {
+                summary += "  ${colors.green}long_chimera${colors.reset}     : ${colors.cyan}true (minbits ${params.long_chimera_minbits}, mincov ${params.long_chimera_mincov})${colors.reset}\n"
+            }
         }
 
     } 
