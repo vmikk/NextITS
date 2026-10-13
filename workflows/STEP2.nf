@@ -17,6 +17,7 @@
 // - (optionally) Cluster:
 //   * SWARM
 //   * VSEARCH
+//   * OptimOTU (taxon-specific thresholds)
 // - LULU (via MUMU implementation)
 // - Prepare OTU table (wide, aggregate sequence abundance by ASV/OTU/Swarm cluster)
 
@@ -24,6 +25,7 @@ include { software_versions_to_yaml } from '../modules/version_parser.nf'
 include { CLUSTERING }                from '../subworkflows/clustering_subworkflow.nf'
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { chunkingEnabled }           from '../modules/param_utils.nf'
+include { optimotuRefset }            from '../modules/optimotu_refset.nf'
 
 // DADA2 with shared error estimation module
 include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
@@ -434,7 +436,13 @@ process merge_buckets {
                    else if (filename == "Clustered.uc.gz") return "SWARM.uc.gz"
                    else return null
                }
-    
+
+    publishDir "${params.outdir}/03.Clustered_OptimOTU",
+               mode: "${params.storagemode}",
+               enabled: params.clustering == "optimotu",
+               pattern: "Clustered.{fa,uc}.gz",
+               saveAs: { filename -> chunkingEnabled(params.chunking_n) ? filename : null }
+
 
     // Since there are name collisions, we need to stage files with unique names
     input:
@@ -503,6 +511,36 @@ process merge_buckets {
     """
 }
 
+
+
+// Merge OTU taxonomy tables from OptimOTU buckets (only when chunking is used)
+process merge_optimotu_taxonomy {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03.Clustered_OptimOTU", mode: "${params.storagemode}"
+
+    input:
+      path(tax_chunks, stageAs: "tax/?/*")
+
+    output:
+      path "OptimOTU_otu_taxonomy.tsv.gz", emit: otu_tax
+
+    script:
+    """
+    echo -e "Merging OptimOTU taxonomy tables\\n"
+
+    ## Keep the header of the first table only
+    find tax -name "*.tsv.gz" \
+      | sort \
+      | xargs zcat \
+      | awk 'NR == 1 { header = \$0; print; next } \$0 != header' \
+      | gzip -${params.gzip_compression} \
+      > OptimOTU_otu_taxonomy.tsv.gz
+
+    echo -e "..Done\\n"
+    """
+}
 
 
 // Merge UC files
@@ -1034,6 +1072,11 @@ workflow S2 {
       clustuc_ch    = merge_buckets.out.clustuc_ch
       preclustuc_ch = merge_buckets.out.preclustuc_ch.ifEmpty(file('NoPrecluster'))
 
+      // Merge OTU taxonomy tables from OptimOTU
+      if (params.clustering == "optimotu") {
+        merge_optimotu_taxonomy(CLUSTERING.out.optimotu_tax_ch.collect())
+      }
+
     }
 
 
@@ -1088,8 +1131,19 @@ workflow S2 {
           newLine:  true
       )
 
+  // Add the resolved OptimOTU reference set (for the methods text and the report)
+  if (params.clustering == "optimotu") {
+    def refset = optimotuRefset(params)
+    ch_refset_tsv = channel.of(
+      "optimotu_refset.id\t${refset.id}",
+      "optimotu_refset.citation\t${(refset.manifest.citation ?: '').replace('\t', ' ')}")
+  } else {
+    ch_refset_tsv = channel.empty()
+  }
+
   // Dump the parameters to a file
   ch_params_tsv = dumpParamsTsv()
+    .mix(ch_refset_tsv)
     .collectFile(
         storeDir: "${params.tracedir}",
         name:     "pipeline_params.tsv",
