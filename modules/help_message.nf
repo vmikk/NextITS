@@ -38,7 +38,12 @@ def helpMsg() {
         --hp                Homopolymer compression (default, true)
         --hp_similarity     Allowed sequence similarity for homopolymer compression (default, 0.999)
         --hp_iddef          Sequence similarity definition for homopolymer compression (default, 2)
-        
+
+      # Long-chimera removal (after primer trimming, before ITS extraction)
+        --long_chimera         Remove sequences with rRNA in both orientations or with repeated rRNA regions (default, false)
+        --long_chimera_minbits Min bit score of an rRNA hit (default, 50)
+        --long_chimera_mincov  Min fraction of the rRNA model covered by a hit (default, 0.4)
+
       # Chimera identification
         --chimera_db               Database for reference-based chimera removal
         --chimera_rescueoccurrence Min occurrence of chimeric sequences required to rescue them (default, 2)
