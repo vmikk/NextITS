@@ -11,6 +11,8 @@
 // Subworkflow for clustering sequences (with optional pre-clustering or denoising)
 
 include { chunkingEnabled } from '../modules/param_utils.nf'
+include { optimotuRefset }  from '../modules/optimotu_refset.nf'
+include { OPTIMOTU }        from '../optimotu-nf/subworkflows/optimotu_cluster'
 
 
 // Homopolymer correction (global, for pooled and dereplicated data)
@@ -752,6 +754,50 @@ process cluster_swarm {
 }
 
 
+
+// Convert OptimOTU results (taxon-specific thresholds) to the files expected by the rest of Step-2
+process optimotu_to_nextits {
+
+    label "main_container"
+
+    publishDir(
+      "${params.outdir}/03.Clustered_OptimOTU",
+      mode: "${params.storagemode}",
+      saveAs: { filename -> !chunkingEnabled(params.chunking_n) ? filename : null }
+    )
+
+    // cpus 1
+
+    input:
+      tuple val(meta), path(otus), path(uc), path(otu_taxonomy)
+
+    output:
+      path "Clustered.fa.gz",              emit: clust
+      path "Clustered.uc.gz",              emit: clust_uc
+      path "OptimOTU_otu_taxonomy.tsv.gz", emit: otu_tax
+
+    script:
+    """
+    echo -e "Converting OptimOTU results\\n"
+
+    ## OTU representatives (single-line FASTA, `>{SeqID};size={N}`)
+    seqkit seq -w 0 ${otus} \
+      | gzip -${params.gzip_compression} > Clustered.fa.gz
+
+    ## Sequence membership
+    gzip -${params.gzip_compression} -c ${uc} > Clustered.uc.gz
+
+    ## OTU taxonomy, with a bucket column (pseudo-taxon names are reused across buckets)
+    awk -v bucket="${meta.id}" \
+      'BEGIN { FS = OFS = "\\t" } NR == 1 { print "bucket", \$0; next } { print bucket, \$0 }' \
+      ${otu_taxonomy} \
+      | gzip -${params.gzip_compression} > OptimOTU_otu_taxonomy.tsv.gz
+
+    echo -e "..Done\\n"
+    """
+}
+
+
 // Pre-clustering / denoising / clustering subworkflow
 workflow CLUSTERING {
 
@@ -879,6 +925,8 @@ workflow CLUSTERING {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
 
+    // OTU taxonomy is produced only by OptimOTU
+    optimotu_tax_ch = channel.empty()
 
     // Greedy clustering with VSEARCH
     if ( params.clustering == "vsearch" ) {
@@ -902,6 +950,37 @@ workflow CLUSTERING {
         cluster_ch = cluster_swarm.out.clust
         clustuc_ch = cluster_swarm.out.clust_uc
       }
+
+    // Clustering with OptimOTU (taxon-specific thresholds)
+    } else if ( params.clustering == "optimotu" ) {
+
+      def refset = optimotuRefset(params)
+
+      // meta.id must be unique per bucket: raw buckets (`bucket_*.fa.gz`) share one task dir,
+      // and pre-clustered buckets share one file name
+      optimotu_input_ch = denoise_ch.map { fasta -> [[id: "${fasta.parent.name.take(8)}_${fasta.simpleName}"], fasta] }
+
+      OPTIMOTU(
+        optimotu_input_ch,
+        refset.thresholds,
+        refset.classifier_db,
+        null,
+        refset.options + [
+          confidence: params.optimotu_confidence,
+          metric:     params.optimotu_metric,
+          split_rank: params.optimotu_split_rank,
+          closed_ref_from: params.optimotu_closed_ref_from
+        ]
+      )
+
+      optimotu_to_nextits(
+        OPTIMOTU.out.representatives
+          .join(OPTIMOTU.out.uc)
+          .join(OPTIMOTU.out.otu_taxonomy)
+      )
+      cluster_ch      = optimotu_to_nextits.out.clust
+      clustuc_ch      = optimotu_to_nextits.out.clust_uc
+      optimotu_tax_ch = optimotu_to_nextits.out.otu_tax
 
     // Do not cluster, use zOTUs from UNOISE
     } else if ( params.preclustering == "unoise" & params.clustering == "none" ) {
@@ -948,9 +1027,10 @@ workflow CLUSTERING {
 
 
     emit:
-    preclustuc_ch = preclustuc_ch    // UC file for pre-clustering
-    preclustaf_ch = preclustaf_ch    // FASTA file for pre-clustering
-    cluster_ch    = cluster_ch       // FASTA file for clustering
-    clustuc_ch    = clustuc_ch       // UC file for clustering
+    preclustuc_ch = preclustuc_ch      // UC file for pre-clustering
+    preclustaf_ch = preclustaf_ch      // FASTA file for pre-clustering
+    cluster_ch    = cluster_ch         // FASTA file for clustering
+    clustuc_ch    = clustuc_ch         // UC file for clustering
+    optimotu_tax_ch = optimotu_tax_ch  // OTU taxonomy from OptimOTU (empty for other methods)
 
 } // end of subworkflow
