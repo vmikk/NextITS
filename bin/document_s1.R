@@ -78,6 +78,9 @@ citation_db <- list(
   pemerge   = "Edgar RC, Flyvbjerg H (2015) Error filtering, pair assembly and error correction for next-generation sequencing reads. Bioinformatics 31(21):3476-3482. DOI:10.1093/bioinformatics/btv401",
   fastp     = "Chen S, Zhou Y, Chen Y, Gu J (2018) fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics 34(17):i884-i890. DOI:10.1093/bioinformatics/bty560",
   itsx      = "Bengtsson-Palme J, et al (2013) Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods Ecol Evol 4:914-919, DOI:10.1111/2041-210X.12073",
+  itsx2     = "ITSx2: structure-aware delimitation of the nuclear rRNA cistron. URL: https://github.com/Changwanseo/pre-itsx2",
+  infernal  = "Nawrocki EP, Eddy SR (2013) Infernal 1.1: 100-fold faster RNA homology searches. Bioinformatics 29(22):2933-2935. DOI:10.1093/bioinformatics/btt509",
+  rfam      = "Ontiveros-Palacios N, et al. (2025) Rfam 15: RNA families database in 2025. Nucleic Acids Res 53(D1):D258-D267. DOI:10.1093/nar/gkae1023",
   vsearch   = "Rognes T, Flouri T, Nichols B, Quince C, Mahé F (2016) VSEARCH: a versatile open source tool for metagenomics. PeerJ 4:e2584. DOI:10.7717/peerj.2584",
   uchime2   = "Edgar RC (2016) UCHIME2: improved chimera prediction for amplicon sequencing. bioRxiv 074252. DOI:10.1101/074252",
   uncross2  = "Edgar RC (2018) UNCROSS2: identification of cross-talk in 16S rRNA OTU tables. bioRxiv 400762. DOI:10.1101/400762",
@@ -233,6 +236,22 @@ emit_primer_check <- function(p, v) {
     Reads without both primers were discarded.")
 }
 
+emit_long_chimera <- function(p, v) {
+  minbits <- getp(p, 'long_chimera_minbits', 50)
+  mincov  <- suppressWarnings(as.numeric(getp(p, 'long_chimera_mincov', 0.4)))
+  mincov  <- if(is.na(mincov)) 40 else round(mincov * 100, 1)
+  glue("Long chimeras were removed from the dereplicated sequences of each sample. \\
+    Sequences were searched on both strands using cmsearch from \\
+    Infernal v.{getv(v,'long_chimera','Infernal')} (Nawrocki & Eddy, 2013) in HMM-only mode \\
+    against the covariance models of eukaryotic 5.8S rRNA (Rfam RF00002), \\
+    the 3' end of SSU rRNA (RF01960) and the 5' end of LSU rRNA (RF02543) \\
+    (Ontiveros-Palacios et al., 2025), as provided with ITSx2. \\
+    Hits with bit score >= {minbits} that covered >= {mincov}% of the model length were considered. \\
+    Sequences with such hits on both strands (inverted duplicates and chimeras of amplicons \\
+    joined in opposite orientation) were discarded, as were sequences with two non-overlapping hits \\
+    of the same model on the same strand that shared >= {mincov}% of the model (repeated rRNA regions).")
+}
+
 emit_itsx <- function(p, v) {
   switch(getp(p,'its_region','full'),
     "full"            = {its_region <- "full-length ITS"},
@@ -244,8 +263,17 @@ emit_itsx <- function(p, v) {
     "ITS1_5.8S_ITS2"  = {its_region <- "near-full-length ITS"})
 
 
-  glue("Extraction of rRNA regions ({its_region}) was performed using \\
-    ITSx v.{getv(v,'itsx','ITSx')} (Bengtsson-Palme et al., 2013).")
+  ## Either ITSx v1.x (HMMER profiles) or ITSx2 (Infernal covariance models)
+  if(identical(getp(p, 'itsx_tool', 'ITSx'), 'ITSx2')){
+    glue("Extraction of rRNA regions ({its_region}) was performed using \\
+      ITSx2 v.{getv(v,'itsx2','ITSx2')}, which delimits the rRNA cistron \\
+      pan-eukaryotically with covariance models using \\
+      Infernal v.{getv(v,'itsx2','Infernal')} (Nawrocki & Eddy, 2013).")
+  } else {
+    glue("Extraction of rRNA regions ({its_region}) was performed using \\
+      ITSx v.{getv(v,'itsx','ITSx')} (Bengtsson-Palme et al., 2013) \\
+      with the '{getp(p, 'ITSx_tax', 'all')}' taxonomic profile(s).")
+  }
 }
 
 emit_assemble_its <- function(p, v) {
@@ -341,14 +369,18 @@ build_docs <- function(versions, params){
   body <- c(body, emit_primer_check(params, versions))
   tools_used <- c(tools_used, c("cutadapt"))
 
+  ## Long-chimera removal (optional)
+  if(is_true(getp(params, "long_chimera", FALSE))){
+    body <- c(body, emit_long_chimera(params, versions))
+    tools_used <- c(tools_used, c("infernal", "rfam", "itsx2"))
+  }
+
   ## ITS extraction
   its_region <- getp(params, "its_region", "full")
-  if(its_region %in% c("full", "ITS1", "ITS2", "SSU", "LSU")){
+  extractor  <- if(identical(getp(params, "itsx_tool", "ITSx"), "ITSx2")) c("itsx2", "infernal") else "itsx"
+  if(its_region %in% c("full", "ITS1", "ITS2", "SSU", "LSU", "ITS1_5.8S_ITS2")){
     body <- c(body, emit_itsx(params, versions))
-    tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
-  } else if (its_region %in% "ITS1_5.8S_ITS2") {
-    body <- c(body, emit_itsx(params, versions))   # , emit_assemble_its(params, versions))
-    tools_used <- c(tools_used, c("itsx", "vsearch", "duckdb", "seqkit", "cutadapt"))
+    tools_used <- c(tools_used, extractor, c("vsearch", "duckdb", "seqkit", "cutadapt"))
   }
 
   did_hp <- tolower(as.character(getp(params, "hp", TRUE))) %in% c("true", "t", "1")
