@@ -478,7 +478,7 @@
         "clustering": {
           "type": "string",
           "default": "vsearch",
-          "enum": ["none", "vsearch", "swarm", "shmatching"],
+          "enum": ["none", "vsearch", "swarm", "optimotu", "shmatching"],
           "description": "Sequence clustering method"
         },
         "otu_id": {
@@ -609,6 +609,50 @@
         "sh_coveragevariation": {
           "type": "number",
           "default": 0.96
+        }
+      }
+    },
+    "optimotu_clustering": {
+      "title": "OptimOTU clustering",
+      "type": "object",
+      "description": "OTU clustering with taxon-specific thresholds (`--clustering optimotu`; full-length ITS only)",
+      "properties": {
+        "optimotu_db": {
+          "type": "string",
+          "default": "eukaryome_its_v2.2",
+          "description": "Reference set: an id (folder name in `<db_dir>/optimotu/`) or a path to a reference-set folder",
+          "fa_icon": "fas fa-database"
+        },
+        "optimotu_confidence": {
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum sintaxer bootstrap support to accept a taxonomic rank"
+        },
+        "optimotu_metric": {
+          "type": "string",
+          "default": "FM",
+          "enum": ["MCC", "RI", "ARI", "FMI", "MI", "AMI", "FM"],
+          "description": "Measure used to optimize the clustering thresholds"
+        },
+        "optimotu_split_rank": {
+          "type": "string",
+          "default": "family",
+          "enum": ["none", "kingdom", "phylum", "class", "order", "family", "genus"],
+          "description": "Cluster each taxon of this rank as a separate task (`none` = one task per bucket)"
+        },
+        "optimotu_closed_ref_from": {
+          "type": "string",
+          "default": "order",
+          "enum": ["kingdom", "phylum", "class", "order", "family", "genus", "species"],
+          "description": "Attach unclassified sequences to classified ones only from this rank down; above it they are clustered de novo (`kingdom` = at every rank, as in OptimOTU)"
+        },
+        "db_dir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Folder with reference databases (if not set, the `NEXTITS_DB_DIR` environment variable is used)",
+          "fa_icon": "fas fa-folder-open"
         }
       }
     },
@@ -890,6 +934,9 @@
     },
     {
       "$ref": "#/$defs/step_2_specific_parameters"
+    },
+    {
+      "$ref": "#/$defs/optimotu_clustering"
     },
     {
       "$ref": "#/$defs/common_parameters"
