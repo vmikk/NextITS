@@ -423,7 +423,8 @@ sections <- list(
       command_panel(opt$command, extra = c(
         "Pre-clustering"  = getp(params, "preclustering", "\u2014"),
         "Clustering"      = getp(params, "clustering", "\u2014"),
-        "OTU identity"    = getp(params, "otu_id", "\u2014"),
+        if (clustering == "optimotu") c("Reference set" = getp(params, "optimotu_refset.id", "\u2014"))
+        else c("OTU identity" = getp(params, "otu_id", "\u2014")),
         "LULU curation"   = getp(params, "lulu", "\u2014"))),
       p(class = "hint", HTML(paste0(
         "Every resolved parameter, including defaults, is listed in ",
