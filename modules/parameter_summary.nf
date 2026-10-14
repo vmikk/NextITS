@@ -3,6 +3,8 @@
  * Shows only step-specific parameters and relevant configuration
  */
 
+include { resolveOptimotuRefset } from './optimotu_refset'
+
 def parameterSummary(workflow, params) {
     
     // Color definitions
@@ -61,6 +63,13 @@ def parameterSummary(workflow, params) {
         summary += "  ${colors.green}data_path${colors.reset}        : ${colors.cyan}${params.data_path}${colors.reset}\n"
         summary += "  ${colors.green}clustering${colors.reset}       : ${colors.cyan}${params.clustering}${colors.reset}\n"
         summary += "  ${colors.green}preclustering${colors.reset}    : ${colors.cyan}${params.preclustering}${colors.reset}\n"
+        if (params.clustering == "optimotu") {
+            def refset = resolveOptimotuRefset(params)
+            def refset_txt = refset.error ? "${params.optimotu_db} (not usable)" : "${refset.id} (${refset.dir})"
+            summary += "  ${colors.green}optimotu_db${colors.reset}      : ${colors.cyan}${refset_txt}${colors.reset}\n"
+            summary += "  ${colors.green}split_rank${colors.reset}       : ${colors.cyan}${params.optimotu_split_rank}${colors.reset}\n"
+            summary += "  ${colors.green}closed_ref_from${colors.reset}  : ${colors.cyan}${params.optimotu_closed_ref_from}${colors.reset}\n"
+        }
     }
 
     
