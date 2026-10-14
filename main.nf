@@ -307,6 +307,9 @@ include { paramSummary } from './modules/parameter_summary'
 // Include color utilities
 include { getColors; colorize; colorizeMultiple; errorMsg; warningMsg; infoMsg; successMsg } from './modules/colors'
 
+// Include OptimOTU reference-set resolver
+include { resolveOptimotuRefset } from './modules/optimotu_refset'
+
 // Include workflows
 // NB! `include` statements are static, meaning they are resolved at compile time rather than at runtime!
 include { S1 } from './workflows/STEP1.nf'
@@ -571,6 +574,40 @@ ${logoColors.dim}----------------------------------------------------${logoColor
     // Chunks are connected components, so low identity thresholds can chain most sequences into a single chunk
     if (params.chunking_n != null && params.chunking_n > 1 && params.chunking_id < 0.85) {
       println warningMsg("`--chunking_id ${params.chunking_id}` is low; sequences can chain into a few very large chunks (recommended: 0.9).", params.monochrome_logs)
+    }
+
+    // OptimOTU: the reference set must exist, and the input must be full-length ITS
+    if (params.clustering == "optimotu") {
+      def refset = resolveOptimotuRefset(params)
+      if (refset.error) {
+        println errorMsg(refset.error, params.monochrome_logs)
+        exit(1)
+      }
+
+      // Split rank must lie strictly between the first (root) and the last rank of the reference set
+      def refset_ranks = refset.options.ranks ? refset.options.ranks.tokenize(',') : []
+      def split_ranks  = refset_ranks.size() > 2 ? refset_ranks[1..-2] : []
+      if (params.optimotu_split_rank != "none" && !(params.optimotu_split_rank in split_ranks)) {
+        println errorMsg("`--optimotu_split_rank ${params.optimotu_split_rank}` can not be used with the reference set ${refset.id} (use `none` or one of: ${split_ranks.join(', ')}).", params.monochrome_logs)
+        exit(1)
+      }
+      def attach_ranks = refset_ranks.drop(1)
+      if (!(params.optimotu_closed_ref_from in attach_ranks)) {
+        println errorMsg("`--optimotu_closed_ref_from ${params.optimotu_closed_ref_from}` can not be used with the reference set ${refset.id} (use one of: ${attach_ranks.join(', ')}).", params.monochrome_logs)
+        exit(1)
+      }
+
+      // ITS region used in Step-1 (pipeline_params.tsv, headerless `key<TAB>value`); no check if the files are missing
+      def s1_params = (files("${params.data_path}/pipeline_info/pipeline_params.tsv") + files("${params.data_path}/*/pipeline_info/pipeline_params.tsv"))
+        .findAll { f -> f.exists() }
+      def s1_regions = s1_params.collectEntries { f ->
+        [f, f.readLines().find { line -> line.startsWith("its_region\t") }?.tokenize('\t')?.getAt(1)]
+      }
+      def bad_region = s1_regions.find { _f, region -> region && !(region in ["full", "ITS1_5.8S_ITS2"]) }
+      if (bad_region) {
+        println errorMsg("OptimOTU clustering requires full-length ITS, but Step-1 was run with `--its_region ${bad_region.value}` (${bad_region.key}).", params.monochrome_logs)
+        exit(1)
+      }
     }
 
   }  // end of Step-2 parameter validation
