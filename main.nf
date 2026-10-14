@@ -215,7 +215,7 @@ params {
     dada2_mapback_id: Float = 0.99             // minimum similarity for mapping sequences excluded from denoising to ASVs
     dada2_mapback_unmapped: String = "keep"    // "keep" or "discard" excluded sequences that do not match any ASV
 
-    // Sequence clustering method ("none" / "vsearch" / "swarm" / "shmatching")
+    // Sequence clustering method ("none" / "vsearch" / "swarm" / "optimotu" / "shmatching")
     clustering: String   // default in conf/params.config ("vsearch")
     
     // VSEARCH clustering
@@ -227,6 +227,16 @@ params {
     swarm_d: Integer = 1
     swarm_fastidious: Boolean = true
     swarm_d1boundary: Integer = 3
+
+    // OptimOTU clustering with taxon-specific thresholds (--clustering optimotu; full-length ITS only)
+    optimotu_db: String = "eukaryome_its_v2.2"   // reference-set id (folder in <db_dir>/optimotu/) or path to a reference-set folder
+    optimotu_confidence: Float = 0.5             // minimum sintaxer bootstrap support to accept a rank
+    optimotu_metric: String = "FM"               // threshold-optimization measure
+    optimotu_split_rank: String = "family"       // cluster each taxon of this rank as a separate task ("none" = one task per bucket)
+    optimotu_closed_ref_from: String = "order"   // attach unclassified sequences to classified ones only from this rank down; above it they are clustered de novo ("kingdom" = at every rank)
+
+    // Reference databases
+    db_dir: String? = null                       // folder with reference databases; falls back to env NEXTITS_DB_DIR
 
     // Alternative dereplication as in UNITE:
     // Allow query sequences to vary 4% in length at 100% similarity
