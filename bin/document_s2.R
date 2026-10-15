@@ -355,6 +355,9 @@ cat("Loading params table...\n")
 params <- data.table::fread(params_path, sep = "\t", header = TRUE, na.strings = c("", "NA"))
 setnames(params, new = c("name", "value"))
 
+## Reference set used for OptimOTU clustering (citation comes from the set's manifest; NA if absent)
+citation_db$optimotu_refset <- params[ name == "optimotu_refset.citation" ]$value[1]
+
 ## Build body and citations
 res <- build_docs(versions, params)
 
