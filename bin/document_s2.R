@@ -72,7 +72,9 @@ citation_db <- list(
   R         = "R Core Team (2025) R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing, Vienna, Austria. URL: https://www.R-project.org/",
   arrow     = "Richardson N, Cook I, Crane N, Dunnington D, François R, Keane J, Moldovan-Grünfeld D, Ooms J, Wujciak-Jens J, and Apache Arrow (2025) arrow: Integration to Apache Arrow. URL: https://github.com/apache/arrow/",
   biostrings= "Pagès H, Aboyoun P, Gentleman R, DebRoy S (2025) Biostrings: Efficient manipulation of biological strings. DOI:10.18129/B9.bioc.Biostrings",
-  datatable = "Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B, Krylov I (2025) data.table: Extension of data.frame. URL: <https://r-datatable.com>"
+  datatable = "Barrett T, Dowle M, Srinivasan A, Gorecki J, Chirico M, Hocking T, Schwendinger B, Krylov I (2025) data.table: Extension of data.frame. URL: <https://r-datatable.com>",
+  optimotu  = "Furneaux B, Anslan S, Somervuo P, Hultman J, Abrego N, Roslin T, Ovaskainen O (2025) OptimOTU: Taxonomically aware OTU clustering with optimized thresholds and a bioinformatics workflow for metabarcoding data. arXiv:2502.10350. DOI:10.48550/arXiv.2502.10350",
+  sintaxer  = "Mikryukov V (2026) sintaxer: deterministic SINTAX-style taxonomy classifier. URL: https://github.com/vmikk/sintaxer"
 )
 
 
@@ -214,7 +216,19 @@ emit_clustering <- function(p, v) {
       }
       glue("SWARM v.{getv(v,'cluster_swarm','swarm')} (Mahé et al., 2021) \\
         with parameter d={getp(p,'swarm_d',1)}{fastidious_text}.")
-    })
+    },
+
+    "optimotu" = glue(
+        "OptimOTU v.{getv(v,'OPTIMOTU_CLUSTER','optimotu')} (Furneaux et al., 2025) \\
+        with taxon-specific thresholds. \\
+        Sequences were classified using sintaxer v.{getv(v,'CLASSIFY','sintaxer')} (Mikryukov, 2026) \\
+        against the reference set {getp(p,'optimotu_refset.id','')} \\
+        (minimum classification confidence {getp(p,'optimotu_confidence',0.5)}) \\
+        and clustered with thresholds optimized for the {getp(p,'optimotu_metric','FM')} measure. \
+        Sequences not classified at a rank were attached to classified sequences of the same parent taxon \
+        (closed-reference) at the rank of {getp(p,'optimotu_closed_ref_from','kingdom')} and below, \
+        and otherwise clustered de novo.")
+    )
 
   res <- glue("OTU clustering was performed using {cls}")
   return(res)
@@ -297,6 +311,9 @@ build_docs <- function(versions, params){
         },
         "swarm" = {
           tools_used <- c(tools_used, "swarm")
+        },
+        "optimotu" = {
+          tools_used <- c(tools_used, c("optimotu", "sintaxer", "optimotu_refset"))
         }
       )
     }
