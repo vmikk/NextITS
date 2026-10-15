@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 
 ## Script: optimotu_cluster.R
-## Purpose: Taxonomically guided OTU clustering with OptimOTU: sequences plus a classification plus trained per-taxon thresholds in,
+## Purpose: Taxonomically guided OTU clustering with OptimOTU: sequences plus a
+##          classification plus trained per-taxon thresholds in,
 ##          sequence-to-OTU membership out
 ##
 ## Usage:

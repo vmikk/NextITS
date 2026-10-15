@@ -7,11 +7,13 @@
  * over the defaults below by optimotuOptions().
  *
  * Standalone, main.nf builds that map from params (nextflow.config holds the
- * CLI defaults, which should match these). A host pipeline passes only what it changes, e.g.
+ * CLI defaults, which should match these). A host pipeline passes only what it
+ * changes, e.g.
  *
  *   OPTIMOTU(ch_fasta, thresholds, db, null, [confidence: params.optimotu_confidence])
  *
- * referenceSetFiles() resolves a reference set directory into those thresholds and db arguments
+ * referenceSetFiles() resolves a reference set directory into those
+ * thresholds and db arguments.
  */
 
 def optimotuDefaults() {
@@ -59,7 +61,30 @@ def optimotuDefaults() {
         dist_step                 : 0.001,
         min_taxa                  : 5,
         min_refseq                : 10,
+        train_min_species_seqs    : 1,
+        train_drop_unpaired       : false,
         train_metric              : 'all',
+
+        // --- threshold filtering (null/false: rule off) ----------------------
+        filter_thresholds         : true,
+        filter_min_taxa_ge2       : null,
+        filter_min_frac_taxa_ge2  : null,
+        filter_min_score          : null,
+        filter_max_dominance      : null,
+        filter_max_measure_gap    : null,
+        filter_measure_gap_ref    : 'MCC',
+        filter_measure_gap_action : 'drop',
+        filter_max_threshold      : null,
+        filter_min_threshold      : null,
+        filter_drop_grid_edge     : false,
+        filter_drop_grid_zero     : false,
+        filter_above_rank         : 'genus',
+        filter_min_refseq_above   : null,
+        filter_min_taxa_above     : null,
+        filter_min_coverage       : null,
+        filter_monotonic          : 'none',
+        filter_root_thresholds    : 'keep',
+        filter_root_threshold_values: null,
 
         // --- reference set (thresholds + matching classifier database) -----
         train_reference_set       : true,
@@ -119,6 +144,14 @@ def optimotuOptions(overrides) {
     def classifiers = ['sintaxer', 'sintax', 'vsearch', 'none']
     if (opts.classifier !in classifiers) {
         error("Unknown classifier '${opts.classifier}'. Use one of: ${classifiers.join(', ')}")
+    }
+
+    // The filter script validates its rules too, but only once training is done
+    if (opts.filter_measure_gap_action !in ['drop', 'min']) {
+        error("Unknown filter_measure_gap_action '${opts.filter_measure_gap_action}'. Use drop or min")
+    }
+    if (opts.filter_monotonic !in ['none', 'clip']) {
+        error("Unknown filter_monotonic '${opts.filter_monotonic}'. Use none or clip")
     }
 
     // Closed-reference attachment from one rank down (null: at every rank)

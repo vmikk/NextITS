@@ -1,5 +1,5 @@
-// A `path` input arrives as a List for several files but as a bare Path for one, 
-// so normalize before building the comma-separated argument
+// A `path` input arrives as a List for several files but as a bare Path for
+// one, so normalize before building the comma-separated argument.
 def asCsv(files) {
     return (files instanceof List ? files : [files]).join(',')
 }
@@ -9,7 +9,8 @@ process MERGE_COMPONENTS {
     label 'process_low'
     label 'optimotu'
 
-    // Inputs are staged into their own directories, so a component can never collide with the merged output names
+    // Inputs are staged into their own directories, so a component can never
+    // collide with the merged output names
     input:
     tuple val(meta), path(membership, stageAs: 'membership/*'), path(otu_taxonomy, stageAs: 'otu_taxonomy/*'),
           path(otus_fasta, stageAs: 'otus/*'), path(uc, stageAs: 'uc/*')

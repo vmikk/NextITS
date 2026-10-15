@@ -7,7 +7,7 @@ include { MERGE_COMPONENTS } from '../modules/merge_components'
 include { optimotuOptions  } from './optimotu_options'
 
 /*
- * Taxonomically guided OTU clustering
+ * Taxonomically guided OTU clustering.
  *
  * take:
  *   ch_fasta       channel of tuple(meta, fasta); meta.id names the outputs, and
@@ -33,11 +33,11 @@ include { optimotuOptions  } from './optimotu_options'
  * OPTIMOTU_RESOLVE runs the rank loop down to split_rank on the whole target and
  * finishes what it clusters de novo there (part p000); every taxon of that rank
  * is then clustered further on its own, packed into parts of up to split_target
- * sequences, in parallel OPTIMOTU_CLUSTER tasks. MERGE_COMPONENTS joins the parts
+ * sequences, in parallel OPTIMOTU_CLUSTER tasks. MERGE_COMPONENTS joins the parts.
  *
  * The processes carry the label 'optimotu' (container selection) and need
  * `nextflow.enable.moduleBinaries = true`, which puts modules/resources/usr/bin
- * on the task PATH
+ * on the task PATH.
  */
 workflow OPTIMOTU {
 
@@ -79,7 +79,7 @@ workflow OPTIMOTU {
     // own task; this is only sound when the components really are complete at a
     // cutoff no stricter than the thresholds' max_clustering_distance, which
     // SPLIT_COMPONENTS asserts for us. A component keeps its input's meta as
-    // `parent`, and the number of siblings, for the regrouping below
+    // `parent`, and the number of siblings, for the regrouping below.
     if (opts.split_components) {
         SPLIT_COMPONENTS(ch_fasta, thresholds_file, opts.subMap(['component_max_dist']))
         ch_targets = SPLIT_COMPONENTS.out.components
@@ -97,16 +97,16 @@ workflow OPTIMOTU {
 
     // A precomputed classification short-circuits the classifier entirely, which
     // is how a different classifier gets plugged in: emit the same four-column
-    // table and pass it as `taxprob`
+    // table and pass it as `taxprob`.
     if (taxprob) {
         def taxprob_file = file(taxprob, checkIfExists: true)
         ch_taxprob = ch_targets.map { meta, _fasta -> [meta, taxprob_file] }
         ch_calls = ch_targets.map { meta, fasta -> [meta, fasta, taxprob_file] }
     }
     else {
-        // sintaxer classifies against a prebuilt index: 
-        // a FASTA database is indexed once here, and the index (a value channel) is shared by every target
-        // A .stx database skips this step
+        // sintaxer classifies against a prebuilt index: a FASTA database is
+        // indexed once here, and the index (a value channel) is shared by every
+        // target. A .stx database skips this step.
         if (opts.classifier == 'sintaxer' && !db_is_index) {
             SINTAXER_INDEX(db_file, '')
             ch_classifier_db = SINTAXER_INDEX.out.index
@@ -166,8 +166,10 @@ workflow OPTIMOTU {
     OPTIMOTU_CLUSTER(ch_cluster_calls, thresholds_file, sidecar, cluster_opts)
 
     if (opts.split_components || split_by_taxon) {
-        // OTU IDs are representative sequence IDs, so they stay unique across parts and merging is concatenation.
-        // Each input is merged as soon as all of its parts are done; sorting by file name keeps the merged files deterministic
+        // OTU IDs are representative sequence IDs, so they stay unique across
+        // parts and merging is concatenation. Each input is merged as soon as
+        // all of its parts are done; sorting by file name keeps the merged files
+        // deterministic.
         ch_parts = OPTIMOTU_CLUSTER.out.membership
             .join(OPTIMOTU_CLUSTER.out.otu_taxonomy)
             .join(OPTIMOTU_CLUSTER.out.representatives)

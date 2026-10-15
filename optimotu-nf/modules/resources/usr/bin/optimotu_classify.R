@@ -6,8 +6,9 @@
 ##
 ##            seq_id <tab> rank <tab> taxon <tab> prob
 ##
-##          This is the pipeline's classifier boundary.
-##          Any tool that can produce this table can be plugged in without touching the clustering step
+##          This is the pipeline's classifier boundary.  Any tool that can
+##          produce this table can be plugged in without touching the clustering
+##          step
 ##
 ## Usage:
 ##   Rscript optimotu_classify.R \
@@ -19,8 +20,10 @@
 ##
 ## Classifiers:
 ##   - sintaxer   SINTAX-style bootstrap classification with sintaxer (default);
-##                --db is a sintaxer index (.stx) or a SINTAX-format FASTA, which is then indexed on the fly
-##   - sintax     the same algorithm in VSEARCH (`vsearch --sintax`); --db is a SINTAX-format FASTA
+##                --db is a sintaxer index (.stx) or a SINTAX-format FASTA,
+##                which is then indexed on the fly
+##   - sintax     the same algorithm in VSEARCH (`vsearch --sintax`); --db is a
+##                SINTAX-format FASTA
 ##   - vsearch    best-hit transfer with `vsearch --usearch_global`
 ##   - none       root rank only, i.e. fully de novo clustering
 ##

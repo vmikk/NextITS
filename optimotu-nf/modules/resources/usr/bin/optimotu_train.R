@@ -54,6 +54,9 @@ option_list <- list(
   make_option(c("--dist-step"),         default=0.001, type='double', help="Threshold grid spacing [default %default]"),
   make_option(c("--min-taxa"),          default=5L,   type='integer', help="Minimum subtaxa per optimized subset [default %default]"),
   make_option(c("--min-refseq"),        default=10L,  type='integer', help="Minimum sequences per optimized subset [default %default]"),
+  make_option(c("--min-species-seqs"),  default=1L,   type='integer', help="Train only on names of the last rank with at least this many sequences in the whole reference; rarer names are treated as unknown [default %default: all]"),
+  make_option(c("--drop-unpaired"),     action='store_true', default=FALSE, help="Drop rows (except the root-level fallback rows) whose subset has no taxon with two or more sequences: with no within-taxon pair the optimum is 0 by construction"),
+  make_option(c("--reference-root-rank"), default=NULL, type='character', help="The reference's root rank, whose rows --drop-unpaired keeps. Required for a chunk with --drop-unpaired, since a chunk's first rank is its own top rank [default: the first of --ranks]"),
   make_option(c("--dist-method"),       default="wfa2", type='character', help="One of: wfa2, ksw2, edlib, hybrid, hamming, usearch [default %default]"),
   make_option(c("--dist-penalties"),    default=NULL, type='character', help="WFA2/KSW2 penalties, e.g. gap_open=2,gap_extend=1 [default: edit distance]"),
   make_option(c("--clust-method"),      default="tree", type='character', help="One of: tree, matrix, index, slink [default %default]"),
@@ -117,6 +120,12 @@ if (dist_step > dist_max) fail("--dist-step cannot exceed --dist-max")
 min_taxa <- as_count(opt$`min-taxa`, "min-taxa", 5L)
 min_refseq <- as_count(opt$`min-refseq`, "min-refseq", 10L)
 if (min_refseq < min_taxa) fail("--min-refseq cannot be smaller than --min-taxa")
+min_species_seqs <- as_count(opt$`min-species-seqs`, "min-species-seqs", 1L)
+drop_unpaired <- isTRUE(opt$`drop-unpaired`)
+reference_root_rank <- if (is.null(opt$`reference-root-rank`)) ranks[[1L]] else {
+  trimws(opt$`reference-root-rank`)
+}
+if (!nzchar(reference_root_rank)) fail("--reference-root-rank is empty")
 
 dist_method <- as_choice(opt$`dist-method`, "dist-method", DIST_METHODS, "wfa2")
 clust_method <- as_choice(opt$`clust-method`, "clust-method", CLUST_METHODS, "tree")
@@ -132,6 +141,10 @@ if (!is.null(own_superranks)) {
   }
 }
 chunked <- !is.null(own_superranks) || !is.null(opt$`seq-ids`)
+if (chunked && drop_unpaired && is.null(opt$`reference-root-rank`)) {
+  fail("--drop-unpaired on a chunk needs --reference-root-rank: the chunk's first ",
+       "rank (", ranks[[1L]], ") is not the reference root unless this is the root chunk")
+}
 chunk_id <- opt$`chunk-id`
 
 training_path <- normalizePath(opt$`training-fasta`, mustWork = TRUE)
@@ -165,6 +178,9 @@ report_params(list(
   "Distance step"     = dist_step,
   "Min taxa"          = min_taxa,
   "Min refseq"        = min_refseq,
+  "Min species seqs"  = min_species_seqs,
+  "Drop unpaired"     = drop_unpaired,
+  "Reference root rank" = reference_root_rank,
   "Distance method"   = dist_method,
   "Distance penalties" = penalties,
   "Clustering method" = clust_method,
@@ -216,6 +232,17 @@ taxonomy <- if (is.null(taxonomy_path)) {
                           headers = NULL)
 } else {
   read_reference_taxonomy(taxonomy_path, ranks, taxonomy_format, rank_letters)
+}
+# --min-species-seqs: rare names of the last rank are unknown for training only
+# (the classifier keeps them); see mask_rare_tip_names().  Counted before
+# --seq-ids, over the whole reference, so every chunk masks the same names.
+masked <- mask_rare_tip_names(taxonomy, ranks, min_species_seqs)
+taxonomy <- masked$taxonomy
+n_masked_species <- masked$names
+if (min_species_seqs > 1L) {
+  note("  ", masked$names, " ", ranks[[length(ranks)]], " name(s) with fewer than ",
+       min_species_seqs, " sequences treated as unknown (", masked$records,
+       " sequences)")
 }
 if (!is.null(seq_ids_path)) {
   taxonomy <- taxonomy[taxonomy$seq_id %in% names(training), , drop = FALSE]
@@ -270,41 +297,70 @@ note("Optimizing ", paste(measures, collapse = "/"), " over ", n_thresholds,
      " thresholds (0-", dist_max, " step ", dist_step, ") with ", dist_method,
      " distances on ", length(training), " sequences ...")
 
-step("Running optimotu::optimize_thresholds() ...")
-started <- Sys.time()
-# MCC (and, on tiny training sets, other confusion-matrix measures) is undefined
-# for a subset containing only one true taxon: every between-taxon pair count is
-# zero, so its denominator vanishes.  optimotu signals that with a bare
-# `max(NA, na.rm = TRUE)` warning per affected subset, which is noise; collect
-# them and report the outcome as coverage instead.
-thresholds <- withCallingHandlers(
-  optimotu::optimize_thresholds(
-    taxonomy = taxonomy,
-    refseq = training,
-    ranks = ranks,
-    dist_config = dist_config,
-    threshold_config = optimotu::threshold_uniform(0, dist_max, dist_step,
-                                                   threshold_names),
-    clust_config = clust_config,
-    parallel_config = optimotu::parallel_concurrent(threads),
-    min_taxa = min_taxa,
-    min_refseq = min_refseq,
-    measures = measures,
-    verbose = isTRUE(opt$verbose)
-  ),
-  warning = function(w) {
-    if (grepl("no non-missing arguments to max|number of items to replace",
-              conditionMessage(w))) {
-      invokeRestart("muffleWarning")
-    }
-  }
-)
-elapsed <- as.numeric(difftime(Sys.time(), started, units = "secs"))
+# A chunk can be left with no subset to optimize when --min-species-seqs
+# unnames every species of a genus.  optimotu_partition_reference.R prunes such
+# jobs when it is given the same --min-species-seqs; this is the safety net for
+# a plan made without it.  optimize_thresholds() fails on an empty subset list,
+# so list the subsets the way it does (same size filter, the first rank always
+# kept) and write an empty table instead; the merge reports planned subsets
+# that produced no row.
+candidates <- optimotu::summarize_by_rank(taxonomy, ranks, "seq_id")
+candidates <- candidates[
+  (candidates$n_seq >= min_refseq & candidates$n_taxa >= min_taxa) |
+    candidates$supertaxon %in% taxonomy[[ranks[[1L]]]], , drop = FALSE
+]
+if (!is.null(own_superranks)) {
+  candidates <- candidates[candidates$superrank %in% own_superranks, , drop = FALSE]
+}
+nothing_to_optimize <- !nrow(candidates)
+if (nothing_to_optimize && !(chunked && min_species_seqs > 1L)) {
+  fail("No subset of the training set can be optimized; check --ranks, ",
+       "--own-superranks and --min-taxa/--min-refseq")
+}
 
-thresholds <- as.data.frame(thresholds, stringsAsFactors = FALSE)
-if (!nrow(thresholds)) fail("Threshold optimization produced no thresholds")
-thresholds <- thresholds[!is.na(thresholds$threshold), , drop = FALSE]
-if (!nrow(thresholds)) fail("Every optimized threshold was NA")
+started <- Sys.time()
+if (nothing_to_optimize) {
+  note("No subset left to optimize after --min-species-seqs ",
+       min_species_seqs, "; writing an empty table for this chunk")
+  thresholds <- data.frame(rank = character(), superrank = character(),
+                           supertaxon = character(), measure = character(),
+                           threshold = numeric(), value = numeric())
+} else {
+  step("Running optimotu::optimize_thresholds() ...")
+  # MCC (and, on tiny training sets, other confusion-matrix measures) is undefined
+  # for a subset containing only one true taxon: every between-taxon pair count is
+  # zero, so its denominator vanishes.  optimotu signals that with a bare
+  # `max(NA, na.rm = TRUE)` warning per affected subset, which is noise; collect
+  # them and report the outcome as coverage instead.
+  thresholds <- withCallingHandlers(
+    optimotu::optimize_thresholds(
+      taxonomy = taxonomy,
+      refseq = training,
+      ranks = ranks,
+      dist_config = dist_config,
+      threshold_config = optimotu::threshold_uniform(0, dist_max, dist_step,
+                                                     threshold_names),
+      clust_config = clust_config,
+      parallel_config = optimotu::parallel_concurrent(threads),
+      min_taxa = min_taxa,
+      min_refseq = min_refseq,
+      measures = measures,
+      verbose = isTRUE(opt$verbose)
+    ),
+    warning = function(w) {
+      if (grepl("no non-missing arguments to max|number of items to replace",
+                conditionMessage(w))) {
+        invokeRestart("muffleWarning")
+      }
+    }
+  )
+
+  thresholds <- as.data.frame(thresholds, stringsAsFactors = FALSE)
+  if (!nrow(thresholds)) fail("Threshold optimization produced no thresholds")
+  thresholds <- thresholds[!is.na(thresholds$threshold), , drop = FALSE]
+  if (!nrow(thresholds)) fail("Every optimized threshold was NA")
+}
+elapsed <- as.numeric(difftime(Sys.time(), started, units = "secs"))
 
 # Chunks overlap in what they *can* compute -- a chunk rooted at an order also
 # sees its families -- but each owns a disjoint slice, so that merging is a
@@ -315,10 +371,46 @@ if (!is.null(own_superranks)) {
   thresholds <- thresholds[thresholds$superrank %in% own_superranks, , drop = FALSE]
   note("Keeping ", nrow(thresholds), " of ", before, " rows for superrank ",
        paste(own_superranks, collapse = "/"))
-  if (!nrow(thresholds)) {
+  if (!nrow(thresholds) && !nothing_to_optimize) {
     fail("No optimized threshold has superrank ",
          paste(own_superranks, collapse = "/"), "; this chunk owns nothing. ",
          "Check --own-superranks against --ranks.")
+  }
+}
+
+# --drop-unpaired: a subset in which no taxon of `rank` has two sequences holds
+# no within-taxon pair, so every threshold above 0 can only merge different
+# taxa and the optimum is 0 whatever the real variation (e.g. a subsampled chunk
+# that kept one sequence per lineage).  Counted on the taxonomy training used
+# (cleaned, masked, this chunk's sequences), as optimize_thresholds() saw it.
+# Rows of the reference's root rank are kept: they are the fallback every rank
+# needs.  In a chunk, ranks[1] is the chunk's own top rank (class for a class
+# chunk), whose rows are ordinary rows; only --reference-root-rank is exempt.
+unpaired_dropped <- 0L
+if (drop_unpaired && nrow(thresholds)) {
+  keys <- unique(thresholds[thresholds$superrank != reference_root_rank,
+                            c("rank", "superrank", "supertaxon"), drop = FALSE])
+  paired <- logical(nrow(keys))
+  for (pair in unique(paste(keys$rank, keys$superrank))) {
+    r <- strsplit(pair, " ", fixed = TRUE)[[1L]]
+    upper <- taxonomy[[r[[2L]]]]
+    lower <- taxonomy[[r[[1L]]]]
+    ok <- !is.na(upper) & !is.na(lower)
+    n <- table(paste(upper[ok], lower[ok], sep = "\r"))
+    with_pairs <- unique(sub("\r.*$", "", names(n)[n >= 2L]))
+    sel <- keys$rank == r[[1L]] & keys$superrank == r[[2L]]
+    paired[sel] <- keys$supertaxon[sel] %in% with_pairs
+  }
+  unpaired <- keys[!paired, , drop = FALSE]
+  if (nrow(unpaired)) {
+    drop <- paste(thresholds$rank, thresholds$superrank, thresholds$supertaxon) %in%
+      paste(unpaired$rank, unpaired$superrank, unpaired$supertaxon)
+    unpaired_dropped <- sum(drop)
+    thresholds <- thresholds[!drop, , drop = FALSE]
+    note("Dropped ", unpaired_dropped, " row(s) in ", nrow(unpaired),
+         " subset(s) without a within-taxon pair (--drop-unpaired), e.g. ",
+         paste(utils::head(sprintf("%s|%s %s", unpaired$rank, unpaired$superrank,
+                                   unpaired$supertaxon), 3L), collapse = ", "))
   }
 }
 
@@ -327,11 +419,7 @@ if (!is.null(own_superranks)) {
 # whose parent taxon was never optimized.  Coverage is per measure: a measure
 # that is undefined on a single-taxon subset simply has no row there, which only
 # matters if that measure is the one selected at clustering time.
-root_rows <- thresholds[thresholds$superrank == root_rank, , drop = FALSE]
-coverage <- lapply(measures, function(m) {
-  setdiff(ranks[-1L], unique(root_rows$rank[root_rows$measure == m]))
-})
-names(coverage) <- measures
+coverage <- root_fallback_gaps(thresholds, ranks, measures)
 complete <- measures[lengths(coverage) == 0L]
 if (!length(complete) && !chunked) {
   fail("No measure has a ", root_taxon, "-level threshold for every rank; the ",
@@ -365,7 +453,7 @@ thresholds <- thresholds[
 ]
 rownames(thresholds) <- NULL
 
-max_clustering_distance <- max(
+max_clustering_distance <- if (!nrow(thresholds)) NA_real_ else max(
   optimotu::threshold_as_dist(thresholds$threshold), na.rm = TRUE
 )
 note("Optimized ", nrow(thresholds), " thresholds in ", round(elapsed, 1),
@@ -405,7 +493,9 @@ with_atomic_outputs(outputs, overwrite = isTRUE(opt$overwrite), writer = functio
       distance = c(list(method = dist_method),
                    dist_config[setdiff(names(dist_config), c("method", "call"))]),
       clustering = list(method = clust_method),
-      optimization = list(
+      # reference_root_rank only matters with --drop-unpaired and is left out
+      # otherwise, so it cannot make the chunks of a run without the guard disagree
+      optimization = Filter(Negate(is.null), list(
         measures = measures,
         dist_min = 0,
         dist_max = dist_max,
@@ -413,17 +503,22 @@ with_atomic_outputs(outputs, overwrite = isTRUE(opt$overwrite), writer = functio
         n_thresholds = n_thresholds,
         min_taxa = min_taxa,
         min_refseq = min_refseq,
+        min_species_seqs = min_species_seqs,
+        drop_unpaired = drop_unpaired,
+        reference_root_rank = if (drop_unpaired) reference_root_rank,
         threads = threads,
         elapsed_seconds = elapsed
-      ),
+      )),
       packages = list(R = as.character(getRversion()),
                       optimotu = as.character(utils::packageVersion("optimotu"))),
       counts = list(
         thresholds = nrow(thresholds),
         complete_measures = complete,
+        masked_species = n_masked_species,
+        unpaired_dropped = unpaired_dropped,
         assigned = as.list(stats::setNames(as.integer(assigned), ranks))
       ),
-      max_clustering_distance = max_clustering_distance
+      max_clustering_distance = if (is.na(max_clustering_distance)) NULL else max_clustering_distance
     ),
     staged[[2L]]
   )

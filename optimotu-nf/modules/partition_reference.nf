@@ -23,6 +23,7 @@ process PARTITION_REFERENCE {
         --subsample-min-per-taxon ${opts.train_chunk_min_per_taxon} \\
         --min-taxa ${opts.min_taxa} \\
         --min-refseq ${opts.min_refseq} \\
+        --min-species-seqs ${opts.train_min_species_seqs ?: 1} \\
         --seed ${opts.train_seed} \\
         --overwrite
     """

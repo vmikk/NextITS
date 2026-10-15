@@ -2,7 +2,8 @@
 
 ## Script: optimotu_merge_thresholds.R
 ## Purpose: Reduce the per-chunk outputs of a partitioned training run back into
-##          the single thresholds table (plus JSON sidecar) that optimotu_cluster.R expects
+##          the single thresholds table (plus JSON sidecar) that
+##          optimotu_cluster.R expects
 ##
 ##          Because optimotu_partition_reference.R assigns every
 ##          (superrank, supertaxon) pair to exactly one chunk, merging is a
@@ -156,7 +157,8 @@ chunk_ids <- vapply(seq_along(sidecars), function(i) {
     as.character(id)[[1L]]
   }
 }, character(1))
-for (i in seq_along(chunks)) chunks[[i]]$chunk_id <- chunk_ids[[i]]
+# rep(): a chunk left with nothing to optimize (--min-species-seqs) has no rows
+for (i in seq_along(chunks)) chunks[[i]]$chunk_id <- rep(chunk_ids[[i]], nrow(chunks[[i]]))
 
 # rbindlist instead of do.call(rbind, ...): rbind() reallocates the whole result
 # once per chunk, which is quadratic in the number of chunks
@@ -230,7 +232,9 @@ note("  root chunk: ", chunk_ids[[base_index]])
 config_of <- function(sc) list(distance = sc$distance, clustering = sc$clustering,
                                optimization = sc$optimization[c(
                                  "measures", "dist_min", "dist_max", "dist_step",
-                                 "n_thresholds", "min_taxa", "min_refseq")])
+                                 "n_thresholds", "min_taxa", "min_refseq",
+                                 "min_species_seqs", "drop_unpaired",
+                                 "reference_root_rank")])
 reference_config <- config_of(base)
 for (i in seq_along(sidecars)) {
   if (!identical(config_of(sidecars[[i]]), reference_config)) {
@@ -292,8 +296,8 @@ if (!is.null(expected_path)) {
   )
   if (nrow(absent)) {
     note("NOTE: ", nrow(absent), " planned subset(s) produced no threshold ",
-         "(expected where a subsampled chunk's sample fell below the size ",
-         "filters), e.g. ",
+         "(expected where a subsampled chunk's sample, or --min-species-seqs, ",
+         "left a subset below the size filters), e.g. ",
          paste(apply(utils::head(absent, 3L), 1L, paste, collapse = "/"),
                collapse = "; "))
   }
@@ -307,11 +311,7 @@ step("Checking the ", root_rank, "-level fallback coverage ...")
 
 # optimotu::calc_taxon_thresholds() falls back up the taxonomy and needs a
 # root-level row for every rank; optimotu_cluster.R rejects a table without one.
-root_rows <- thresholds[superrank == root_rank]
-coverage <- lapply(measures, function(m) {
-  setdiff(ranks[-1L], unique(root_rows$rank[root_rows$measure == m]))
-})
-names(coverage) <- measures
+coverage <- root_fallback_gaps(thresholds, ranks, measures)
 complete <- measures[lengths(coverage) == 0L]
 if (!length(complete)) {
   fail("The merged table has no ", root_rank, "-level threshold for every rank ",
@@ -381,6 +381,23 @@ optimization$elapsed_seconds <- sum(vapply(sidecars, function(sc) {
   if (is.null(x)) NA_real_ else as.numeric(x)
 }, numeric(1)))
 
+counts <- list(
+  thresholds = nrow(out_table),
+  chunks = length(chunks),
+  complete_measures = complete,
+  dropped_underpowered = underpowered
+)
+# counted over the whole reference, so every chunk records the same number
+# (absent in chunks trained without --min-species-seqs; NULL leaves it out)
+counts$masked_species <- base$counts$masked_species
+# rows each chunk dropped with --drop-unpaired (absent in older chunks)
+if (isTRUE(base$optimization$drop_unpaired)) {
+  counts$unpaired_dropped <- sum(vapply(sidecars, function(sc) {
+    x <- sc$counts$unpaired_dropped
+    if (is.null(x)) 0L else as.integer(x)
+  }, integer(1)))
+}
+
 with_atomic_outputs(outputs, overwrite = isTRUE(opt$overwrite), writer = function(staged) {
   data.table::fwrite(out_table, staged[[1L]], sep = "\t", quote = FALSE, na = "")
   write_json_file(
@@ -397,12 +414,7 @@ with_atomic_outputs(outputs, overwrite = isTRUE(opt$overwrite), writer = functio
       clustering = base$clustering,
       optimization = optimization,
       packages = base$packages,
-      counts = list(
-        thresholds = nrow(out_table),
-        chunks = length(chunks),
-        complete_measures = complete,
-        dropped_underpowered = underpowered
-      ),
+      counts = counts,
       max_clustering_distance = max_clustering_distance,
       merged_from = lapply(seq_along(chunks), function(i) list(
         chunk_id = chunk_ids[[i]],

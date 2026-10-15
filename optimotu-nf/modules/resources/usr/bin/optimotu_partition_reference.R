@@ -63,6 +63,7 @@ option_list <- list(
   make_option(c("--subsample-min-per-taxon"), default=2L, type='integer', help="When a subsampled chunk must drop taxa, keep this many sequences from each it keeps [default %default]"),
   make_option(c("--min-taxa"),          default=5L,   type='integer',  help="Minimum subtaxa per optimized subset [default %default]"),
   make_option(c("--min-refseq"),        default=10L,  type='integer',  help="Minimum sequences per optimized subset [default %default]"),
+  make_option(c("--min-species-seqs"),  default=1L,   type='integer',  help="As optimotu_train.R --min-species-seqs: rarer names of the last rank are unknown, so subsets they leave below the size filters are not planned [default %default: all]"),
   make_option(c("--seed"),              default=42L,  type='integer',  help="Subsampling seed [default %default]"),
   make_option(c("--prefix"),            default="chunk", type='character', help="Chunk ID prefix [default %default]"),
   make_option(c("--overwrite"),         action='store_true', default=FALSE, help="Replace existing plan files")
@@ -98,6 +99,7 @@ subsample_min_per_taxon <- as_count(opt$`subsample-min-per-taxon`,
                                     "subsample-min-per-taxon", 2L)
 min_taxa <- as_count(opt$`min-taxa`, "min-taxa", 5L)
 min_refseq <- as_count(opt$`min-refseq`, "min-refseq", 10L)
+min_species_seqs <- as_count(opt$`min-species-seqs`, "min-species-seqs", 1L)
 seed <- as_count(opt$seed, "seed", 42L)
 prefix <- sanitize_id(opt$prefix, "--prefix")
 if (min_refseq < min_taxa) fail("--min-refseq cannot be smaller than --min-taxa")
@@ -116,6 +118,7 @@ report_params(list(
   "Subsample min per taxon" = subsample_min_per_taxon,
   "Min taxa"          = min_taxa,
   "Min refseq"        = min_refseq,
+  "Min species seqs"  = min_species_seqs,
   "Seed"              = seed,
   "Chunk prefix"      = prefix,
   "Overwrite"         = isTRUE(opt$overwrite)
@@ -172,8 +175,25 @@ note(n_seq_total, " sequences; ranks: ", paste(ranks, collapse = ", "))
 # taking the plan's inventory from it guarantees the two agree about which
 # subsets exist.  Only the counts are kept; the seq_id/true_partition list
 # columns would be hundreds of megabytes on a full database.
+# With --min-species-seqs the chunks train on masked names, so the inventory
+# must too: a genus whose species are all singletons then has no species
+# subset, and a job left owning nothing is pruned below instead of failing in
+# training.  The subsampling strata use the masked copy as well: a masked
+# species is unknown to training, so giving each one its own stratum would
+# spend the sample on sequences that add no within-species pair (in the
+# EUKARYOME v2 run, 2,886 of the 6,000 root-sample sequences were plants and
+# only 122 of them kept a species name).  Job sizes stay on the full taxonomy,
+# since training clusters every sequence of a chunk whether named or not.
 step("Enumerating subsets ...")
-subsets <- optimotu::summarize_by_rank(taxonomy, ranks, "seq_id")
+masked <- mask_rare_tip_names(taxonomy, ranks, min_species_seqs)
+if (min_species_seqs > 1L) {
+  note("  ", masked$names, " ", ranks[[length(ranks)]], " name(s) with fewer than ",
+       min_species_seqs, " sequences treated as unknown (", masked$records,
+       " sequences)")
+}
+subsets <- optimotu::summarize_by_rank(masked$taxonomy, ranks, "seq_id")
+strata_taxonomy <- masked$taxonomy
+rm(masked)
 subsets <- data.frame(
   rank       = as.character(subsets$rank),
   superrank  = as.character(subsets$superrank),
@@ -201,13 +221,14 @@ note("  ", nrow(subsets), " subsets, ", sum(subsets$optimized),
 ## Strata are whole lineages (the deepest assigned path), not a single rank:
 ## a high-rank job needs the sequences that stop at order just as much as the
 ## ones identified to species, and stratifying on one `require_rank` -- as
-## optimotu_reference_prep.R does -- would throw them away.  Within a stratum the
-## per-taxon cap is chosen as large as the sequence budget allows, so the sample
-## keeps as many within-taxon pairs as it can afford before it starts dropping
-## whole taxa.
+## optimotu_reference_prep.R does -- would throw them away.  Lineages are taken
+## from the masked taxonomy, so the sequences of masked species share their
+## genus's stratum.  Within a stratum the per-taxon cap is chosen as large as
+## the sequence budget allows, so the sample keeps as many within-taxon pairs as
+## it can afford before it starts dropping whole taxa.
 stratified_sample <- function(idx, cap) {
   if (length(idx) <= cap) return(idx)
-  key <- do.call(paste, c(lapply(ranks, function(r) taxonomy[[r]][idx]),
+  key <- do.call(paste, c(lapply(ranks, function(r) strata_taxonomy[[r]][idx]),
                           list(sep = "\r")))
   groups <- unname(split(idx, key))
   sizes <- lengths(groups)
@@ -220,16 +241,17 @@ stratified_sample <- function(idx, cap) {
     mid <- as.integer((lo + hi + 1L) %/% 2L)
     if (sum(pmin(sizes, mid)) <= cap) lo <- mid else hi <- mid - 1L
   }
-  if (lo >= 1L) {
+  if (lo >= subsample_min_per_taxon) {
     return(sort(unlist(lapply(groups, draw, m = lo), use.names = FALSE)))
   }
 
-  # Even one sequence per stratum overflows, so strata have to be dropped.  Keep
-  # `subsample_min_per_taxon` sequences from as many strata as fit rather than
-  # one sequence from more strata: a taxon represented once contributes no
-  # within-taxon pair, and a sample made entirely of such taxa presents the
-  # optimizer with a partition of singletons, whose best threshold is a
-  # degenerate zero.
+  # Fewer than `subsample_min_per_taxon` sequences per stratum fit, so strata
+  # have to be dropped.  Keep `subsample_min_per_taxon` sequences from as many
+  # strata as fit rather than one sequence from more strata: a taxon
+  # represented once contributes no within-taxon pair, and a sample made
+  # entirely of such taxa presents the optimizer with a partition of
+  # singletons, whose best threshold is a degenerate zero (species|class
+  # Lecanoromycetes = 0 in the EUKARYOME runs, sampled at one per stratum).
   shuffled <- sample.int(length(groups))
   kept <- pmin(sizes[shuffled], subsample_min_per_taxon)
   shuffled <- shuffled[cumsum(kept) <= cap]
@@ -422,7 +444,7 @@ with_atomic_outputs(outputs, overwrite = isTRUE(opt$overwrite), writer = functio
       partitioning = list(budget_pairs = budget, subsample_max = subsample_max,
                           subsample_min_per_taxon = subsample_min_per_taxon,
                           min_taxa = min_taxa, min_refseq = min_refseq,
-                          seed = seed),
+                          min_species_seqs = min_species_seqs, seed = seed),
       counts = list(
         chunks = nrow(plan),
         exact = sum(plan$job_kind == "exact"),

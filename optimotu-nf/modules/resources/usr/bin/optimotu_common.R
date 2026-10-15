@@ -367,6 +367,57 @@ add_root_rank <- function(tab, root_rank, root_taxon) {
 }
 
 ## ---------------------------------------------------------------------------
+## thresholds tables
+## ---------------------------------------------------------------------------
+
+## Treat names of the last rank with fewer than `min_seqs` records as unknown
+##
+## A species with one sequence has no within-species pairs: at every threshold
+## above 0 it can only be merged with another species, so a subset made mostly
+## of such species scores best at (or near) 0 whatever the real within-species
+## variation is.  Names are counted per (parent, name) over the table given, so
+## optimotu_partition_reference.R and every optimotu_train.R chunk, which all
+## read the same training taxonomy, mask the same names.
+##
+## @param taxonomy data.frame with one column per rank
+## @return list(taxonomy = the table with rare names set to NA,
+##              names = number of names masked, records = records affected)
+mask_rare_tip_names <- function(taxonomy, ranks, min_seqs) {
+  if (min_seqs <= 1L) return(list(taxonomy = taxonomy, names = 0L, records = 0L))
+  tip <- ranks[[length(ranks)]]
+  parent <- if (length(ranks) > 1L) ranks[[length(ranks) - 1L]] else NULL
+  key <- if (is.null(parent)) taxonomy[[tip]] else {
+    paste(taxonomy[[parent]], taxonomy[[tip]], sep = "|")
+  }
+  # read_reference_taxonomy() can leave unknown names as "" (cleaning turns them
+  # into NA later); counting them would add one "Genus|" name per genus
+  key[is.na(taxonomy[[tip]]) | !nzchar(trimws(taxonomy[[tip]]))] <- NA_character_
+  size <- table(key)
+  rare <- !is.na(key) & as.vector(size[key]) < min_seqs
+  taxonomy[[tip]][rare] <- NA_character_
+  list(taxonomy = taxonomy, names = sum(size < min_seqs), records = sum(rare))
+}
+
+## Ranks below the root that have no root-level threshold row, per measure
+##
+## optimotu::calc_taxon_thresholds() falls back up the taxonomy and needs a
+## root-level row for every rank; optimotu_cluster.R rejects a table without one.
+## Coverage is per measure: a measure that is undefined on a single-taxon subset
+## (MCC) simply has no row there, which only matters if that measure is the one
+## selected at clustering time
+##
+## @param thresholds table with `rank`, `superrank` and `measure` columns
+## @return named list, measure -> the ranks it lacks a root-level row for
+root_fallback_gaps <- function(thresholds, ranks, measures) {
+  root <- thresholds$superrank == ranks[[1L]]
+  gaps <- lapply(measures, function(m) {
+    setdiff(ranks[-1L], unique(thresholds$rank[root & thresholds$measure == m]))
+  })
+  names(gaps) <- measures
+  gaps
+}
+
+## ---------------------------------------------------------------------------
 ## FASTA input
 ## ---------------------------------------------------------------------------
 
