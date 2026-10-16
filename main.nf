@@ -254,7 +254,7 @@ params {
 
     // LULU
     lulu: Boolean = true
-    lulu_match: Float = 95.0
+    lulu_match: Float = 97.0
     lulu_ratio: Float = 1.0
     lulu_ratiotype: String = "min"
     lulu_relcooc: Float = 0.95

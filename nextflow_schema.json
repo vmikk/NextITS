@@ -572,7 +572,7 @@
         },
         "lulu_match": {
           "type": "number",
-          "default": 95.0,
+          "default": 97.0,
           "description": "Minimum sequence similarity threshold for LULU"
         },
         "lulu_ratio": {

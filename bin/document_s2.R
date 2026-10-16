@@ -245,7 +245,7 @@ emit_lulu <- function(p, v) {
   glue("Post-clustering curation was performed using \\
     LULU algorithm (Frøslev et al., 2017) \\
     as implemented in MUMU v.{getv(v,'lulu','mumu')} (Mahé, 2025) \\
-    with {getp(p,'lulu_match',95.0)}% minimum similarity, \\
+    with {getp(p,'lulu_match',97.0)}% minimum similarity, \\
     {getp(p,'lulu_ratio',1.0)} minimum abundance ratio, \\
     and {getp(p,'lulu_relcooc',0.95)} minimum relative co-occurrence. \\
     Pairwise sequence similarities were calculated using \\
