@@ -357,19 +357,6 @@ lulu_section <- if (!is.null(lulu_wide)) {
           dt_table(agg, labels = c("Status", unit), fmt = list(N = "int"),
                    bar_cols = "N", search = FALSE, cols_menu = FALSE)))
       }
-      keep <- intersect(c("parent_id", "daughter_id", "match", "spread", "rel_cooccurence",
-                          "curationlevel", "status", "total", "parent_total"), names(st))
-      if (length(keep) > 0L) {
-        show <- st[, ..keep]
-        if ("status" %in% names(show)) show <- show[order(status)]
-        bits <- c(bits, list(
-          subhead("lulu-detail", "Merging statistics"),
-          dt_table(head(show, 2000L),
-                   download = "lulu_merging_statistics.tsv",
-                   caption = if (nrow(show) > 2000L)
-                     paste0("Showing the first 2,000 of ", fmt_int(nrow(show)),
-                            " rows; the full table is in 05.LULU/.") else NULL)))
-      }
     }
   }
   bits
