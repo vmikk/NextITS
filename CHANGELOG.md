@@ -18,6 +18,7 @@ Each element increases numerically (e.g., `1.9.0` -> `1.10.0` -> `1.11.0`).
 - Add automatic detection of "single-library" results in Step-2  
 - Migrated to Nextflow v26 strict syntax parser  
 - Migrated pipeline parameters to a typed parameters (Nextflow 25.10+)  
+- Changed default similarity threshold for LULU to 97% (`--lulu_match 97.0`)  
 
 
 
