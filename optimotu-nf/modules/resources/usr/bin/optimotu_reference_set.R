@@ -288,6 +288,41 @@ if (length(top_only)) set(out, i = top_only, j = top_rank, value = raw_top[top_o
 dropped <- top_only[is.na(raw_top[top_only])]
 kind[dropped] <- "dropped"
 
+# Names still under more than one parent: training qualifies homonyms only among
+# its own records, so a name can get a second lineage from the records absent
+# from training (e.g. genus Chaetopsis, Reticulascaceae in training and one
+# Ulidiidae record outside it). OptimOTU cannot cluster such calls, so qualify
+# them with their parent, top-down; the lineage training knows keeps the bare
+# name, and with it its thresholds
+db_qualified <- stats::setNames(integer(length(below_root)), below_root)
+db_examples <- character()
+for (i in seq_along(below_root)[-1L]) {
+  child <- below_root[[i]]
+  parent <- below_root[[i - 1L]]
+  known <- !is.na(out[[child]]) & !is.na(out[[parent]])
+  if (!any(known)) next
+  pairs <- unique(data.table(ch = out[[child]][known], pa = out[[parent]][known]))
+  homonyms <- pairs[, list(n_parents = .N), by = "ch"][n_parents > 1L, ch]
+  if (!length(homonyms)) next
+  # (parent, name) of homonyms that training has under a single parent
+  trained <- unique(data.table(ch = taxonomy[[child]], pa = taxonomy[[parent]]))
+  trained <- trained[ch %chin% homonyms & !is.na(pa)]
+  trained <- trained[, list(pa = if (.N == 1L) pa else NA_character_), by = "ch"][!is.na(pa)]
+  hit <- which(known & out[[child]] %chin% homonyms)
+  bare <- paste(out[[parent]][hit], out[[child]][hit], sep = "\t") %chin%
+    paste(trained$pa, trained$ch, sep = "\t")
+  hit <- hit[!bare]
+  set(out, i = hit, j = child, value = paste(out[[parent]][hit], out[[child]][hit]))
+  db_qualified[[child]] <- length(homonyms)
+  db_examples <- c(db_examples, paste0(child, ":", utils::head(homonyms, 3L)))
+}
+if (any(db_qualified > 0L)) {
+  note("  qualified names under more than one parent (names): ",
+       paste(sprintf("%s=%d", names(db_qualified)[db_qualified > 0L],
+                     db_qualified[db_qualified > 0L]), collapse = " "),
+       ", e.g. ", paste(utils::head(db_examples, 5L), collapse = ", "))
+}
+
 counts <- vapply(c("training", "decoy", "placeholder_only", "absent_cleaned", "dropped"),
                  function(k) sum(kind == k), integer(1))
 note("  records per class: ", paste(sprintf("%s=%d", names(counts), counts), collapse = " "))
@@ -369,6 +404,21 @@ multi <- vapply(seq_along(below_root)[-1L], function(i) {
 }, integer(1))
 names(multi) <- below_root[-1L]
 checks$multi_parent_names <- as.list(multi)
+checks$qualified_db_homonyms <- list(
+  names = as.list(db_qualified),
+  examples = I(utils::head(db_examples, 10L))
+)
+# with both names known, every homonym was qualified above
+multi_known <- vapply(seq_along(below_root)[-1L], function(i) {
+  pairs <- unique(data.table(ch = out[[below_root[[i]]]], pa = out[[below_root[[i - 1L]]]]))
+  pairs <- pairs[!is.na(ch) & !is.na(pa)]
+  sum(duplicated(pairs$ch))
+}, integer(1))
+if (any(multi_known > 0L)) {
+  fail("Names under more than one parent remain after qualifying them: ",
+       paste(sprintf("%s=%d", below_root[-1L][multi_known > 0L], multi_known[multi_known > 0L]),
+             collapse = " "))
+}
 if (any(multi > 0L)) {
   warning("Names under more than one parent: ",
           paste(sprintf("%s=%d", names(multi)[multi > 0L], multi[multi > 0L]),

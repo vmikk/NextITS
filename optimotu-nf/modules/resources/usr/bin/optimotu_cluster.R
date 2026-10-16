@@ -346,6 +346,46 @@ tax_prob$prob <- suppressWarnings(as.numeric(tax_prob$prob))
 tax_prob <- tax_prob[, c("seq_id", "rank", "taxon", "prob"), drop = FALSE]
 tax_prob$taxon[!nzchar(tax_prob$taxon)] <- NA_character_
 
+# OptimOTU groups sequences by the taxon name at each rank, and its threshold
+# lookup (calc_subtaxon_thresholds()) fails on a name with two parents. The
+# classifier returns such names when its database reuses a name in two lineages
+# (e.g., genus Chaetopsis in Diptera and in Glomerellales, or decoys with real
+# lower ranks). Qualify them with their parent, as training does ("Ulidiidae
+# Chaetopsis"), before the calls are kept for the split parts, so that the parts
+# get the same names
+qualify_calls <- function(tax_prob, ranks) {
+  tp <- data.table::as.data.table(tax_prob)
+  wide <- data.table::dcast(tp[rank %chin% ranks & !is.na(taxon)],
+                            seq_id ~ rank, value.var = "taxon")
+  for (r in setdiff(ranks, names(wide))) data.table::set(wide, j = r, value = NA_character_)
+  qualified <- qualify_homonyms(wide[, c("seq_id", ranks), with = FALSE], ranks)
+  counts <- attr(qualified, "qualified")
+  if (!any(counts > 0L)) return(list(tax_prob = tax_prob, counts = counts, examples = character()))
+  long <- data.table::melt(data.table::as.data.table(qualified), id.vars = "seq_id",
+                           variable.name = "rank", value.name = "qualified",
+                           variable.factor = FALSE, na.rm = TRUE)
+  tp[long, qualified := i.qualified, on = c("seq_id", "rank")]
+  changed <- unique(tp[!is.na(qualified) & qualified != taxon, list(rank, taxon, qualified)])
+  examples <- changed[, list(names = paste(qualified, collapse = " | ")), by = c("rank", "taxon")]
+  tp[!is.na(qualified), taxon := qualified]
+  tp[, qualified := NULL]
+  data.table::setDF(tp)
+  list(tax_prob = tp, counts = counts,
+       examples = paste0(examples$rank, " ", examples$taxon, " -> ", examples$names))
+}
+
+homonyms <- qualify_calls(tax_prob, ranks)
+tax_prob <- homonyms$tax_prob
+if (any(homonyms$counts > 0L)) {
+  counts <- homonyms$counts[homonyms$counts > 0L]
+  note("WARNING: the classification assigns taxon name(s) under more than one parent (",
+       paste(sprintf("%s=%d", names(counts), counts), collapse = " "),
+       "); they are qualified with their parent, e.g. ",
+       paste(utils::head(homonyms$examples, 3L), collapse = "; "),
+       ". The classifier database should have one lineage per name; ",
+       "rebuild the reference set with the current optimotu_reference_set.R")
+}
+
 classifier_calls <- tax_prob
 force_denovo <- as_list_arg(opt$`force-denovo`, "species")
 if (length(force_denovo) == 1L && tolower(force_denovo) %in% c("none", "")) {
@@ -376,11 +416,8 @@ if (!setequal(covered, input$ids[uniq])) {
 }
 rownames(tax_prob) <- NULL
 
-# OptimOTU groups sequences by the taxon name at each rank, and its threshold
-# lookup (calc_subtaxon_thresholds()) fails on a name with two parents. That
-# happens when the classifier database reuses a name under two lineages, e.g.
-# decoys or placeholder kingdoms with real lower ranks; say so up front
-accepted <- tax_prob[!is.na(tax_prob$taxon) & tax_prob$prob >= confidence, , drop = FALSE]
+# Names with two parents were qualified above; any left here would be a bug
+accepted <-tax_prob[!is.na(tax_prob$taxon) & tax_prob$prob >= confidence, , drop = FALSE]
 accepted <- data.table::as.data.table(accepted)
 homonyms <- data.table::rbindlist(lapply(seq_along(ranks)[-1L], function(i) {
   child <- accepted[rank == ranks[[i]], list(seq_id, taxon)]
@@ -390,11 +427,11 @@ homonyms <- data.table::rbindlist(lapply(seq_along(ranks)[-1L], function(i) {
     n > 1L][, rank := ranks[[i]]]
 }))
 if (nrow(homonyms)) {
-  fail("The classification assigns ", nrow(homonyms), " taxon name(s) under more ",
-       "than one parent, which OptimOTU cannot cluster (e.g. ",
+  fail("The classification still assigns ", nrow(homonyms), " taxon name(s) under more ",
+       "than one parent after qualifying them, which OptimOTU cannot cluster (e.g. ",
        paste0(utils::head(homonyms$rank, 3L), " ", utils::head(homonyms$taxon, 3L),
               " in ", utils::head(homonyms$parents, 3L), collapse = "; "),
-       "). Each name must have one lineage in the classifier database.")
+       ")")
 }
 
 # Thresholds are looked up by taxon name, so the classifier must use the names
