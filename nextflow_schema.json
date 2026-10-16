@@ -253,7 +253,7 @@
           "description": "Sequence similarity threshold for pre-clustering during homopolymer error correction (0.8-1.0)"
         },
         "hp_iddef": {
-          "type": "number",
+          "type": "integer",
           "default": 2,
           "minimum": 0,
           "maximum": 4,
@@ -287,7 +287,7 @@
           "description": "dn parameter for de novo chimera removal"
         },
         "chimeranov_mindiffs": {
-          "type": "number",
+          "type": "integer",
           "default": 3,
           "description": "mindiffs parameter for de novo chimera removal"
         },

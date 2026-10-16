@@ -137,7 +137,7 @@ params {
     // Homopolymer compression
     hp: Boolean = true
     hp_similarity: Float = 0.999
-    hp_iddef: Float = 2
+    hp_iddef: Integer = 2
 
     // Which chimera removal methods to use
     chimera_methods: String = "ref,denovo"   // null or "none" also supported
@@ -149,7 +149,7 @@ params {
     // De novo chimera identification (UCHIME1)
     chimeranov_abskew: Float = 2.0
     chimeranov_dn: Float = 1.4
-    chimeranov_mindiffs: Float = 3
+    chimeranov_mindiffs: Integer = 3
     chimeranov_mindiv: Float = 0.8
     chimeranov_minh: Float = 0.28
     chimeranov_xn: Float = 8.0
