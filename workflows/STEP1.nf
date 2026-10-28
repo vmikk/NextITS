@@ -784,9 +784,11 @@ process just_derep {
         --fasta_width 0 \
         --threads 1 \
         --sizein --sizeout \
-        --uc ${sampID}_uc.uc \
+        --uc ${sampID}_uch.uc \
       | gzip -${params.gzip_compression} \
       > ${sampID}.fa.gz
+
+    gzip -${params.gzip_compression} ${sampID}_uch.uc
 
     """
 }
