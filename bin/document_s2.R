@@ -100,9 +100,11 @@ getp <- function(p, pname, default = NA){
   # pname   = parameter name
   # default = default value if parameter is not found
 
+  # Parameters not set in Nextflow are dumped as "null"
+
   pp <- p[ name == pname ]$value
-  if(is.null(pp) || is.na(pp)){ return(default) }
-  return(pp)
+  if(length(pp) == 0 || is.na(pp[1]) || pp[1] %in% c("null", "")){ return(default) }
+  return(pp[1])
 }
 # E.g., getp(params, "otu_id", 0.98)
 
