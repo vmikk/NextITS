@@ -254,6 +254,14 @@ emit_lulu <- function(p, v) {
     VSEARCH v.{getv(v,'lulu','vsearch')} (Rognes et al., 2016).")
 }
 
+emit_rrna_parts <- function(p, v) {
+  glue("rRNA parts (SSU, ITS1, 5.8S, ITS2, LSU) extracted by ITSx in Step-1 \\
+    and full-length primer-trimmed sequences were linked to OTU representative sequences \\
+    via sequence hashes using DuckDB v.{getv(v,'rrna_parts','duckdb')} (Raasveldt & Mühleisen, 2019); \\
+    if a part was not detected in the representative sequence, \\
+    it was taken from the most abundant OTU member.")
+}
+
 
 ##################################
 ################################## Workflow-dependent method descriptions
@@ -330,6 +338,13 @@ build_docs <- function(versions, params){
   if(lulu_enabled){
     body <- c(body, emit_lulu(params, versions))
     tools_used <- c(tools_used, c("mumu", "lulu", "vsearch"))
+  }
+
+  ## Conditional: export of rRNA parts of OTU representatives
+  rrna_parts_enabled <- tolower(as.character(getp(params, "rrna_parts", "true"))) %in% c("true", "t", "1")
+  if(rrna_parts_enabled){
+    body <- c(body, emit_rrna_parts(params, versions))
+    tools_used <- c(tools_used, "duckdb")
   }
 
   ## Generate citations
