@@ -42,7 +42,7 @@ def getColors(boolean monochrome = false) {
         reset:     "\033[0m"
     ]
     // Keep all keys in monochrome mode, so that `${colors.green}` gives "" instead of "null"
-    return monochrome ? codes.collectEntries { k, v -> [k, ''] } : codes
+    return monochrome ? codes.collectEntries { k, _v -> [k, ''] } : codes
 }
 
 /**

@@ -89,15 +89,74 @@ def parameterSummary(workflow, params) {
         if (workflow.container instanceof Map) {
             // Main container first; OptimOTU container only when it is used (Step-2 with `--clustering optimotu`)
             def show_optimotu = params.step == "Step2" && params.clustering == "optimotu"
-            def entries = workflow.container.findAll { k, v -> show_optimotu || !k.toString().contains('optimotu') }
+            def entries = workflow.container.findAll { k, _v -> show_optimotu || !k.toString().contains('optimotu') }
             def main_ct = entries.remove('default')
             def other   = entries.collect { k, v -> "${v} (${k})" }
-            container_txt = ([main_ct] + other).findAll { it }.join(', ')
+            container_txt = ([main_ct] + other).findAll { ct -> ct }.join(', ')
         }
         summary += "  ${colors.green}Container${colors.reset}        : ${colors.cyan}${container_txt}${colors.reset}\n"
     }
     
     return summary
+}
+
+/*
+ * Check if Nextflow will print its own (green) completion summary after `workflow.onComplete`
+ * Mirrors `AnsiLogObserver.renderSummary` and `CliOptions.getAnsiLog` from the Nextflow source;
+ * the summary can only be disabled with the `NXF_ANSI_SUMMARY=false` environment variable
+ */
+def nextflowPrintsSummary(workflow) {
+
+    if (!workflow.success) { return false }
+    if (workflow.stats.succeedCount + workflow.stats.cachedCount == 0) { return false }
+
+    // Summary is printed if the run lasted more than 1 minute (or if `NXF_ANSI_SUMMARY=true`)
+    def ansi_summary = System.getenv('NXF_ANSI_SUMMARY')?.toLowerCase()
+    if (ansi_summary == 'false') { return false }
+    if (ansi_summary != 'true' && workflow.duration.toMillis() <= 60_000) { return false }
+
+    // ANSI log mode
+    def cmd = workflow.commandLine.tokenize(' ')
+    def ansi_flag = cmd.indexOf('-ansi-log')
+    if (ansi_flag >= 0 && ansi_flag + 1 < cmd.size()) {
+        return cmd[ansi_flag + 1].toLowerCase() == 'true'
+    }
+    if ('-bg' in cmd || '-q' in cmd || '-quiet' in cmd) { return false }
+
+    def ansi_log = System.getenv('NXF_ANSI_LOG')?.toLowerCase()
+    if (ansi_log) { return ansi_log == 'true' }
+    if (System.getenv('NO_COLOR')) { return false }
+
+    // Agent mode (plain log)
+    def agent_mode = System.getenv('NXF_AGENT_MODE')
+    if (agent_mode != null) {
+        if (agent_mode.toLowerCase() == 'true') { return false }
+    } else if (System.getenv('AGENT')?.toLowerCase() == 'true' || System.getenv('CLAUDECODE')?.toLowerCase() == 'true') {
+        return false
+    }
+
+    return System.console() != null
+}
+
+/*
+ * Completion summary (printed in `workflow.onComplete`)
+ * Shows the full summary only if Nextflow does not print its own one
+ */
+def completionSummary(workflow, params) {
+
+    def colors = getColors(params.monochrome_logs)
+    def status = workflow.success ? "All done!" : "${colors.red}Failed"
+
+    def summary = ""
+    if (!nextflowPrintsSummary(workflow)) {
+        def completion_time = workflow.complete.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        summary += "Completed at: ${completion_time}\n"
+        summary += "Duration    : ${workflow.duration}\n"
+        summary += "CPU hours   : ${workflow.stats.computeTimeFmt}\n"
+    }
+    summary += "Status      : ${status}"
+
+    return "${colors.green}${colors.bold}${summary}${colors.reset}"
 }
 
 // Export the function so it can be used in other files

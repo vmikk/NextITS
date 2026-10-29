@@ -302,7 +302,7 @@ include { validateParameters } from 'plugin/nf-schema'
 include { helpMsg } from './modules/help_message.nf'
 
 // Include custom parameter summary function
-include { paramSummary } from './modules/parameter_summary'
+include { paramSummary; completionSummary } from './modules/parameter_summary'
 
 // Include color utilities
 include { getColors; colorize; colorizeMultiple; errorMsg; warningMsg; infoMsg; successMsg } from './modules/colors'
@@ -626,13 +626,9 @@ ${logoColors.dim}----------------------------------------------------${logoColor
     seqstats()
   }
 
+  // Nextflow may print its own summary after this one (see `completionSummary`)
   workflow.onComplete = {
-    def completion_time = workflow.complete.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX"))
-
-    println "Pipeline completed at : ${completion_time}"
-    println "Duration              : ${workflow.duration}"
-    println "CPU hours             : ${workflow.stats.getComputeTimeFmt()}"
-    println "Execution status      : ${workflow.success ? 'All done!' : 'Failed' }"
+    log.info completionSummary(workflow, params)
   }
 
   workflow.onError = {
