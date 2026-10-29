@@ -6,10 +6,10 @@
 /**
  * Get color codes map based on monochrome setting
  * @param monochrome Whether to disable colors (from params.monochrome_logs)
- * @return Map of color names to ANSI codes
+ * @return Map of color names to ANSI codes (empty strings if monochrome)
  */
 def getColors(boolean monochrome = false) {
-    return monochrome ? [:] : [
+    def codes = [
         // Basic colors
         black:   "\033[0;30m",
         red:     "\033[0;31m",
@@ -41,6 +41,8 @@ def getColors(boolean monochrome = false) {
         // Reset
         reset:     "\033[0m"
     ]
+    // Keep all keys in monochrome mode, so that `${colors.green}` gives "" instead of "null"
+    return monochrome ? codes.collectEntries { k, v -> [k, ''] } : codes
 }
 
 /**

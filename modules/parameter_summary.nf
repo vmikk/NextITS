@@ -4,15 +4,12 @@
  */
 
 include { resolveOptimotuRefset } from './optimotu_refset'
+include { getColors } from './colors'
 
 def parameterSummary(workflow, params) {
     
     // Color definitions
-    def colors = params.monochrome_logs ? [:] : [
-        green: "\033[0;32m", blue: "\033[0;34m", yellow: "\033[0;33m", 
-        cyan: "\033[0;36m", purple: "\033[0;35m", dim: "\033[2m", 
-        bold: "\033[1m", reset: "\033[0m"
-    ]
+    def colors = getColors(params.monochrome_logs)
     
     def summary = ""
     summary += "${colors.bold}Parameters:${colors.reset}\n"
