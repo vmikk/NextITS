@@ -896,6 +896,63 @@ process rrna_parts_prep {
 }
 
 
+// Export rRNA parts (SSU, ITS1, 5.8S, ITS2, LSU) and full-length sequences of OTU representatives
+process rrna_parts {
+
+    label "main_container"
+    // cpus 4
+
+    publishDir(
+      path: "${params.outdir}",
+      mode: "${params.storagemode}",
+      saveAs: { filename -> filename.startsWith("LULU_") ? "05.LULU/rRNA_parts/${filename - ~/^LULU_/}" : "04.PooledResults/rRNA_parts/${filename}" }
+    )
+
+    input:
+      path(parts, stageAs: "parts/*")
+      path(quals, stageAs: "quals/*")
+      path(runs)                         // Step-1 run info
+      path(seqtab)                       // Sequence tables in long format
+      path(uc_parquet)                   // Sequence membership
+      path(otus_fasta)                   // OTU sequences
+      path(lulu_otutab)                  // LULU-curated OTU table (or `no_lulu`)
+      path(lulu_stats)                   // LULU merging statistics (or `no_lulustats`)
+      val(rep_type)                      // Description of representative sequences
+
+    output:
+      path "*.fa.gz",                    emit: fasta, optional: true
+      path "rRNA_parts.parquet",         emit: parts
+      path "LULU_rRNA_parts.parquet",    emit: lulu_parts, optional: true
+      path "rRNA_parts_summary.tsv",     emit: summary
+      path "README_rRNA_parts.txt",      emit: readme
+      tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
+      tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
+      tuple val("${task.process}"), val('duckdb'), eval('Rscript -e "cat(as.character(packageVersion(\'duckdb\')))"'), topic: versions
+
+    script:
+    def memoryArg = task.memory ? "--memory ${(task.memory.toMega() * 0.8) as long}MB" : ""
+    def luluOtus  = lulu_otutab.name == "no_lulu"      ? "NA" : lulu_otutab
+    def luluStats = lulu_stats.name  == "no_lulustats" ? "NA" : lulu_stats
+    """
+    echo -e "Exporting rRNA parts of OTU representatives\\n"
+
+    extract_rrna_parts.R \
+      --otus      ${otus_fasta} \
+      --uc        ${uc_parquet} \
+      --seqtab    ${seqtab} \
+      --parts     parts \
+      --quals     quals \
+      --runs      ${runs} \
+      --luluotus  ${luluOtus} \
+      --lulustats ${luluStats} \
+      --reptype   "${rep_type}" \
+      --threads   ${task.cpus} \
+      ${memoryArg}
+    """
+}
+
+
+
 
 // Auto documentation of analysis procedures
 // (generate narrative description of methods)
