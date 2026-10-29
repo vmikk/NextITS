@@ -88,7 +88,16 @@ def parameterSummary(workflow, params) {
     summary += "  ${colors.green}Container engine${colors.reset} : ${colors.cyan}${workflow.containerEngine ?: 'none'}${colors.reset}\n"
     
     if (workflow.container) {
-        summary += "  ${colors.green}Container${colors.reset}        : ${colors.cyan}${workflow.container}${colors.reset}\n"
+        def container_txt = workflow.container
+        if (workflow.container instanceof Map) {
+            // Main container first; OptimOTU container only when it is used (Step-2 with `--clustering optimotu`)
+            def show_optimotu = params.step == "Step2" && params.clustering == "optimotu"
+            def entries = workflow.container.findAll { k, v -> show_optimotu || !k.toString().contains('optimotu') }
+            def main_ct = entries.remove('default')
+            def other   = entries.collect { k, v -> "${v} (${k})" }
+            container_txt = ([main_ct] + other).findAll { it }.join(', ')
+        }
+        summary += "  ${colors.green}Container${colors.reset}        : ${colors.cyan}${container_txt}${colors.reset}\n"
     }
     
     return summary
