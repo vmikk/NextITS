@@ -26,6 +26,7 @@ include { CLUSTERING }                from '../subworkflows/clustering_subworkfl
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { chunkingEnabled }           from '../modules/param_utils.nf'
 include { optimotuRefset }            from '../modules/optimotu_refset.nf'
+include { step1Runs; step1RunsWarnings } from '../modules/step1_results.nf'
 
 // DADA2 with shared error estimation module
 include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
@@ -1057,6 +1058,9 @@ workflow S2 {
           maxDepth: 2).collect()
     }
 
+    // Step-1 runs (rRNA parts and sequence qualities, for the export of rRNA parts of OTUs)
+    def s1runs = params.rrna_parts ? step1Runs(base) : []
+
     // Aggregate sequences, remove de novo chimeras
     aggregate_sequences(ch_seqtabs)
 
@@ -1216,6 +1220,45 @@ workflow S2 {
   } // end of preclustering == "none" & clustering == "none"
 
 
+  // Export rRNA parts and full-length sequences of OTU representatives
+  if( params.rrna_parts ){
+
+    step1RunsWarnings(s1runs).each { msg -> log.warn msg }
+    def s1runs_parts = s1runs.findAll { r -> r.parts_mode != "none" || r.quals }
+
+    if( s1runs_parts ){
+
+      ch_s1runs = channel.fromList(s1runs_parts)
+        .map { r -> tuple(r.id, r.parts_mode, r.region_col, r.parts ?: file("NO_PARTS"), r.quals ?: file("NO_QUALS")) }
+
+      rrna_parts_prep(ch_s1runs)
+
+      ch_s1runs_tsv = channel.of(
+          ["RunID", "its_region", "itsx_tool", "ITSx_partial", "region_column", "parts", "qualities", "path"].join("\t")
+        ).concat(
+          channel.fromList(s1runs).map { r ->
+            [r.id, r.its_region, r.itsx_tool, r.ITSx_partial, r.region_col, r.parts_mode, r.quals ? "yes" : "no", r.dir].join("\t")
+          })
+        .collectFile(name: "rRNA_runs.tsv", newLine: true, sort: false)
+
+      rrna_parts(
+        rrna_parts_prep.out.parts.collect().ifEmpty(file("NO_PARTS")),
+        rrna_parts_prep.out.quals.collect().ifEmpty(file("NO_QUALS")),
+        ch_s1runs_tsv,
+        aggregate_sequences.out.seqs_parquet,
+        ch_s2_uc,
+        ch_s2_otus,
+        ch_s2_lulu,
+        ch_s2_lulustats,
+        representativesDescription(params)
+      )
+
+    } else {
+      log.warn "No rRNA parts or sequence qualities found in the Step-1 results, export of rRNA parts is skipped"
+    }
+  }
+
+
   // Dump the software versions to a file
   ch_versions_yml = software_versions_to_yaml(channel.topic('versions'))
       .collectFile(
@@ -1273,4 +1316,37 @@ workflow S2 {
     file("${projectDir}/assets/report"),
     params.trace_timestamp)
 
+}
+
+
+// Description of representative sequences of OTUs (for the README of rRNA parts)
+def representativesDescription(params) {
+
+    def precl = [
+        "unoise":      "UNOISE-denoised sequences (ASVs)",
+        "dada2":       (params.dada2_engine == "dada2" ? "DADA2" : "PAPA2") + "-denoised sequences (ASVs)",
+        "swarm_d1":    "SWARM (d = 1) clusters",
+        "homopolymer": "homopolymer-corrected sequences"
+        ][params.preclustering]
+
+    def clust = [
+        "vsearch":  "VSEARCH OTUs (${params.otu_id} similarity)",
+        "swarm":    "SWARM clusters (d = ${params.swarm_d})",
+        "optimotu": "OptimOTU clusters (taxon-specific thresholds)"
+        ][params.clustering]
+
+    def res
+    if( clust && precl ){
+      res = "${clust} of ${precl}"
+    } else if( clust ){
+      res = "${clust} of dereplicated sequences"
+    } else if( precl ){
+      res = precl.capitalize()
+    } else {
+      res = "Dereplicated sequences"
+    }
+    if( chunkingEnabled(params.chunking_n) ){
+      res = res + ", with chunking"
+    }
+    return res
 }
