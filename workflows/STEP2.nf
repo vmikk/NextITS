@@ -860,6 +860,43 @@ process lulu {
 // 18. `status` - status: 'accepted' or 'rejected'
 //     The potential parent OTU is either accepted as a parent, or rejected
 
+
+
+// Prepare rRNA parts and sequence qualities of a Step-1 run (for the export of rRNA parts of OTUs)
+// (convert rRNA parts from older NextITS versions to Parquet, summarize sequence qualities by hash)
+process rrna_parts_prep {
+
+    label "main_container"
+    // cpus 4
+
+    tag "${run_id}"
+
+    input:
+      tuple val(run_id), val(parts_mode), val(region_col), path(parts, stageAs: "parts/*"), path(quals, stageAs: "quals/*")
+
+    output:
+      path "${run_id}.parts.parquet", emit: parts, optional: true
+      path "${run_id}.quals.parquet", emit: quals, optional: true
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+
+    script:
+    def memoryArg = task.memory ? "-m ${(task.memory.toMega() * 0.8) as long}MB" : ""
+    def qualsArg  = quals.name.endsWith("NO_QUALS") ? "" : "-q ${quals}"
+    """
+    rrna_parts_prep.sh \
+      -r ${run_id} \
+      -p ${parts_mode} \
+      -i parts \
+      -c ${region_col} \
+      ${qualsArg} \
+      -t ${task.cpus} \
+      ${memoryArg}
+    """
+}
+
+
+
 // Auto documentation of analysis procedures
 // (generate narrative description of methods)
 process document_analysis_s2 {
