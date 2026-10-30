@@ -493,9 +493,6 @@ process itsx_concatenate {
       tuple val(meta), path("${meta.id}.5_8S.full_and_partial.fasta.gz"), emit: itsx_58s_part,  optional: true
       tuple val(meta), path("${meta.id}.ITS2.full_and_partial.fasta.gz"), emit: itsx_its2_part, optional: true
       tuple val(meta), path("${meta.id}.LSU.full_and_partial.fasta.gz"),  emit: itsx_lsu_part,  optional: true
-      tuple val(meta), path("parquet/*.parquet"), emit: parquet, optional: true
-      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
-      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
 
     script:
     def sampID = "${meta.id}"
@@ -556,24 +553,6 @@ process itsx_concatenate {
     fi
 
     echo -e "\\n"
-
-    ## Convert the extracted regions to Parquet
-    if [ ${params.ITSx_to_parquet} == true ]; then
-
-      echo -e "\\nConverting the extracted regions to Parquet"
-      mkdir -p parquet
-
-      for region in full SSU ITS1 5_8S ITS2 LSU; do
-        if [ -s "${sampID}.\${region}.fasta.gz" ]; then
-          ITSx_to_DuckDB.sh \
-            -i "${sampID}.\${region}.fasta.gz" \
-            -o "parquet/${sampID}.\${region}.parquet"
-        fi
-      done
-
-      echo -e "Parquet files created\\n"
-
-    fi
     """
 }
 
@@ -616,7 +595,8 @@ process get_its {
 }
 
 
-// Collect all rRNA parts extracted from all samples
+// Collect all rRNA parts extracted from all samples into a single Parquet table
+// (one row per sequence hash, one column per rRNA region)
 process itsx_collect {
 
     label "main_container"
@@ -636,93 +616,31 @@ process itsx_collect {
       path(itsx_58s_part,  stageAs: "58s_partial/*")
       path(itsx_its2_part, stageAs: "its2_partial/*")
       path(itsx_lsu_part,  stageAs: "lsu_partial/*")
+      path(itsnf,          stageAs: "itsnf/*")
+      val(region_column)    // column with the rRNA region used in the downstream analysis
 
     output:
-      path "ITS_Full.fasta.gz",              emit: full,      optional: true 
-      path "SSU.fasta.gz",                   emit: ssu,       optional: true 
-      path "ITS1.fasta.gz",                  emit: its1,      optional: true 
-      path "5_8S.fasta.gz",                  emit: s58,       optional: true 
-      path "ITS2.fasta.gz",                  emit: its2,      optional: true 
-      path "LSU.fasta.gz",                   emit: lsu,       optional: true 
-      path "SSU_full_and_partial.fasta.gz",  emit: ssu_part,  optional: true 
-      path "ITS1_full_and_partial.fasta.gz", emit: its1_part, optional: true 
-      path "5_8S_full_and_partial.fasta.gz", emit: s58_part,  optional: true 
-      path "ITS2_full_and_partial.fasta.gz", emit: its2_part, optional: true 
-      path "LSU_full_and_partial.fasta.gz",  emit: lsu_part,  optional: true 
-    
+      path "rRNA_parts.parquet", emit: parquet
+      tuple val("${task.process}"), val('duckdb'), eval('duckdb --version | cut -d" " -f1 | sed "s/^v//"'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
+
     script:
+    def memoryArg = task.memory ? "-m ${(task.memory.toMega() * 0.8) as long}MB" : ""
     """
-    # Check if each sub-dir has files with rRNA regions, then concatenate
-
-    if [[ ! -n \$(find ./full -name NOFULL) ]]; then
-      echo -e "Pooling full ITS"
-      find full -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> ITS_Full.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./ssu -name NOSSU) ]]; then
-      echo -e "Pooling SSU"
-      find ssu -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> SSU.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./its1 -name NOITS1) ]]; then
-      echo -e "Pooling ITS1"
-      find its1 -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> ITS1.fasta.gz
-    fi
-    
-    if [[ ! -n \$(find ./58s -name NO58S) ]]; then
-      echo -e "Pooling 5.8S"
-      find 58s -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> 5_8S.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./its2 -name NOITS2) ]]; then
-      echo -e "Pooling ITS2"
-      find its2 -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> ITS2.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./lsu -name NOLSU) ]]; then
-      echo -e "Pooling LSU"
-      find lsu -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> LSU.fasta.gz
-    fi
-
-    ##### Full and partial sequences #####
-
-    if [[ ! -n \$(find ./ssu_partial -name NOSSUPART) ]]; then
-      echo -e "Pooling SSU partial sequences"
-      find ssu_partial -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> SSU_full_and_partial.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./its1_partial -name NOITS1PART) ]]; then
-      echo -e "Pooling ITS1 partial sequences"
-      find its1_partial -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> ITS1_full_and_partial.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./58s_partial -name NO58SPART) ]]; then
-      echo -e "Pooling 5.8S partial sequences"
-      find 58s_partial -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> 5_8S_full_and_partial.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./its2_partial -name NOITS2PART) ]]; then
-      echo -e "Pooling ITS2 partial sequences"
-      find its2_partial -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> ITS2_full_and_partial.fasta.gz
-    fi
-
-    if [[ ! -n \$(find ./lsu_partial -name NOLSUPART) ]]; then
-      echo -e "Pooling LSU partial sequences"
-      find lsu_partial -name "*.fasta.gz" \
-        | parallel -j1 "cat {}" >> LSU_full_and_partial.fasta.gz
-    fi
-
-    echo -e "\\n..Done"
+    ## Placeholder files (e.g., `NOFULL`, if a region was not detected in any sample) are ignored
+    ITSx_parts_to_parquet.sh \
+      -o rRNA_parts.parquet \
+      -r ITS=full  -r SSU=ssu  -r ITS1=its1  -r S58=58s  -r ITS2=its2  -r LSU=lsu \
+      -r SSU_partial=ssu_partial  -r ITS1_partial=its1_partial  -r S58_partial=58s_partial \
+      -r ITS2_partial=its2_partial  -r LSU_partial=lsu_partial \
+      -r ITSnf=itsnf \
+      -k its_region=${params.its_region} \
+      -k itsx_tool=${params.itsx_tool} \
+      -k ITSx_partial=${params.ITSx_partial} \
+      -k region_column=${region_column} \
+      -k nextits_version=${workflow.manifest.version} \
+      -t ${task.cpus} \
+      ${memoryArg}
     """
 }
 
@@ -801,7 +719,7 @@ workflow ITS_EXTRACTION {
       ch_res_itsx_58s_part    = channel.empty()
       ch_res_itsx_its2_part   = channel.empty()
       ch_res_itsx_lsu_part    = channel.empty()
-      ch_res_parquet          = channel.empty()
+      ch_res_parts            = channel.empty()
 
     } else {
 
@@ -925,13 +843,14 @@ workflow ITS_EXTRACTION {
       ch_res_itsx_58s_part    = itsx_concatenate.out.itsx_58s_part
       ch_res_itsx_its2_part   = itsx_concatenate.out.itsx_its2_part
       ch_res_itsx_lsu_part    = itsx_concatenate.out.itsx_lsu_part
-      ch_res_parquet          = itsx_concatenate.out.parquet
 
       /*
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
           Pick the rRNA region requested by the user
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       */
+
+      ch_res_itsnf = channel.empty()
 
       if( params.its_region == "ITS1_5.8S_ITS2" ){
 
@@ -948,6 +867,7 @@ workflow ITS_EXTRACTION {
         get_its(ch_get_its)
 
         ch_region_seqs = get_its.out.itsnf
+        ch_res_itsnf   = get_its.out.itsnf
 
       } else if( params.its_region == "ITS1" ){
         ch_region_seqs = use_partial ? ch_res_itsx_its1_part : ch_res_itsx_its1
@@ -968,20 +888,36 @@ workflow ITS_EXTRACTION {
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       */
 
-      // Collect rRNA parts into separate channels (+ drop metadata)
-      itsx_collect(
-        pool_region(ch_res_itsx_full,      "NOFULL"),
-        pool_region(ch_res_itsx_ssu,       "NOSSU"),
-        pool_region(ch_res_itsx_its1,      "NOITS1"),
-        pool_region(ch_res_itsx_58s,       "NO58S"),
-        pool_region(ch_res_itsx_its2,      "NOITS2"),
-        pool_region(ch_res_itsx_lsu,       "NOLSU"),
-        pool_region(ch_res_itsx_ssu_part,  "NOSSUPART"),
-        pool_region(ch_res_itsx_its1_part, "NOITS1PART"),
-        pool_region(ch_res_itsx_58s_part,  "NO58SPART"),
-        pool_region(ch_res_itsx_its2_part, "NOITS2PART"),
-        pool_region(ch_res_itsx_lsu_part,  "NOLSUPART")
-        )
+      // Column of the pooled table with the region used downstream
+      def region_column = [
+        "full": "ITS", "ITS1_5.8S_ITS2": "ITSnf",
+        "ITS1": "ITS1", "ITS2": "ITS2", "SSU": "SSU", "LSU": "LSU"
+        ][params.its_region]
+      if( use_partial && params.its_region in ["ITS1", "ITS2", "SSU", "LSU"] ){
+        region_column = region_column + "_partial"
+      }
+
+      // Pool rRNA parts of all samples into a single table
+      if( params.ITSx_to_parquet ){
+        itsx_collect(
+          pool_region(ch_res_itsx_full,      "NOFULL"),
+          pool_region(ch_res_itsx_ssu,       "NOSSU"),
+          pool_region(ch_res_itsx_its1,      "NOITS1"),
+          pool_region(ch_res_itsx_58s,       "NO58S"),
+          pool_region(ch_res_itsx_its2,      "NOITS2"),
+          pool_region(ch_res_itsx_lsu,       "NOLSU"),
+          pool_region(ch_res_itsx_ssu_part,  "NOSSUPART"),
+          pool_region(ch_res_itsx_its1_part, "NOITS1PART"),
+          pool_region(ch_res_itsx_58s_part,  "NO58SPART"),
+          pool_region(ch_res_itsx_its2_part, "NOITS2PART"),
+          pool_region(ch_res_itsx_lsu_part,  "NOLSUPART"),
+          pool_region(ch_res_itsnf,          "NOITSNF"),
+          region_column
+          )
+        ch_res_parts = itsx_collect.out.parquet
+      } else {
+        ch_res_parts = channel.empty()
+      }
 
     } // end of rRNA region extraction
 
@@ -1023,7 +959,8 @@ workflow ITS_EXTRACTION {
     itsx_58s_part    = ch_res_itsx_58s_part.map    { meta, file -> file }
     itsx_its2_part   = ch_res_itsx_its2_part.map   { meta, file -> file }
     itsx_lsu_part    = ch_res_itsx_lsu_part.map    { meta, file -> file }
-    parquet          = ch_res_parquet.map          { meta, file -> file }
+    // Pooled rRNA parts (all samples)
+    parts            = ch_res_parts
     // Collected diagnostics for the report
     report_itsx      = ch_report_itsx
 
