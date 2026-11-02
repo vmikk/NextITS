@@ -7,6 +7,7 @@
 ----------------------------------------------------------------------------
 */
 
+include { polyGEnabled } from './param_utils.nf'
 
 
 // Quality-score check
@@ -485,7 +486,7 @@ process merge_pe {
       tuple val(sampID), path("NotMerged/${sampID}_R1.fq.gz"), path("NotMerged/${sampID}_R2.fq.gz"), emit: notmerged, optional: true
       path "${sampID}_merge.tsv", emit: stats
       tuple val("${task.process}"), val("${params.pe_merger}"), eval(params.pe_merger == "usearch" ? 'usearch --version | sed "s/usearch v//; s/_i86linux64//"' : 'vsearch --version 2>&1 | head -n 1 | sed "s/vsearch //g" | sed "s/,.*//g" | sed "s/^v//" | sed "s/_.*//"'), topic: versions
-      tuple val("${task.process}"), val('fastp'), eval(params.qc_polyglen ? 'fastp --version 2>&1 | sed "s/fastp //"' : 'echo "not used"'), topic: versions
+      tuple val("${task.process}"), val('fastp'), eval(polyGEnabled(params.qc_polyglen) ? 'fastp --version 2>&1 | sed "s/fastp //"' : 'echo "not used"'), topic: versions
       tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
 
     script:
@@ -504,7 +505,7 @@ process merge_pe {
     R2=${reads[1]}
 
     ## Trim poly-G tails (signal loss in two-colour chemistry is called as G)
-    if [[ "${params.qc_polyglen ?: ''}" != "" ]]; then
+    if [[ "${polyGEnabled(params.qc_polyglen)}" == "true" ]]; then
       echo -e "\\nTrimming 3' poly-G tails (min length ${params.qc_polyglen})"
       fastp \\
         --in1 \$R1 --in2 \$R2 \\
