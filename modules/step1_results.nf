@@ -83,20 +83,54 @@ def step1Runs(String base) {
 }
 
 // Warnings about the Step-1 results (used for rRNA parts export)
+// Only cases that may need user action: data missing for some runs (but present for others),
+// unknown Step-1 parameters of runs with rRNA parts, different extraction settings
+// (if data are missing for all runs, see `step1RunsInfo`)
 def step1RunsWarnings(runs) {
     def msg = []
-    runs.findAll { !it.params_known }.each {
-        msg << "Step-1 parameters not found for `${it.dir}` (pipeline_info/pipeline_params.tsv), assuming `--its_region full`"
+    def with_parts = runs.findAll { it.parts_mode != "none" }
+    with_parts.findAll { !it.params_known }.each {
+        msg << "Step-1 parameters not found for `${it.dir}` (pipeline_info/pipeline_params.tsv), assuming `--its_region full` for its rRNA parts"
     }
-    if( runs.collect { [it.its_region, it.itsx_tool, it.ITSx_partial] }.unique().size() > 1 ){
+    if( with_parts.collect { [it.its_region, it.itsx_tool, it.ITSx_partial] }.unique().size() > 1 ){
         msg << "Step-1 runs differ in the rRNA region or extractor settings: " +
-            runs.collect { "${it.id} (${it.its_region}, ${it.itsx_tool}, partial=${it.ITSx_partial})" }.join(", ")
+            with_parts.collect { "${it.id} (${it.its_region}, ${it.itsx_tool}, partial=${it.ITSx_partial})" }.join(", ")
     }
-    runs.findAll { it.parts_mode == "none" }.each {
-        msg << "No rRNA parts found for `${it.dir}`" + (it.its_region == "none" ? " (`--its_region none`)" : "")
+    def no_parts = runs.findAll { it.parts_mode == "none" }
+    if( no_parts && with_parts ){
+        msg << "No rRNA parts found for ${no_parts.size()} of ${runs.size()} Step-1 runs, their sequences will not contribute rRNA parts: " +
+            no_parts.collect { it.its_region == "none" ? "${it.id} (`--its_region none`)" : it.id }.join(", ")
     }
-    runs.findAll { !it.quals }.each {
-        msg << "No sequence qualities found for `${it.dir}` (09_DB/SeqQualities.parquet), full-length sequences will not be available for this run"
+    def no_quals = runs.findAll { !it.quals }
+    if( no_quals && no_quals.size() < runs.size() ){
+        msg << "No sequence qualities (09_DB/SeqQualities.parquet) found for ${no_quals.size()} of ${runs.size()} Step-1 runs, full-length sequences will not be available for them: " +
+            no_quals.collect { it.id }.join(", ")
     }
     return msg
+}
+
+// Informational messages about the Step-1 results (data missing for all runs, e.g. older Step-1 versions)
+def step1RunsInfo(runs) {
+    def has_parts = runs.any { it.parts_mode != "none" }
+    def has_quals = runs.any { it.quals }
+    def all_none  = runs && runs.every { it.its_region == "none" }
+    def why_parts = all_none ? " (Step-1 was run with `--its_region none`)" : ""
+    if( !has_parts && !has_quals ){
+        return [ "Export of rRNA parts skipped: the Step-1 results contain no rRNA parts or sequence qualities" + why_parts ]
+    }
+    if( !has_parts ){
+        return [ "The Step-1 results contain no rRNA parts" + why_parts + ", only full-length sequences of OTUs will be exported" ]
+    }
+    if( !has_quals ){
+        return [ "The Step-1 results contain no sequence qualities, full-length sequences of OTUs will not be exported" ]
+    }
+    return []
+}
+
+// Per-run summary of the Step-1 results (for the debug log)
+def step1RunsDebug(runs) {
+    return runs.collect { r ->
+        "Step-1 run ${r.id}: dir=${r.dir}, its_region=${r.its_region}, itsx_tool=${r.itsx_tool}, ITSx_partial=${r.ITSx_partial}, " +
+        "params_known=${r.params_known}, parts=${r.parts_mode}, quals=${r.quals ? 'yes' : 'no'}"
+    }
 }
