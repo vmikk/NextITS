@@ -120,7 +120,7 @@ params {
     /// ITSx_singledomain = true ....  optional arguments
 
     // Applicable to both extractors
-    ITSx_to_parquet: Boolean = true     // convert the extracted rRNA regions (FASTA files) to Parquet
+    ITSx_to_parquet: Boolean = true     // pool the extracted rRNA regions of all samples into a single Parquet table (`03_ITSx_PooledParts/rRNA_parts.parquet`, used by Step-2 to export rRNA parts of OTUs)
     ITSx_chunk_size: Integer = 9999     // chunk size (number of dereplicated sequences per sample) for distributed ITS extraction; set to 0 to put all sequences of a sample into a single chunk
 
     // Long-chimera removal (after primer trimming, before ITS extraction)
@@ -259,6 +259,9 @@ params {
     lulu_ratiotype: String = "min"
     lulu_relcooc: Float = 0.95
     lulu_maxhits: Integer = 0
+
+    // Export of rRNA parts (SSU, ITS1, 5.8S, ITS2, LSU) and full-length sequences of OTU representatives
+    rrna_parts: Boolean = true
 
     // Species-hypothesis (SH) matching
     sh: Boolean = true
