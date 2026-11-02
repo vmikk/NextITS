@@ -25,6 +25,7 @@
         },
         "demultiplexed": {
           "type": "boolean",
+          "default": false,
           "fa_icon": "fas fa-align-justify",
           "description": "Whether input is multiplexed (`false`, single FASTQ file) or pre-demultiplexed (`true`, multiple FASTQ files)."
         },
@@ -113,6 +114,7 @@
         },
         "lima_remove_unknown": {
           "type": "boolean",
+          "default": false,
           "fa_icon": "fas fa-compress-alt",
           "description": "Remove unknown barcode combinations from the demultiplexed data (if false, unknown combinations will be named as tag IDs)."
         },
@@ -353,6 +355,7 @@
         },
         "merge_replicates": {
           "type": "boolean",
+          "default": false,
           "description": "Pool sample replicates (e.g., re-sequenced samples) in the final OTU table"
         },
         "ampliconlen_min": {
@@ -733,6 +736,7 @@
         },
         "version": {
           "type": "boolean",
+          "default": false,
           "description": "Display version and exit",
           "fa_icon": "fas fa-question-circle",
           "hidden": true
@@ -745,23 +749,27 @@
         },
         "helpFull": {
           "type": "boolean",
+          "default": false,
           "description": "Display the full help text",
           "fa_icon": "fas fa-question-circle",
           "hidden": true
         },
         "helpMsg": {
           "type": "boolean",
+          "default": false,
           "fa_icon": "far fa-question-circle",
           "description": "Custom help message"
         },
         "showHidden": {
           "type": "boolean",
+          "default": false,
           "description": "Show hidden parameters in help output",
           "fa_icon": "fas fa-eye",
           "hidden": true
         },
         "monochrome_logs": {
           "type": "boolean",
+          "default": false,
           "description": "Do not use coloured log outputs",
           "fa_icon": "fas fa-palette",
           "hidden": true
@@ -791,6 +799,7 @@
         },
         "plaintext_email": {
           "type": "boolean",
+          "default": false,
           "description": "Send plain-text email instead of HTML.",
           "fa_icon": "fas fa-remove-format",
           "hidden": true
@@ -832,7 +841,7 @@
         },
         "illumina_demux_rescue": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Rescue read pairs with a single readable tag (only tags used by a single sample)"
         },
         "illumina_revtag_orient": {
