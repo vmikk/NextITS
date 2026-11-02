@@ -26,7 +26,7 @@ include { CLUSTERING }                from '../subworkflows/clustering_subworkfl
 include { dumpParamsTsv }             from '../modules/dump_parameters.nf'
 include { chunkingEnabled }           from '../modules/param_utils.nf'
 include { optimotuRefset }            from '../modules/optimotu_refset.nf'
-include { step1Runs; step1RunsWarnings } from '../modules/step1_results.nf'
+include { step1Runs; step1RunsWarnings; step1RunsInfo; step1RunsDebug } from '../modules/step1_results.nf'
 
 // DADA2 with shared error estimation module
 include { dada2_error_est; papa2_error_est } from '../subworkflows/clustering_subworkflow.nf'
@@ -1223,7 +1223,9 @@ workflow S2 {
   // Export rRNA parts and full-length sequences of OTU representatives
   if( params.rrna_parts ){
 
+    step1RunsDebug(s1runs).each { msg -> log.debug msg }
     step1RunsWarnings(s1runs).each { msg -> log.warn msg }
+    step1RunsInfo(s1runs).each { msg -> log.info msg }
     def s1runs_parts = s1runs.findAll { r -> r.parts_mode != "none" || r.quals }
 
     if( s1runs_parts ){
@@ -1253,8 +1255,6 @@ workflow S2 {
         representativesDescription(params)
       )
 
-    } else {
-      log.warn "No rRNA parts or sequence qualities found in the Step-1 results, export of rRNA parts is skipped"
     }
   }
 
