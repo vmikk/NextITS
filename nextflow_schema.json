@@ -211,7 +211,7 @@
           "type": "boolean",
           "default": true,
           "fa_icon": "fas fa-database",
-          "description": "Convert the extracted rRNA regions (FASTA files) to Parquet"
+          "description": "Pool the extracted rRNA regions of all samples into a single Parquet table (03_ITSx_PooledParts/rRNA_parts.parquet; used in Step-2 to export rRNA parts of OTUs)"
         },
         "ITSx_chunk_size": {
           "type": "integer",
@@ -597,6 +597,12 @@
           "type": "integer",
           "default": 0,
           "description": "Maximum number of hits for LULU (0 = unlimited)"
+        },
+        "rrna_parts": {
+          "type": "boolean",
+          "default": true,
+          "fa_icon": "fas fa-puzzle-piece",
+          "description": "Export rRNA parts (SSU, ITS1, 5.8S, ITS2, LSU) and full-length sequences of OTU representatives (requires Step-1 rRNA parts and sequence qualities)"
         },
         "sh": {
           "type": "boolean",
