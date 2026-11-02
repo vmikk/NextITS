@@ -310,6 +310,9 @@ include { paramSummary; completionSummary } from './modules/parameter_summary'
 // Include color utilities
 include { getColors; colorize; colorizeMultiple; errorMsg; warningMsg; infoMsg; successMsg } from './modules/colors'
 
+// Include step-specific parameter schema
+include { stepSchema } from './modules/param_utils.nf'
+
 // Include OptimOTU reference-set resolver
 include { resolveOptimotuRefset } from './modules/optimotu_refset'
 
@@ -366,8 +369,11 @@ ${logoColors.dim}----------------------------------------------------${logoColor
 
   // Print step-specific parameter summary
   paramSummary(workflow, params)
+  // Parameters of the other step are recognized, but their values are not validated
   if (params.validate_params) {
-    validateParameters(monochrome_logs: params.monochrome_logs)
+    validateParameters(
+      parameters_schema: stepSchema("${projectDir}/nextflow_schema.json", params.step),
+      monochrome_logs:   params.monochrome_logs)
   }
 
   def is_demultiplexed = false
