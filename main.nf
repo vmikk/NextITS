@@ -62,17 +62,17 @@ params {
     // Is data demultiplexed?
     // If false (default), input = 1 fastq file and 1 fasta file
     // If true,            input = multiple fastq files
-    demultiplexed: Boolean
+    demultiplexed: Boolean = false
 
     // Demultiplexing - PacBio & LIMA
     lima_barcodetype: String = "dual_symmetric"  // "single", "dual", "dual_symmetric", "dual_asymmetric"
-    lima_minscore: Integer = 93         // minimum barcode score (93 is for 12bp-long barcodes)
-    lima_minendscore: Integer = 50      // only useful for asymmetric barcoding schemes with different barcodes in a pair
-    lima_minrefspan: Float = 0.75       // min read span relative to the barcode length
-    lima_minscoringregions: Integer = 2 // for dual barcodes only (2 = requires both barcodes)
-    lima_windowsize: Integer = 70       // window size (in base pairs)
-    lima_minlen: Integer = 40           // minimum sequence length after clipping
-    lima_remove_unknown: Boolean        // remove unknown barcode combinations (in dual-barcoding modes)
+    lima_minscore: Integer = 93           // minimum barcode score (93 is for 12bp-long barcodes)
+    lima_minendscore: Integer = 50        // only useful for asymmetric barcoding schemes with different barcodes in a pair
+    lima_minrefspan: Float = 0.75         // min read span relative to the barcode length
+    lima_minscoringregions: Integer = 2   // for dual barcodes only (2 = requires both barcodes)
+    lima_windowsize: Integer = 70         // window size (in base pairs)
+    lima_minlen: Integer = 40             // minimum sequence length after clipping
+    lima_remove_unknown: Boolean = false  // remove unknown barcode combinations (in dual-barcoding modes)
 
     // Demultiplexing Illumina paired-end reads with cutadapt
     illumina_barcodetype: String = "dual_symmetric"   // "dual_symmetric", "dual_asymmetric", "single"
@@ -116,7 +116,7 @@ params {
     ITSx_partial: Integer = 0           // parital ITS; off, otherwise specify min length cutoff for partial ITS sequences to keep
     ITSx_tax: String = "all"            // taxonomic profile
     ITSx_complement: String = "F"       // "F" (check single strand) or "T" (check both DNA strands for matches to HMM-profiles)
-    ITSx_heuristics: Boolean            // use HMM heuristics for ITSx extraction
+    ITSx_heuristics: Boolean = false    // use HMM heuristics for ITSx extraction
     /// ITSx_singledomain = true ....  optional arguments
 
     // Applicable to both extractors
@@ -174,7 +174,7 @@ params {
     data_path: String = "${launchDir}/Step1_Results"
     
     // Pool sample replicates (e.g., re-sequenced samples) in the final OTU
-    merge_replicates: Boolean
+    merge_replicates: Boolean = false
     
     // Filtering sequences (trimmed amplicons) by length
     ampliconlen_min: Integer? = null
@@ -275,25 +275,25 @@ params {
     storagemode: String
 
     // help supports --help and --help <paramName>
-    help: String? = null    // nf-schema-based help message
-    helpFull: Boolean       // nf-schema-based full help message
-    helpMsg: Boolean        // custom help message
+    help: String? = null        // nf-schema-based help message
+    helpFull: Boolean = false   // nf-schema-based full help message
+    helpMsg: Boolean = false    // custom help message
 
     // nf-schema configuration
     validate_params: Boolean = true
-    showHidden: Boolean     // wired to validation.help.showHiddenParameter
+    showHidden: Boolean = false  // wired to validation.help.showHiddenParameter
     
-    version: Boolean
+    version: Boolean = false
     email: String? = null
     email_on_fail: String? = null
-    plaintext_email: Boolean
+    plaintext_email: Boolean = false
 
     // Max Job request parameters
     max_cpus: Integer = 80
     max_memory: String = "132.GB"
     max_time: String = "240.h"
 
-    monochrome_logs: Boolean  // use ANSI color output in pipeline messages
+    monochrome_logs: Boolean = false // use ANSI color output in pipeline messages
 
 }
 
