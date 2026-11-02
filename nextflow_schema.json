@@ -912,7 +912,8 @@
         "qc_polyglen": {
           "type": "integer",
           "default": 10,
-          "description": "Trim 3' poly-G tails (two-colour chemistry) of at least this length prior to read merging; null = no trimming"
+          "minimum": 0,
+          "description": "Trim 3' poly-G tails (two-colour chemistry) of at least this length prior to read merging; 0 = no trimming"
         },
         "qc_binned": {
           "type": "boolean",
