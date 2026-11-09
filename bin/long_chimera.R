@@ -1,5 +1,16 @@
 #!/usr/bin/env Rscript
 
+## Usage example:
+# long_chimera.R \
+#   --hits    hits.tbl \
+#   --cm      euk3.cm \
+#   --fasta   input.fa \
+#   --sample  SampleID \
+#   --minbits 50 \
+#   --mincov  0.4 \
+#   --threads 4
+
+
 ## Check time
 start_time <- Sys.time()
 
