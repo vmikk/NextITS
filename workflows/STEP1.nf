@@ -1415,6 +1415,7 @@ process render_report_s1 {
 
     output:
       path "Step1_report.html", emit: html
+      path "MultiQC/*",         emit: mqc, optional: true
 
     script:
     """
@@ -1440,6 +1441,16 @@ process render_report_s1 {
       --seq-quals       ${seq_quals} \
       --assets          report_assets \
       --out             Step1_report.html
+
+    ## Side output for users who aggregate whole projects with MultiQC.
+    ## MultiQC itself is not required to produce these files.
+    echo -e "\\nExporting MultiQC custom-content files\\n"
+
+    write_mqc.R \
+      --per-sample  ${per_sample} \
+      --per-run     ${per_run} \
+      --versions    ${versions} \
+      --outdir      MultiQC
     """
 }
 
