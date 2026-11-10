@@ -1274,10 +1274,11 @@ process read_counts {
 process quick_stats {
 
     label "main_container"
+    
+    // cpus 4
 
-    publishDir "${params.outdir}/03_Stats",                 mode: "${params.storagemode}", pattern: "*.xlsx"
+    publishDir "${params.outdir}/03_Stats",                 mode: "${params.storagemode}", pattern: "*.{xlsx,tsv}"
     publishDir "${params.outdir}/03_Stats/PerProcessStats", mode: "${params.storagemode}", pattern: "*.txt"
-    // cpus 5
 
     input:
       path(input_fastq, stageAs: "1_input/*")
@@ -1285,16 +1286,21 @@ process quick_stats {
       path(samples_demux, stageAs: "3_demux/*")
       path(samples_primerch, stageAs: "4_primerch/*")
       path(samples_primermult, stageAs: "4_primerartefacts/*")
+      path(pe_reorient, stageAs: "pe_reorient_stats.tsv")   // Illumina: per-sample input and reoriented pairs
+      path(pe_merge, stageAs: "pe_merge_stats.tsv")         // Illumina: per-sample merged reads
+      path(pe_joined, stageAs: "3_joined/*")                // Illumina: joined non-merged reads
 
     output:
       path "Run_summary.xlsx",                  emit: xlsx
+      path "per_sample.tsv",                    emit: per_sample
+      path "per_run.tsv",                       emit: per_run
       path "Counts_1.RawData.txt",              emit: counts_1_raw
       path "Counts_2.QC.txt",                   emit: counts_2_qc
       path "Counts_3.Demux.txt",                emit: counts_3_demux,       optional: true
+      path "Counts_3.Joined.txt",               emit: counts_3_joined,      optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,      optional: true
       path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef, optional: true
       tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
-      tuple val("${task.process}"), val('parallel'), eval('parallel --version | head -n 1 | sed "s/GNU parallel //"'), topic: versions
       tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
       tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
 
@@ -1307,18 +1313,48 @@ process quick_stats {
 
     ## Count raw reads
     echo -e "\\n..Raw data"
-    seqkit stat --basename --tabular --threads ${task.cpus} \
+    seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
       1_input/* > Counts_1.RawData.txt
     
     ## Count number of reads passed QC
     echo -e "\\n..Sequenced passed QC"
-    seqkit stat --basename --tabular --threads ${task.cpus} \
-      2_qc/* > Counts_2.QC.txt
+    if [ `find 2_qc -name no_qc 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_2.QC.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
+        2_qc/* > Counts_2.QC.txt
+    fi
     
     ## Count demultiplexed reads
+    ## (for Illumina, the number of demultiplexed pairs is taken from the reorientation stats)
     echo -e "\\n..Demultiplexed data"
-    seqkit stat --basename --tabular --threads ${task.cpus} \
-      3_demux/* > Counts_3.Demux.txt
+    if [ `find 3_demux -name no_demux 2>/dev/null` ]
+    then
+      echo -e "... Demultiplexed read pairs are taken from the reorientation stats"
+      touch Counts_3.Demux.txt
+    else
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
+        3_demux/* > Counts_3.Demux.txt
+    fi
+
+    ## Count joined non-merged read pairs (Illumina)
+    if [ ! `find 3_joined -name no_joined 2>/dev/null` ]
+    then
+      echo -e "\\n..Joined read pairs"
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
+        3_joined/* > Counts_3.Joined.txt
+    fi
+
+    ## Illumina-specific options of the read count summary
+    ILLUMINA_OPTS=""
+    if [ -s pe_reorient_stats.tsv ]; then
+      ILLUMINA_OPTS="--reoriented pe_reorient_stats.tsv --merged pe_merge_stats.tsv"
+      if [ -f Counts_3.Joined.txt ]; then
+        ILLUMINA_OPTS="\$ILLUMINA_OPTS --joined Counts_3.Joined.txt"
+      fi
+    fi
 
     ## Count primer-checked reads
     echo -e "\\n..Primer-checked data"
@@ -1327,18 +1363,18 @@ process quick_stats {
       echo -e "... No files found"
       touch Counts_4.PrimerCheck.txt
     else
-      seqkit stat --basename --tabular --threads ${task.cpus} \
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_primerch/* > Counts_4.PrimerCheck.txt
     fi
 
     ## Count primer-artefacts
-    echo -e "\\n..Primer-areifacts"
+    echo -e "\\n..Primer-artefacts"
     if [ `find 4_primerartefacts -name no_multiprimer 2>/dev/null` ]
     then
       echo -e "... No files found"
       touch Counts_4.PrimerArtefacts.txt
     else
-      seqkit stat --basename --tabular --threads ${task.cpus} \
+      seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_primerartefacts/* > Counts_4.PrimerArtefacts.txt
     fi
     
@@ -1349,7 +1385,8 @@ process quick_stats {
       --demuxed      Counts_3.Demux.txt \
       --primer       Counts_4.PrimerCheck.txt \
       --primerartef  Counts_4.PrimerArtefacts.txt \
-      --threads      ${task.cpus}
+      --threads      ${task.cpus} \
+      \$ILLUMINA_OPTS
 
     """
 }
