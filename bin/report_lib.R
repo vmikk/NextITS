@@ -640,6 +640,183 @@ heatmap_option <- function(dt, x_levels, y_levels, x_name, y_name,
                        emphasis = list(itemStyle = list(borderColor = "var(--ink)", borderWidth = 1)))))
 }
 
+## ------------------------------------- demultiplexing (Step-1 and seqstats)
+
+parse_lima_summary <- function(path) {
+  if (!is_usable_file(path)) return(NULL)
+  lines <- readLines(path, warn = FALSE)
+  kv <- function(pat) {
+    hit <- grep(pat, lines, value = TRUE, ignore.case = TRUE)[1L]
+    if (is.na(hit)) return(NA_real_)
+    suppressWarnings(as.numeric(sub("^[^:]*:\\s*([0-9.]+).*$", "\\1", hit)))
+  }
+  ## The "ZMW marginals for (C)" block explains why reads were dropped.
+  start <- grep("ZMW marginals", lines)[1L]
+  marg <- NULL
+  if (!is.na(start)) {
+    blk <- lines[seq(start + 1L, length(lines))]
+    blk <- blk[seq_len(max(0L, which(!nzchar(trimws(blk)))[1L] - 1L))]
+    hit <- regmatches(blk, regexec("^\\s*(.+?)\\s*:\\s*([0-9]+)", blk))
+    hit <- Filter(function(m) length(m) == 3L, hit)
+    if (length(hit) > 0L) {
+      marg <- data.table(
+        Reason = vapply(hit, function(m) trimws(m[[2L]]), ""),
+        ZMWs   = as.numeric(vapply(hit, function(m) m[[3L]], "")))
+    }
+  }
+  list(input = kv("ZMWs input"), pass = kv("above all thresholds"),
+       fail = kv("below any threshold"), marginals = marg)
+}
+
+read_lima_counts <- function(path) {
+  if (!is_usable_file(path)) return(NULL)
+  x <- tryCatch(fread(path, sep = "\t", showProgress = FALSE), error = function(e) NULL)
+  if (!is.null(x) && "Counts" %in% names(x)) x else NULL
+}
+
+## PacBio lima barcode assignment. `lima` comes from parse_lima_summary(), `lima_counts` from read_lima_counts()
+demux_section_lima <- function(lima, lima_counts) {
+  bits <- list()
+  if (!is.null(lima)) {
+    bits <- c(bits, list(kpi_row(
+      kpi_card("ZMWs input", fmt_int(lima$input)),
+      kpi_card("Above all thresholds", fmt_int(lima$pass),
+               fmt_pct(safe_pct(lima$pass, lima$input))),
+      kpi_card("Below any threshold", fmt_int(lima$fail),
+               fmt_pct(safe_pct(lima$fail, lima$input)),
+               grade(safe_pct(lima$fail, lima$input), warn = 10, bad = 25, higher_better = FALSE)))))
+    if (!is.null(lima$marginals) && nrow(lima$marginals) > 0L) {
+      m <- lima$marginals[ZMWs > 0][order(-ZMWs)]
+      if (nrow(m) > 0L) {
+        o <- bar_option(m$Reason, m$ZMWs, y_name = "ZMWs", colour = "var(--viz-loss)")
+        o$xAxis$axisLabel$rotate <- 30
+        o$grid$bottom <- 30
+        bits <- c(bits, list(
+          subhead("demux-reasons", "Why reads were discarded"),
+          echart(o, height = 300,
+            caption = "A ZMW can fail several thresholds at once, so these bars overlap and do not sum to the total.")))
+      }
+    }
+  }
+  if (!is.null(lima_counts)) {
+    nm <- pick_col(lima_counts, "IdxFirstNamed", "IdxCombinedNamed")
+    cnt <- lima_counts[order(-Counts)]
+    o <- bar_option(cnt[[nm]], cnt$Counts, y_name = "Reads")
+    mean_reads <- mean(cnt$Counts)
+    o$series[[1L]]$markLine <- markline_y(round(mean_reads, 1), "mean")
+    bits <- c(bits, list(
+      subhead("demux-barcodes", "Reads per barcode"),
+      echart(o, height = 320,
+        caption = "Even barcode representation is expected; a strong skew points at unbalanced pooling or a failing barcode.")))
+    if ("MeanScore" %in% names(lima_counts)) {
+      bits <- c(bits, list(dt_table(
+        cnt[, .(Barcode = get(nm), Reads = Counts, `Mean score` = MeanScore)],
+        fmt = list(Reads = "int", `Mean score` = "num"),
+        bar_cols = "Reads", download = "lima_barcode_counts.tsv", cols_menu = FALSE)))
+    }
+  }
+  if (length(bits) == 0L) NULL else bits
+}
+
+read_illumina_demux <- function(path) {
+  if (!is_usable_file(path)) return(NULL)
+  tryCatch(fread(path, sep = "\t", colClasses = "character", showProgress = FALSE),
+           error = function(e) NULL)
+}
+
+read_illumina_qcheck <- function(path) {
+  if (!is_usable_file(path)) return(NULL)
+  tryCatch(fread(path, sep = "\t", colClasses = list(character = "QValues"), showProgress = FALSE),
+           error = function(e) NULL)
+}
+
+## Illumina tag assignment (Demux_totals.tsv), read pairs per sample, and quality-score encoding (Quality_check.tsv)
+## `per_sample` needs `Sample` and `Demultiplexed_Reads` columns
+demux_section_illumina <- function(illumina_demux, illumina_qcheck, per_sample) {
+  bits <- list()
+  if (!is.null(illumina_demux) && nrow(illumina_demux) > 0L) {
+    dv <- function(m) suppressWarnings(as.numeric(illumina_demux[Metric == m, Value][1L]))
+    dl <- function(m) illumina_demux[Metric == m, Value][1L]
+    n_in <- dv("Input_Pairs")
+    bits <- c(bits, list(
+      kpi_row(
+        kpi_card("Input pairs", fmt_int(n_in)),
+        kpi_card("Both tags agree", fmt_int(dv("Strict_Pairs")), fmt_pct(safe_pct(dv("Strict_Pairs"), n_in))),
+        kpi_card("Rescued (one tag)", fmt_int(dv("Rescued_Pairs")), fmt_pct(safe_pct(dv("Rescued_Pairs"), n_in))),
+        kpi_card("Tag jumps", fmt_int(dv("TagJump_Pairs")), fmt_pct(safe_pct(dv("TagJump_Pairs"), n_in)),
+                 grade(safe_pct(dv("TagJump_Pairs"), n_in), warn = 5, bad = 15, higher_better = FALSE)),
+        kpi_card("Unassigned", fmt_int(dv("Unassigned_Pairs")), fmt_pct(safe_pct(dv("Unassigned_Pairs"), n_in)))),
+      p(class = "hint", paste0(
+        "Tag layout: ", dl("Tag_layout"),
+        if (!is.na(dl("Reverse_tag_orientation")) && !(dl("Reverse_tag_orientation") %in% c("", "NA"))) paste0("; reverse tags used in ", dl("Reverse_tag_orientation"), " orientation") else "",
+        ". Tag jumps are pairs in which both mates carry a known tag, but not the tags of the same sample."))))
+  }
+  dm <- per_sample[order(-num0(Demultiplexed_Reads))]
+  if (nrow(dm) > 0L) {
+    o <- bar_option(dm$Sample, num0(dm$Demultiplexed_Reads), y_name = "Read pairs")
+    o$series[[1L]]$markLine <- markline_y(round(mean(num0(dm$Demultiplexed_Reads)), 1), "mean")
+    bits <- c(bits, list(
+      subhead("demux-samples", "Read pairs per sample"),
+      echart(o, height = 320,
+        caption = "Even sample representation is expected; a strong skew points at unbalanced pooling or a failing tag.")))
+  }
+  if (!is.null(illumina_qcheck) && nrow(illumina_qcheck) > 0L) {
+    qv <- illumina_qcheck[, .(Mate, Reads = NumReads, `Max length` = MaxReadLength,
+                              `Distinct Q` = NumDistinctQ, `Q values` = QValues,
+                              `Poly-G tails, %` = PolyG_Percent, `Q type` = QualityType)]
+    bits <- c(bits, list(
+      subhead("demux-qscores", "Quality-score encoding"),
+      p(class = "hint", paste0(
+        "Phred scores of the first reads of the run. Binned scores (few distinct values) are typical for ",
+        "NovaSeq and NextSeq (`-profile novaseq`), continuous scores for MiSeq (`-profile miseq`).")),
+      dt_table(qv, fmt = list(Reads = "int", `Max length` = "int", `Distinct Q` = "int",
+                              `Q values` = "chr", `Poly-G tails, %` = "num", `Q type` = "chr"),
+               search = FALSE, cols_menu = FALSE, download = "quality_check.tsv")))
+  }
+  if (length(bits) == 0L) NULL else bits
+}
+
+## ------------------------------------------- read length by stage (seqkit)
+
+## Path of a Counts_*.txt file inside the counts directory, or NULL if it is absent or empty
+counts_path <- function(counts_dir, name) {
+  if (is.null(counts_dir) || !dir.exists(counts_dir)) return(NULL)
+  f <- file.path(counts_dir, name)
+  if (is_usable_file(f)) f else NULL
+}
+
+## Per-sample read length from the seqkit stat tables. `stages` is a list of c(file name, stage label)
+stage_lengths <- function(counts_dir, stages) {
+  stages <- Filter(Negate(is.null), stages)
+  rbindlist(lapply(stages, function(s) {
+    f <- counts_path(counts_dir, s[[1L]])
+    if (is.null(f)) return(NULL)
+    x <- tryCatch(fread(f, sep = "\t", showProgress = FALSE), error = function(e) NULL)
+    if (is.null(x) || !"avg_len" %in% names(x)) return(NULL)
+    smp <- clean_sample_name(x$file)
+    ## Joined (non-merged) Illumina reads are kept apart, their length differs from merged reads
+    joined <- grepl("_JoinedPE$", smp)
+    data.table(Stage = ifelse(joined, paste0(s[[2L]], " (joined)"), s[[2L]]),
+               Sample = sub("_JoinedPE$", "", smp),
+               Min = x$min_len, Avg = x$avg_len, Max = x$max_len, N = x$num_seqs)
+  }), fill = TRUE)
+}
+
+## Table of stage_lengths() output, with its sub-heading
+stage_length_table <- function(len, id = "len-stage") {
+  if (is.null(len) || nrow(len) == 0L) return(NULL)
+  list(
+    subhead(id, "Read length by stage"),
+    p(class = "hint", paste0(
+      "Length of the reads entering and leaving each stage, per sample. ",
+      "Artefact reads that differ sharply in length point at primer-dimer or ",
+      "concatemer products.")),
+    dt_table(len[order(Stage, -N)],
+      fmt = list(Min = "bp", Avg = "bp", Max = "bp", N = "int"),
+      labels = c("Stage", "Sample", "Min length", "Mean length", "Max length", "Sequences"),
+      download = "read_length_by_stage.tsv"))
+}
+
 ## ----------------------------------------------------------- copy blocks
 
 ## A bordered block of text with a Copy button in its header. `id` must be unique within the page: report.js copies that element's textContent
