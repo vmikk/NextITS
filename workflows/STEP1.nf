@@ -57,7 +57,7 @@ process qc_se {
 
     label "main_container"
 
-    // cpus 8
+    // cpus 3
 
     // Add file ID to the log file
     tag "${input.getSimpleName()}"
@@ -78,13 +78,14 @@ process qc_se {
     echo -e "Input file: " ${input}
     echo -e "Homopolymer length to remove: " ${params.qc_maxhomopolymerlen}
 
-    ## Split the number of CPUs into two (for seqkit and pigz)
-    ## NB! vsearch currently does not suppot multithreading for `--fastq_filter`
-    ## see https://github.com/torognes/vsearch/issues/466
-    total_cpus=${task.cpus}
-    half_cpus=\$(( (total_cpus + 1) / 2 ))
-    (( half_cpus < 1 )) && half_cpus=1
-    (( half_cpus > total_cpus )) && half_cpus=\$total_cpus
+    ## The pipe below keeps ~3 cores busy (vsearch, seqkit, igzip), each tool is single-threaded:
+    #  - vsearch does not support multithreading for `--fastq_filter` (see https://github.com/torognes/vsearch/issues/466)
+    #  - seqkit grep does not get faster with more threads here
+    #  - the output is a temporary file (not published), so it is compressed with the fast level
+    #    (igzip -1 is ~20x faster than pigz -7 on HiFi reads)
+
+    ## Limit Go runtime threads of seqkit (by default, one per host core)
+    export GOMAXPROCS=2
 
     ## Instead of using regex (e.g., "(A{25,}|C{25,}|T{25,}|G{25,})"), create fixed patterns
     A_run=\$(printf '%*s' "${params.qc_maxhomopolymerlen}" '' | tr ' ' 'A')
@@ -107,12 +108,12 @@ process qc_se {
       --fastqout - \\
     | seqkit grep \\
       --by-seq --ignore-case --invert-match --only-positive-strand -w 0 \\
-      --threads \$half_cpus \\
+      --threads 1 \\
       --pattern "\$A_run" \\
       --pattern "\$C_run" \\
       --pattern "\$G_run" \\
       --pattern "\$T_run" \\
-    | pigz -p \$half_cpus -${params.gzip_compression} \\
+    | igzip -1 -c \\
     > "${input.getSimpleName()}.fq.gz"
 
     echo -e "\\nQC finished"
