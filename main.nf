@@ -412,6 +412,22 @@ ${logoColors.dim}----------------------------------------------------${logoColor
         println( errorMsg("Please provide the file with sample barcodes in FASTA format with `--barcodes` parameter.", params.monochrome_logs))
         exit(1)
     }
+
+    // Illumina-specific validation (shared by Step-1 and `seqstats`)
+    if (params.seqplatform == "Illumina") {
+        if (!(params.illumina_barcodetype in ["dual_symmetric", "dual_asymmetric", "single"])) {
+            println( errorMsg("Parameter --illumina_barcodetype must be 'dual_symmetric', 'dual_asymmetric', or 'single' (got: '${params.illumina_barcodetype}').", params.monochrome_logs) )
+            exit(1)
+        }
+        if (!(params.illumina_revtag_orient in ["auto", "forward", "revcomp"])) {
+            println( errorMsg("Parameter --illumina_revtag_orient must be 'auto', 'forward', or 'revcomp' (got: '${params.illumina_revtag_orient}').", params.monochrome_logs) )
+            exit(1)
+        }
+        if (!(params.pe_merger in ["usearch", "vsearch"])) {
+            println( errorMsg("Parameter --pe_merger must be 'usearch' or 'vsearch' (got: '${params.pe_merger}').", params.monochrome_logs) )
+            exit(1)
+        }
+    }
   }
 
   if (params.step == "Step1") {
@@ -435,18 +451,6 @@ ${logoColors.dim}----------------------------------------------------${logoColor
 
     // Illumina-specific validation
     if (params.seqplatform == "Illumina") {
-        if (!(params.illumina_barcodetype in ["dual_symmetric", "dual_asymmetric", "single"])) {
-            println( errorMsg("Parameter --illumina_barcodetype must be 'dual_symmetric', 'dual_asymmetric', or 'single' (got: '${params.illumina_barcodetype}').", params.monochrome_logs) )
-            exit(1)
-        }
-        if (!(params.illumina_revtag_orient in ["auto", "forward", "revcomp"])) {
-            println( errorMsg("Parameter --illumina_revtag_orient must be 'auto', 'forward', or 'revcomp' (got: '${params.illumina_revtag_orient}').", params.monochrome_logs) )
-            exit(1)
-        }
-        if (!(params.pe_merger in ["usearch", "vsearch"])) {
-            println( errorMsg("Parameter --pe_merger must be 'usearch' or 'vsearch' (got: '${params.pe_merger}').", params.monochrome_logs) )
-            exit(1)
-        }
         if (keep_notmerged && run_hp) {
             println( errorMsg("Homopolymer compression is not implemented for joined (non-merged) Illumina reads. Add `--hp false` or `--illumina_keep_notmerged false` to your command.", params.monochrome_logs))
             exit(1)
