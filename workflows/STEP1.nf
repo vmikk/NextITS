@@ -492,11 +492,14 @@ process primer_check {
     echo -e "Forward primer: " ${params.primer_forward}
     echo -e "Reverse primer: " ${params.primer_reverse}
 
+    ## Limit Go runtime threads of seqkit, csvtk, and mlr (by default, one per host core)
+    export GOMAXPROCS=${task.cpus}
+
     ### Count number of pattern occurrences for each sequence
     count_primers (){
       # \$1 = file with primers
 
-      seqkit replace -p "\\s.+" ${input} \
+      seqkit replace -p "\\s.+" --threads 1 ${input} \
       | seqkit locate \
           --max-mismatch ${params.primer_mismatches} \
           --only-positive-strand \
