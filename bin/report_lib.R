@@ -1,5 +1,5 @@
-## Shared building blocks for the NextITS Step-1 / Step-2 HTML run reports
-## (sourced by `render_report_s1.R` and `render_report_s2.R`)
+## Shared building blocks for the NextITS Step-1 / Step-2 / seqstats HTML run reports
+## (sourced by `render_report_s1.R`, `render_report_s2.R` and `render_report_seqstats.R`)
 ##
 ## The R side emits structure and data only
 ## Interactivity comes from `assets/report/report.js`
