@@ -1395,6 +1395,57 @@ process quick_stats {
     """
 }
 
+
+// HTML run report for `seqstats`
+process render_report_seqstats {
+
+    label "main_container"
+
+    publishDir "${params.outdir}/03_Stats", mode: "${params.storagemode}"
+    // cpus 1
+
+    input:
+      path per_sample
+      path per_run
+      path versions
+      path params_tsv
+      path lima_summary
+      path lima_counts
+      path illumina_demux
+      path illumina_qcheck
+      path counts,  stageAs: "counts/*"
+      path command, stageAs: "execution_command.txt"
+      path logo,    stageAs: "nextits_logo.svg"
+      path lib,     stageAs: "report_lib.R"
+      path assets,  stageAs: "report_assets"
+      val  stamp
+
+    output:
+      path "Seqstats_report.html", emit: html
+
+    script:
+    """
+    echo -e "Rendering seqstats HTML report\\n"
+
+    render_report_seqstats.R \
+      --per-sample      ${per_sample} \
+      --per-run         ${per_run} \
+      --params          ${params_tsv} \
+      --versions        ${versions} \
+      --command         execution_command.txt \
+      --logo            nextits_logo.svg \
+      --trace-stamp     "${stamp}" \
+      --lima-summary    ${lima_summary} \
+      --lima-counts     ${lima_counts} \
+      --illumina-demux  ${illumina_demux} \
+      --illumina-qcheck ${illumina_qcheck} \
+      --counts-dir      counts \
+      --assets          report_assets \
+      --out             Seqstats_report.html
+    """
+}
+
+
 // Auto documentation of analysis procedures
 // (generate narrative description of methods with references)
 process document_analysis_s1 {
