@@ -1641,14 +1641,14 @@ workflow S1 {
       ch_input_pbi = ch_input + ".pbi"
 
       bam2fastq(ch_input, ch_input_pbi)
-      qc_se(bam2fastq.out.fastq)
+      ch_raw = bam2fastq.out.fastq
 
     } else {
-
-      // Initial QC
-      qc_se(ch_input)
-
+      ch_raw = ch_input
     }
+
+    // Initial QC
+    qc_se(ch_raw)
 
     // Demultiplexing with dual barcodes requires 4 additional files:
     //  - "biosamples" with symmertic/asymmetirc tag combinations
@@ -1842,7 +1842,8 @@ workflow S1 {
   } else if( !is_demultiplexed ){
 
     // Input data and QC = single multiplexed file
-    ch_counts_1 = ch_input
+    // (for BAM input, raw reads are counted in the converted FASTQ)
+    ch_counts_1 = ch_raw
     ch_counts_2 = qc_se.out.filtered
 
     ch_all_demux = demux.out.samples_demux.flatten().collect()
