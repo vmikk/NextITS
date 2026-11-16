@@ -13,10 +13,16 @@
 ##     file naming scheme (`file_renaming.tsv`),
 ##     and `unknown_combinations.tsv` are exported as well
 
+## NB!
+## - For LIMA, both dual tag sequences (forward and reverse) should be specified in the SAME orientation 5'-> 3'
+
 ## Usage:
 # validate_tags.R \
 #   --tags   tags.fasta \
 #   --output tags_validated.fasta
+#
+## `--allow_swapped TRUE` - only warn about swapped-pair tag combinations (X-Y and Y-X used by different samples)
+##   use it only if reads are oriented by primers before tag assignment (Illumina, `--illumina_demux_orient primers`)
 
 
 
@@ -27,7 +33,8 @@ suppressPackageStartupMessages(require(optparse))
 ## Parse arguments
 option_list <- list(
   make_option("--tags",   action="store", default=NA,  type='character', help="FASTA file with tags"),
-  make_option("--output", action="store", default=NA,  type='character', help="FASTA file with validated tags")
+  make_option("--output", action="store", default=NA,  type='character', help="FASTA file with validated tags"),
+  make_option("--allow_swapped", action="store", default=FALSE, type='logical', help="Warn instead of stopping on swapped-pair tag combinations (reads oriented by primers)")
 )
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -45,10 +52,12 @@ if(is.na(opt$output)){
 ## Assign variables
 TAGS <- opt$tags
 OUTP <- opt$output
+ALLOW_SWAPPED <- isTRUE(opt$allow_swapped)
 
 ## Log assigned variables
 cat(paste("FASTA file with tags: ", TAGS, "\n", sep=""))
 cat(paste("Output file with validated tags: ", OUTP, "\n", sep=""))
+cat(paste("Allow swapped-pair tag combinations: ", ALLOW_SWAPPED, "\n", sep=""))
 
 cat("\n")
 
@@ -359,7 +368,13 @@ if(any(DUAL) == TRUE){
     cat("..Number of swapped-pair tag combinations: ", nrow(swapped), "\n")
     cat("..Swapped-pair tag combinations: ", "\n")
     print(swapped[ , .(samples, tag_pair_unordered) ])
-    stop("\nIt is impossible to assign sample ID to sequences with swapped-pair tag combinations!\nPlease fix the tag sequences (e.g., combine primer sequence with the tag sequence!\n Note however, that LIMA supports only ACTG bases - IUPAC degenerate bases are not supported)!\n Alternatively, use cutadapt to demultiplex the reads.\n")
+    if(ALLOW_SWAPPED){
+      cat("\n..Swapped-pair tag combinations are allowed: read pairs are oriented by primers before tag assignment,\n")
+      cat("..so the tag on the forward-primer side is always read as the forward tag.\n")
+      cat("..(read pairs without primers are discarded before tag assignment)\n\n")
+    } else {
+      stop("\nIt is impossible to assign sample ID to sequences with swapped-pair tag combinations!\nPlease fix the tag sequences (e.g., combine primer sequence with the tag sequence!\n Note however, that LIMA supports only ACTG bases - IUPAC degenerate bases are not supported)!\n For Illumina paired-end reads, use `--illumina_barcodetype dual_asymmetric --illumina_demux_orient primers` (reads are oriented by primers before tag assignment).\n")
+    }
   }
 
 
