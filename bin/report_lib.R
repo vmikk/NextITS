@@ -738,9 +738,12 @@ demux_section_illumina <- function(illumina_demux, illumina_qcheck, per_sample) 
     dv <- function(m) suppressWarnings(as.numeric(illumina_demux[Metric == m, Value][1L]))
     dl <- function(m) illumina_demux[Metric == m, Value][1L]
     n_in <- dv("Input_Pairs")
+    ## `NoPrimer_Pairs` is present only if pairs were oriented by primers before tag assignment
+    has_p0 <- illumina_demux[Metric == "NoPrimer_Pairs", .N] > 0L
     bits <- c(bits, list(
       kpi_row(
         kpi_card("Input pairs", fmt_int(n_in)),
+        if (has_p0) kpi_card("No primers", fmt_int(dv("NoPrimer_Pairs")), fmt_pct(safe_pct(dv("NoPrimer_Pairs"), n_in))) else NULL,
         kpi_card("Both tags agree", fmt_int(dv("Strict_Pairs")), fmt_pct(safe_pct(dv("Strict_Pairs"), n_in))),
         kpi_card("Rescued (one tag)", fmt_int(dv("Rescued_Pairs")), fmt_pct(safe_pct(dv("Rescued_Pairs"), n_in))),
         kpi_card("Tag jumps", fmt_int(dv("TagJump_Pairs")), fmt_pct(safe_pct(dv("TagJump_Pairs"), n_in)),
@@ -749,6 +752,7 @@ demux_section_illumina <- function(illumina_demux, illumina_qcheck, per_sample) 
       p(class = "hint", paste0(
         "Tag layout: ", dl("Tag_layout"),
         if (!is.na(dl("Reverse_tag_orientation")) && !(dl("Reverse_tag_orientation") %in% c("", "NA"))) paste0("; reverse tags used in ", dl("Reverse_tag_orientation"), " orientation") else "",
+        if (has_p0) "; read pairs were oriented by primers before tag assignment (pairs without primers were discarded)" else "",
         ". Tag jumps are pairs in which both mates carry a known tag, but not the tags of the same sample."))))
   }
   dm <- per_sample[order(-num0(Demultiplexed_Reads))]
