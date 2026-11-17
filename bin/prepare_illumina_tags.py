@@ -18,6 +18,10 @@ Outputs (in `--outdir`):
 - `Tall.fasta`  all distinct tags (tag-jump detection; dual modes)
 - `Tresc.fasta` tags used by a single sample only, named `<sample>~1` / `<sample>~2`
                 (rescue of pairs with one readable tag; dual modes; may be empty)
+
+With `--positional-rescue` (read pairs already oriented by primers, R1 = forward-primer strand):
+- `Tresc1.fasta` forward tags used by a single sample among the forward tags, named `<sample>~1`
+- `Tresc2.fasta` reverse tags used by a single sample among the reverse tags, named `<sample>~2`
 """
 
 from __future__ import annotations
@@ -63,6 +67,8 @@ def main(argv=None) -> int:
     ap.add_argument("--rev-orient", default="forward", choices=["forward", "revcomp"])
     ap.add_argument("--window", type=int, default=30)
     ap.add_argument("--outdir", required=True)
+    ap.add_argument("--positional-rescue", action="store_true",
+                    help="Also write `Tresc1.fasta` and `Tresc2.fasta` (tags unique per mate, for primer-oriented pairs)")
     a = ap.parse_args(argv)
 
     prefix = f"XN{{{a.window}}}" if a.window > 0 else "^"
@@ -113,6 +119,16 @@ def main(argv=None) -> int:
         if s2 != s1 and len(users[s2]) == 1:
             resc.append((f"{n}~2", s2))
     write_fasta(out / "Tresc.fasta", resc, prefix)
+
+    ## Tags that identify a sample at a known position (R1 = forward tags, R2 = reverse tags)
+    if a.positional_rescue:
+        for idx, side in ((1, fwd), (2, rev)):
+            pos_users = {}
+            for n, s in side:
+                pos_users.setdefault(s, set()).add(n)
+            pos_resc = [(f"{n}~{idx}", s) for n, s in side if len(pos_users[s]) == 1]
+            write_fasta(out / f"Tresc{idx}.fasta", pos_resc, prefix)
+            print(f"Tags usable for rescue on R{idx} (primer-oriented pairs): {len(pos_resc)}")
 
     print(f"Samples: {len(fwd)}; distinct tags: {len(seen)}; tags usable for rescue: {len(resc)}")
     return 0
