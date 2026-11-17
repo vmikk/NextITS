@@ -78,6 +78,7 @@ params {
     illumina_barcodetype: String = "dual_symmetric"   // "dual_symmetric", "dual_asymmetric", "single"
     illumina_demux_rescue: Boolean = false            // rescue read pairs with a single readable tag
     illumina_revtag_orient: String = "auto"           // orientation of reverse tags in `fwd...rev` format: "auto", "forward", "revcomp"
+    illumina_demux_orient: String = "primers"         // dual_asymmetric: orient read pairs by primers before tag assignment ("primers") or use tags only ("tags")
     illumina_pe_pattern: String = "*_R{1,2}*.{fastq,fq}.gz"   // file pattern of per-sample read pairs (with `--demultiplexed true`)
     barcode_window: Integer = 30        // tag search window at the 5' end of reads (0 = tag is anchored at the read start)
     barcode_errors: Integer = 2         // max number of mismatches in a tag
@@ -421,6 +422,10 @@ ${logoColors.dim}----------------------------------------------------${logoColor
         }
         if (!(params.illumina_revtag_orient in ["auto", "forward", "revcomp"])) {
             println( errorMsg("Parameter --illumina_revtag_orient must be 'auto', 'forward', or 'revcomp' (got: '${params.illumina_revtag_orient}').", params.monochrome_logs) )
+            exit(1)
+        }
+        if (!(params.illumina_demux_orient in ["primers", "tags"])) {
+            println( errorMsg("Parameter --illumina_demux_orient must be 'primers' or 'tags' (got: '${params.illumina_demux_orient}').", params.monochrome_logs) )
             exit(1)
         }
         if (!(params.pe_merger in ["usearch", "vsearch"])) {
