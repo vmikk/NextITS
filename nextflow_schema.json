@@ -854,6 +854,15 @@
           ],
           "description": "Orientation of reverse tags in the `fwd...rev` format (as read at the 5' end of a mate = `forward`); `auto` = detected from the data"
         },
+        "illumina_demux_orient": {
+          "type": "string",
+          "default": "primers",
+          "enum": [
+            "primers",
+            "tags"
+          ],
+          "description": "For `dual_asymmetric` tags: orient read pairs by primers before tag assignment (`primers`; required if the same two tags are used in both orders, `X...Y` and `Y...X`), or assign samples by tags only, in both mate orientations (`tags`)"
+        },
         "barcode_window": {
           "type": "integer",
           "default": 30,
