@@ -89,10 +89,18 @@ process illumina_qcheck {
 //   "single"          = tag at the 5' end of one mate only
 //
 // For dual tags:
+//   Pass 0  (`dual_asymmetric` with `--illumina_demux_orient primers`, default)
+//           orient read pairs by primers (R1 = forward-primer strand), pairs without primers are discarded
 //   Pass 1  strict demultiplexing - both mates must carry the tags of the same sample (`--pair-adapters`)
-//           (+ pass 1b for asymmetric tags, with swapped mates - amplicons are in mixed orientation)
+//           (+ pass 1b for asymmetric tags with `--illumina_demux_orient tags`, with swapped mates - amplicons are in mixed orientation)
 //   Pass 2  pairs left over, in which both mates carry a known tag, are tag-jumps (or unknown tag combinations)
-//   Pass 3  rescue pairs with a single readable tag (if the tag is used by a single sample only)
+//   Pass 3  rescue pairs with a single readable tag (if the tag is used by a single sample only;
+//           with pass 0 - by a single sample at that mate position)
+//
+// Why pass 0: if the same two tags are used in both orders (sample A = X...Y, sample B = Y...X),
+// a pair with X on R1 and Y on R2 is either A in forward or B in reverse orientation.
+// Tags can not tell these apart, only the primers next to the tags can.
+// Once pairs are oriented by primers, the tag on R1 is always the forward tag.
 //
 // NB. `--revcomp` can not be combined with `--pair-adapters`
 process demux_illumina {
@@ -117,6 +125,7 @@ process demux_illumina {
 
     script:
     def rescue = params.illumina_demux_rescue ? "true" : "false"
+    def orient = (params.illumina_barcodetype == "dual_asymmetric" && params.illumina_demux_orient == "primers") ? "true" : "false"
     """
     echo -e "Demultiplexing Illumina paired-end reads with cutadapt\\n"
     echo -e "Input R1:     " ${input_R1}
@@ -126,6 +135,7 @@ process demux_illumina {
     echo -e "Tag errors:   " ${params.barcode_errors}
     echo -e "Tag window:   " ${params.barcode_window}
     echo -e "Rescue:       " ${rescue}
+    echo -e "Orient by primers: " ${orient}
 
     ## cutadapt keeps one file open per sample and mate
     ulimit -S -n 4096 2>/dev/null || true
@@ -139,6 +149,45 @@ process demux_illumina {
     json_count () {
       python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["read_counts"]["read1_with_adapter"] or 0)' "\$1"
     }
+
+
+    ## ---------------------------------------------------------------------------
+    ## Pass 0: orient read pairs by primers (R1 = forward-primer strand)
+    ## ---------------------------------------------------------------------------
+
+    IN_R1=${input_R1}
+    IN_R2=${input_R2}
+    PASS0_JSON=""
+
+    ## (if dual tags are missing, the tag section below stops with an error - no need to process the reads first)
+    if [[ ${orient} == true ]] && [ -s dual/tags_fwd.fasta ]; then
+      echo -e "\\n.. Pass 0: orienting read pairs by primers\\n"
+      echo -e "Forward primer: " ${params.primer_forward}
+      echo -e "Reverse primer: " ${params.primer_reverse}
+
+      ## Same matching as in `reorient_pe`: primers are not anchored (a tag is in front of them),
+      ## `--revcomp` swaps R1 and R2 if primers score better that way, nothing is trimmed
+      cutadapt \\
+        --revcomp \\
+        --action=none \\
+        --rename='{header}' \\
+        -g "${params.primer_forward};min_overlap=${params.primer_foverlap}" \\
+        -G "${params.primer_reverse};min_overlap=${params.primer_roverlap}" \\
+        --errors ${params.primer_mismatches} \\
+        --no-indels \\
+        --discard-untrimmed \\
+        --pair-filter=both \\
+        --cores ${task.cpus} \\
+        --json json/pass0.json \\
+        -o ori_R1.fq.gz \\
+        -p ori_R2.fq.gz \\
+        ${input_R1} ${input_R2} \\
+        > logs/cutadapt_pass0.log
+
+      IN_R1=ori_R1.fq.gz
+      IN_R2=ori_R2.fq.gz
+      PASS0_JSON="json/pass0.json"
+    fi
 
 
     ## ---------------------------------------------------------------------------
@@ -172,6 +221,10 @@ process demux_illumina {
           exit 1
         fi
 
+        ## Pairs oriented by primers: rescue tags are unique per mate position
+        POSRESC=""
+        if [[ ${orient} == true ]]; then POSRESC="--positional-rescue"; fi
+
         for ORI in forward revcomp; do
           prepare_illumina_tags.py \\
             --mode       dual_asymmetric \\
@@ -179,6 +232,7 @@ process demux_illumina {
             --rev        dual/tags_rev.fasta \\
             --rev-orient \$ORI \\
             --window     ${params.barcode_window} \\
+            \$POSRESC \\
             --outdir     tags_\$ORI
         done
 
@@ -187,13 +241,16 @@ process demux_illumina {
         REVTAG="${params.illumina_revtag_orient}"
         if [[ \$REVTAG == "auto" ]]; then
           echo -e "\\nDetecting the orientation of reverse tags (first 20000 read pairs)"
-          seqkit head -n 20000 ${input_R1} -o sub_R1.fq.gz
-          seqkit head -n 20000 ${input_R2} -o sub_R2.fq.gz
+          seqkit head -n 20000 \$IN_R1 -o sub_R1.fq.gz
+          seqkit head -n 20000 \$IN_R2 -o sub_R2.fq.gz
+
+          ## Pairs oriented by primers carry forward tags on R1 only
+          if [[ ${orient} == true ]]; then SIDE_ORDERS=("T1 T2"); else SIDE_ORDERS=("T1 T2" "T2 T1"); fi
 
           declare -A NPAIRS
           for ORI in forward revcomp; do
             N=0
-            for SIDES in "T1 T2" "T2 T1"; do
+            for SIDES in "\${SIDE_ORDERS[@]}"; do
               set -- \$SIDES
               cutadapt --pair-adapters --action=none \$TAGOPTS \\
                 -g file:tags_\$ORI/\$1.fasta \\
@@ -267,13 +324,15 @@ process demux_illumina {
         --untrimmed-paired-output unp1_R2.fq.gz \\
         -o "Strict/{name}_R1.fq.gz" \\
         -p "Strict/{name}_R2.fq.gz" \\
-        ${input_R1} ${input_R2} \\
+        \$IN_R1 \$IN_R2 \\
         > logs/cutadapt_pass1.log
+      rm -f ori_R1.fq.gz ori_R2.fq.gz
 
       PASS1_JSONS="json/pass1.json"
 
       ## Pass 1b: asymmetric tags in the opposite mate orientation
-      if [[ "${params.illumina_barcodetype}" == "dual_asymmetric" ]]; then
+      ## (not after pass 0 - pairs are already oriented, and swapped tag pairs would go to the wrong sample)
+      if [[ "${params.illumina_barcodetype}" == "dual_asymmetric" && ${orient} == false ]]; then
         echo -e "\\n.. Pass 1b: strict demultiplexing, swapped mates\\n"
         cutadapt \\
           --pair-adapters \\
@@ -317,7 +376,47 @@ process demux_illumina {
       ## Pass 3: rescue pairs with a single readable tag
       ##   `-g` only (no `-G`) - that makes `--revcomp` meaningful (mates are swapped if the tag is found on R2)
       ##   only tags used by a single sample are considered
-      if [[ ${rescue} == true ]] && [ -s tags/Tresc.fasta ]; then
+      ## After pass 0 (pairs oriented by primers) mates are never swapped:
+      ##   3a - forward tags on R1 (unique among forward tags)
+      ##   3b - reverse tags on R2 (unique among reverse tags)
+      ##          cutadapt assigns pairs by R1 matches only,
+      ##          so R1 and R2 swap roles in both the input and the output files (intended)
+      if [[ ${rescue} == true && ${orient} == true ]]; then
+        echo -e "\\n.. Pass 3: rescuing pairs with one readable tag (primer-oriented pairs)\\n"
+        ## `rem_*` = pairs not rescued yet
+        mv rescuable_R1.fq.gz rem_R1.fq.gz
+        mv rescuable_R2.fq.gz rem_R2.fq.gz
+        if [ -s tags/Tresc1.fasta ]; then
+          cutadapt \\
+            \$TAGOPTS \\
+            --minimum-length ${params.barcode_minlen} \\
+            -g file:tags/Tresc1.fasta \\
+            --json json/pass3a.json \\
+            --untrimmed-output        rem3a_R1.fq.gz \\
+            --untrimmed-paired-output rem3a_R2.fq.gz \\
+            -o "Rescued/{name}_R1.fq.gz" \\
+            -p "Rescued/{name}_R2.fq.gz" \\
+            rem_R1.fq.gz rem_R2.fq.gz \\
+            > logs/cutadapt_pass3a.log
+          mv rem3a_R1.fq.gz rem_R1.fq.gz
+          mv rem3a_R2.fq.gz rem_R2.fq.gz
+          PASS3_JSON="json/pass3a.json"
+        fi
+        if [ -s tags/Tresc2.fasta ]; then
+          cutadapt \\
+            \$TAGOPTS \\
+            --minimum-length ${params.barcode_minlen} \\
+            --discard-untrimmed \\
+            -g file:tags/Tresc2.fasta \\
+            --json json/pass3b.json \\
+            -o "Rescued/{name}_R2.fq.gz" \\
+            -p "Rescued/{name}_R1.fq.gz" \\
+            rem_R2.fq.gz rem_R1.fq.gz \\
+            > logs/cutadapt_pass3b.log
+          PASS3_JSON="\$PASS3_JSON json/pass3b.json"
+        fi
+        rm -f rem_R1.fq.gz rem_R2.fq.gz
+      elif [[ ${rescue} == true ]] && [ -s tags/Tresc.fasta ]; then
         echo -e "\\n.. Pass 3: rescuing pairs with one readable tag\\n"
         cutadapt \\
           --revcomp --rename='{header}' \\
@@ -334,7 +433,7 @@ process demux_illumina {
       else
         echo -e "\\n.. Pass 3 (rescue) skipped"
       fi
-      rm rescuable_R1.fq.gz rescuable_R2.fq.gz
+      rm -f rescuable_R1.fq.gz rescuable_R2.fq.gz
 
     fi
 
@@ -374,9 +473,10 @@ process demux_illumina {
     summarize_demux_illumina.py \\
       --counts        r1_counts.tsv \\
       --samples       samples.txt \\
+      --pass0         "\$PASS0_JSON" \\
       --pass1         \$PASS1_JSONS \\
       --pass2         "\$PASS2_JSON" \\
-      --pass3         "\$PASS3_JSON" \\
+      --pass3         \$PASS3_JSON \\
       --mode          ${params.illumina_barcodetype} \\
       --revtag-orient "\$REVTAG" \\
       --out-summary   Demux_summary.tsv \\
