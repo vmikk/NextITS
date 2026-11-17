@@ -34,6 +34,9 @@ def parameterSummary(workflow, params) {
             summary += "  ${colors.green}seqplatform${colors.reset}      : ${colors.cyan}Illumina${colors.reset}\n"
             if (!params.demultiplexed) {
                 summary += "  ${colors.green}tag layout${colors.reset}       : ${colors.cyan}${params.illumina_barcodetype}${colors.reset}\n"
+                if (params.illumina_barcodetype == "dual_asymmetric") {
+                    summary += "  ${colors.green}demux orient${colors.reset}     : ${colors.cyan}${params.illumina_demux_orient}${colors.reset}\n"
+                }
             }
             summary += "  ${colors.green}pe_merger${colors.reset}        : ${colors.cyan}${params.pe_merger}${colors.reset}\n"
         }
