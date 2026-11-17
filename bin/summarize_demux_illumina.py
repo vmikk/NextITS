@@ -10,7 +10,8 @@ Inputs:
 
 Outputs:
 - per-sample table: `SampleID, Strict_Pairs, Rescued_Pairs, Demultiplexed_Pairs`
-- run totals: input pairs, strict, rescued, tag-jumped (or unknown tag combinations), too short, unassigned
+- run totals: input pairs, pairs without primers (pass 0, primer-based orientation), strict, rescued,
+  tag-jumped (or unknown tag combinations), too short, unassigned
 
 Exits with an error if the combined number of pairs differs from strict + rescued
 """
@@ -42,9 +43,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--counts", required=True)
     ap.add_argument("--samples", required=True)
+    ap.add_argument("--pass0", default="", help="JSON report of the primer-based orientation (pass 0)")
     ap.add_argument("--pass1", nargs="+", required=True, help="JSON reports of strict demultiplexing (pass 1 and 1b)")
     ap.add_argument("--pass2", default="", help="JSON report of tag-jump removal")
-    ap.add_argument("--pass3", default="", help="JSON report of the rescue pass")
+    ap.add_argument("--pass3", nargs="*", default=[], help="JSON report(s) of the rescue pass(es)")
     ap.add_argument("--mode", required=True)
     ap.add_argument("--revtag-orient", default="NA")
     ap.add_argument("--out-summary", required=True)
@@ -85,17 +87,23 @@ def main(argv=None) -> int:
     ## Run totals
     p1 = [load_json(p) for p in a.pass1 if p]
     p2 = load_json(a.pass2)
-    p3 = load_json(a.pass3)
+    p3 = [load_json(p) for p in a.pass3 if p]
+    p0 = load_json(a.pass0)
 
-    n_input = int(p1[0]["read_counts"]["input"])
+    if p0 is not None:
+        n_input = int(p0["read_counts"]["input"])
+        n_noprimer = n_input - int(p0["read_counts"]["output"])
+    else:
+        n_input = int(p1[0]["read_counts"]["input"])
+        n_noprimer = 0
     n_strict = sum(r[1] for r in rows)
     n_resc = sum(r[2] for r in rows)
-    n_short = sum(too_short(r) for r in p1) + too_short(p3)
+    n_short = sum(too_short(r) for r in p1) + sum(too_short(r) for r in p3)
     if p2 is not None:
         n_jump = int(p2["read_counts"]["input"]) - int(p2["read_counts"]["output"])
     else:
         n_jump = 0
-    n_unas = n_input - n_strict - n_resc - n_jump - n_short
+    n_unas = n_input - n_noprimer - n_strict - n_resc - n_jump - n_short
 
     def pct(x):
         return f"{100 * x / n_input:.2f}" if n_input else "0.00"
@@ -105,6 +113,8 @@ def main(argv=None) -> int:
         fh.write(f"Tag_layout\t{a.mode}\t\n")
         fh.write(f"Reverse_tag_orientation\t{a.revtag_orient}\t\n")
         fh.write(f"Input_Pairs\t{n_input}\t100.00\n")
+        if p0 is not None:
+            fh.write(f"NoPrimer_Pairs\t{n_noprimer}\t{pct(n_noprimer)}\n")
         fh.write(f"Strict_Pairs\t{n_strict}\t{pct(n_strict)}\n")
         fh.write(f"Rescued_Pairs\t{n_resc}\t{pct(n_resc)}\n")
         fh.write(f"Demultiplexed_Pairs\t{n_strict + n_resc}\t{pct(n_strict + n_resc)}\n")
