@@ -142,6 +142,8 @@ process tag_validation {
       path "tags_{fwd,rev}.fasta",     emit: tags_dual,       optional: true   // per-sample dual tags (for cutadapt)
 
     script:
+    // Swapped-pair tag combinations (X...Y and Y...X) can be resolved only if read pairs are oriented by primers before demultiplexing
+    def allow_swapped = (params.seqplatform == "Illumina" && params.illumina_barcodetype == "dual_asymmetric" && params.illumina_demux_orient == "primers") ? "TRUE" : "FALSE"
     """
     echo -e "Valdidating demultiplexing tags\\n"
     echo -e "Input file: " ${barcodes}
@@ -159,7 +161,8 @@ process tag_validation {
     ## Perform tag validation
     validate_tags.R \\
       --tags   ${barcodes} \\
-      --output barcodes_validated.fasta
+      --output barcodes_validated.fasta \\
+      --allow_swapped ${allow_swapped}
 
     echo -e "\\nTag validation finished"
     """
