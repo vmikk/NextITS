@@ -184,10 +184,18 @@ emit_demux_illumina <- function(p, v) {
       {common}. Read pairs were assigned to samples only if both mates carried the tag of the same sample; \\
       pairs in which the mates carried tags of different samples were discarded as tag jumps.\\
       {if(is_true(getp(p,'illumina_demux_rescue',TRUE))) ' Pairs with a single readable tag were assigned based on that tag.' else ''}"),
-    "dual_asymmetric" = glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011) \\
+    "dual_asymmetric" = if (getp(p, "illumina_demux_orient", "primers") %in% "tags") {
+      glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011) \\
       based on combinations of forward and reverse tags (in both mate orientations), {common}. \\
       Pairs carrying an unexpected combination of known tags were discarded as tag jumps.\\
-      {if(is_true(getp(p,'illumina_demux_rescue',TRUE))) ' Pairs with a single readable tag were assigned based on that tag, if the tag was used by a single sample.' else ''}"),
+      {if(is_true(getp(p,'illumina_demux_rescue',TRUE))) ' Pairs with a single readable tag were assigned based on that tag, if the tag was used by a single sample.' else ''}")
+    } else {
+      glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011). \\
+      Read pairs were first oriented based on primer sequences (pairs without primers were discarded), \\
+      then assigned to samples based on combinations of forward and reverse tags, {common}. \\
+      Pairs carrying an unexpected combination of known tags were discarded as tag jumps.\\
+      {if(is_true(getp(p,'illumina_demux_rescue',TRUE))) ' Pairs with a single readable tag were assigned based on that tag, if the tag was used by a single sample at that position.' else ''}")
+    },
     glue("Paired-end reads were demultiplexed using cutadapt v.{vs} (Martin, 2011)."))
 }
 
