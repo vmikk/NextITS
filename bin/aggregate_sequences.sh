@@ -386,6 +386,77 @@ echo "... Filtered records retained: $FILTERED_RECORDS"
 echo "... Filtered unique sequences: $FILTERED_SEQUENCES"
 echo "... Filtered unique samples: $FILTERED_SAMPLES"
 
+## Harmonize sequences of IDs with more than one sequence
+## SeqID is the hash of the full primer-trimmed read, but Sequence is the extracted region (e.g., full ITS);
+## ITSx may place region boundaries differently for the same read in different samples or runs,
+## so one SeqID may label several sequences
+## For each such SeqID, the sequence with the highest total abundance is assigned to all records
+## (ties: more records, then longer sequence, then alphabetical order)
+echo -e "\n..Harmonizing sequences of IDs with more than one sequence"
+run_sql "
+${SQL_SETUP}
+CREATE OR REPLACE TABLE conflicting_ids AS
+SELECT SeqID
+FROM filtered_table
+GROUP BY SeqID
+HAVING MIN(hash(Sequence)) <> MAX(hash(Sequence));
+
+CREATE OR REPLACE TABLE seq_choice AS
+SELECT
+    SeqID,
+    Sequence,
+    NumReads,
+    NumRecords,
+    ROW_NUMBER() OVER (
+        PARTITION BY SeqID
+        ORDER BY NumReads DESC, NumRecords DESC, length(Sequence) DESC, Sequence
+    ) AS VariantRank
+FROM (
+    SELECT
+        SeqID,
+        Sequence,
+        SUM(Abundance) AS NumReads,
+        COUNT(*)       AS NumRecords
+    FROM filtered_table
+    WHERE SeqID IN (SELECT SeqID FROM conflicting_ids)
+    GROUP BY SeqID, Sequence
+);
+"
+
+CONFLICTING_IDS="$(query_scalar "SELECT COUNT(*) FROM conflicting_ids;")"
+echo "... IDs with more than one sequence: $CONFLICTING_IDS"
+
+if [[ "$CONFLICTING_IDS" -gt 0 ]]; then
+    HARMONIZED_RECORDS="$(query_scalar "SELECT COALESCE(SUM(NumRecords), 0) FROM seq_choice WHERE VariantRank > 1;")"
+    HARMONIZED_READS="$(query_scalar "SELECT COALESCE(SUM(NumReads), 0) FROM seq_choice WHERE VariantRank > 1;")"
+    echo "... Records with a minority sequence (replaced): $HARMONIZED_RECORDS"
+    echo "... Reads in these records: $HARMONIZED_READS"
+    echo "... Examples (SeqID, sequence length, reads, records; first row = sequence kept):"
+    duckdb "$DB_PATH" -init /dev/null -batch -noheader -list -separator $'\t' -c "
+    SELECT '.... ' || SeqID, length(Sequence), NumReads, NumRecords
+    FROM seq_choice
+    WHERE SeqID IN (SELECT SeqID FROM conflicting_ids ORDER BY SeqID LIMIT 10)
+    ORDER BY SeqID, VariantRank;
+    "
+
+    run_sql "
+    ${SQL_SETUP}
+    UPDATE filtered_table
+    SET Sequence = s.Sequence
+    FROM seq_choice AS s
+    WHERE s.VariantRank = 1
+      AND filtered_table.SeqID = s.SeqID
+      AND filtered_table.Sequence <> s.Sequence;
+    "
+
+    REMAINING_CONFLICTS="$(query_scalar "SELECT COUNT(*) FROM (SELECT SeqID FROM filtered_table GROUP BY SeqID HAVING MIN(hash(Sequence)) <> MAX(hash(Sequence)));")"
+    if [[ "$REMAINING_CONFLICTS" -ne 0 ]]; then
+        echo "Error: $REMAINING_CONFLICTS IDs still have more than one sequence after harmonization" >&2
+        exit 1
+    fi
+    echo "... Unique sequences after harmonization: $(query_scalar "SELECT COUNT(DISTINCT Sequence) FROM filtered_table;")"
+fi
+
 echo -e "\n..Sorting table by abundance, quality score"
 run_sql "
 ${SQL_SETUP}
