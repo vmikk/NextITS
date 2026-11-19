@@ -44,6 +44,7 @@ from collections import defaultdict
 import numpy as np
 
 _SIZE_RE = re.compile(r";size=([0-9]+)")
+_IDX_RE = re.compile(r";idx=([0-9]+)")
 
 
 def read_fasta(path: str):
@@ -74,12 +75,16 @@ def read_fasta(path: str):
 
 
 def cluster_sequences(ids, sizes, seqs, cluster_id, threads, tmpdir):
-    """Cluster sequences with VSEARCH, return a cluster index per sequence."""
+    """Cluster sequences with VSEARCH, return a cluster index per sequence.
+
+    Sequences are labelled by their position (`;idx=`), because SeqIDs may not be unique
+    (e.g., the same read hash with different ITSx boundaries in different samples).
+    """
     fasta = os.path.join(tmpdir, "seqs.fa")
     uc = os.path.join(tmpdir, "clusters.uc")
     with open(fasta, "w") as out:
         for i in np.argsort(-sizes, kind="stable"):
-            out.write(f">{ids[i]};size={sizes[i]}\n{seqs[i]}\n")
+            out.write(f">{ids[i]};idx={i};size={sizes[i]}\n{seqs[i]}\n")
     subprocess.run(
         [
             "vsearch", "--cluster_size", fasta,
@@ -92,14 +97,13 @@ def cluster_sequences(ids, sizes, seqs, cluster_id, threads, tmpdir):
         ],
         check=True,
     )
-    index = {sid: i for i, sid in enumerate(ids)}
     clust = np.full(len(ids), -1, dtype=np.int64)
     with open(uc) as fh:
         for line in fh:
             if line[0] not in "SH":
                 continue
             cols = line.split("\t")
-            clust[index[cols[8].split(";size=")[0]]] = int(cols[1])
+            clust[int(_IDX_RE.search(cols[8]).group(1))] = int(cols[1])
     os.remove(fasta)
     os.remove(uc)
     if np.any(clust < 0):
