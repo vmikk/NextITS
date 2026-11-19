@@ -111,6 +111,22 @@ process dereplication {
 
     echo -e "..Dereplication finished\\n"
 
+    ## Check that each sequence ID belongs to only one dereplicated sequence
+    ## (downstream steps map records to clusters by ID; see harmonization in `aggregate_sequences.sh`)
+    echo -e "Checking sequence IDs"
+    awk -F'\\t' '
+      \$1 == "S" || \$1 == "H" {
+        q = substr(\$9, 1, index(\$9 ";", ";") - 1)
+        t = (\$1 == "S") ? q : substr(\$10, 1, index(\$10 ";", ";") - 1)
+        bad = ((q in target) && target[q] != t) || (\$1 == "S" && (q in centroid))
+        if (bad) { n++; if (n <= 5) print "..ID in more than one dereplicated sequence: " q > "/dev/stderr" }
+        if (\$1 == "S") centroid[q] = 1
+        target[q] = t
+      }
+      END { if (n > 0) { print "Error: " n " records have an ID that labels more than one sequence" > "/dev/stderr"; exit 1 } }
+    ' Dereplicated.uc
+    echo -e "..Done\\n"
+
     ## Compress results
     echo -e "\\nCompressing results"
     parallel -j ${parallelJobs} \
