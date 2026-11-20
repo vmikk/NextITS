@@ -80,6 +80,7 @@ def helpMsg() {
         --illumina_barcodetype     Tag layout ("dual_symmetric" (default), "dual_asymmetric", "single")
         --illumina_demux_rescue    Rescue read pairs with a single readable tag (default, false)
         --illumina_revtag_orient   Orientation of reverse tags in `fwd...rev` format ("auto" (default), "forward", "revcomp")
+        --illumina_demux_orient    Orient pairs by primers before assigning dual asymmetric tags ("primers" (default), "tags")
         --barcode_window   Tag search window at the 5' end of reads (default, 30 bp)
         --barcode_errors   Maximum allowed number of mismatches in tags (default, 2)
         --barcode_overlap  Min overlap between read and tag (default, 11)
