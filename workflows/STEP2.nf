@@ -1027,6 +1027,7 @@ process render_report_s2 {
     output:
       path "Step2_report.html",  emit: html
       path "Step2_summary.tsv",  emit: summary
+      path "MultiQC/*",          emit: mqc, optional: true
 
     script:
     """
@@ -1048,6 +1049,13 @@ process render_report_s2 {
       --out          Step2_report.html \
       --summary-tsv  Step2_summary.tsv
 
+    ## Side output for users who aggregate whole projects with MultiQC.
+    echo -e "\\nExporting MultiQC custom-content files\\n"
+
+    write_mqc.R \
+      --otu-summary  Step2_summary.tsv \
+      --versions     ${versions} \
+      --outdir       MultiQC
     """
 }
 
