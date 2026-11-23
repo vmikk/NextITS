@@ -85,59 +85,60 @@ process primer_trim {
 
     ## Check if there are sequences in the output
     NUMSEQS=\$( seqkit stat --tabular --quiet ${sampID}_primertrimmed.fq.gz | awk -F'\t' 'NR==2 {print \$4}' )
+    NUMSEQS=\${NUMSEQS:-0}
     echo -e "Number of sequences after primer trimming: " \$NUMSEQS
-    if [ \$NUMSEQS -lt 1 ]; then
+    if [ "\$NUMSEQS" -lt 1 ]; then
       echo -e "\\nIt looks like no reads remained after trimming the primers\\n"
       rm -f ${sampID}_primertrimmed.fq.gz
-      exit 0
+    else
+
+      ## Estimate sequence quality and sort sequences by quality
+      echo -e "\\nSorting by sequence quality"
+      seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
+        | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
+        | gzip -${params.gzip_compression} > ${sampID}_primertrimmed_sorted.fq.gz
+      echo -e "..Done"
+
+      ## Remove the intermediate file as early as possible (it can be large)
+      rm -f ${sampID}_primertrimmed.fq.gz
+
+      ## Hash sequences, add sample ID to the header
+      ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
+      echo -e "\\nCreating hash table"
+      seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
+        | seqkit fx2tab --length \
+        | sed 's/;/\t/ ; s/;/\t/ ; s/ avgphred=/\t/ ; s/ maxee=/\t/ ; s/ meep=/\t/' \
+        > ${sampID}_hash_table.txt
+      echo -e "..Done"
+
+      ## Dereplicate at sample level
+      ## (use quality-sorted sequences, so that the representative sequence is the one with the highest quality)
+      echo -e "\\nDereplicating at sample level"
+      seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
+        | vsearch \
+          --derep_fulllength - \
+          --output - \
+          --strand both \
+          --fasta_width 0 \
+          --threads 1 \
+          --relabel_sha1 \
+          --sizein --sizeout \
+          --minseqlength ${params.trim_minlen} \
+          --uc ${sampID}_uc.uc \
+          --quiet \
+        > ${sampID}.fa
+
+      echo -e "..Done"
+
+      ## Compress results
+      echo -e "\\nCompressing results"
+      parallel -j${task.cpus} "gzip -${params.gzip_compression} {}" ::: \
+        ${sampID}_hash_table.txt \
+        ${sampID}_uc.uc \
+        ${sampID}.fa
+
+      echo -e "..Done"
     fi
-
-    ## Estimate sequence quality and sort sequences by quality
-    echo -e "\\nSorting by sequence quality"
-    seqkit replace -p "\\s.+" ${sampID}_primertrimmed.fq.gz \
-      | phredsort -i - -o - --metric meep --header avgphred,maxee,meep \
-      | gzip -${params.gzip_compression} > ${sampID}_primertrimmed_sorted.fq.gz
-    echo -e "..Done"
-
-    ## Remove the intermediate file as early as possible (it can be large)
-    rm -f ${sampID}_primertrimmed.fq.gz
-
-    ## Hash sequences, add sample ID to the header
-    ## columns: Sample ID - Hash - PacBioID - AvgPhredScore - MaxEE - MEEP - Sequence - Quality - Length
-    echo -e "\\nCreating hash table"
-    seqhasher --hash sha1 --name ${sampID} ${sampID}_primertrimmed_sorted.fq.gz - \
-      | seqkit fx2tab --length \
-      | sed 's/;/\t/ ; s/;/\t/ ; s/ avgphred=/\t/ ; s/ maxee=/\t/ ; s/ meep=/\t/' \
-      > ${sampID}_hash_table.txt
-    echo -e "..Done"
-
-    ## Dereplicate at sample level
-    ## (use quality-sorted sequences, so that the representative sequence is the one with the highest quality)
-    echo -e "\\nDereplicating at sample level"
-    seqkit fq2fa -w 0 ${sampID}_primertrimmed_sorted.fq.gz \
-      | vsearch \
-        --derep_fulllength - \
-        --output - \
-        --strand both \
-        --fasta_width 0 \
-        --threads 1 \
-        --relabel_sha1 \
-        --sizein --sizeout \
-        --minseqlength ${params.trim_minlen} \
-        --uc ${sampID}_uc.uc \
-        --quiet \
-      > ${sampID}.fa
-
-    echo -e "..Done"
-
-    ## Compress results
-    echo -e "\\nCompressing results"
-    parallel -j${task.cpus} "gzip -${params.gzip_compression} {}" ::: \
-      ${sampID}_hash_table.txt \
-      ${sampID}_uc.uc \
-      ${sampID}.fa
-
-    echo -e "..Done"
     """
 }
 
