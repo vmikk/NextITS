@@ -202,7 +202,11 @@ emit_demux_illumina <- function(p, v) {
 emit_merge_illumina <- function(p, v) {
   merger <- getp(p, "pe_merger", "usearch")
   mv <- getv(v, "merge_pe", merger)
-  res <- glue("Read pairs were oriented based on primer sequences using \\
+  ## Pairs oriented by primers during demultiplexing (dual asymmetric tags) are not reoriented again
+  preoriented <- !is_true(getp(p, "demultiplexed", FALSE)) &&
+    getp(p, "illumina_barcodetype", "dual_symmetric") %in% "dual_asymmetric" &&
+    getp(p, "illumina_demux_orient", "primers") %in% "primers"
+  res <- if (preoriented) character(0) else glue("Read pairs were oriented based on primer sequences using \\
     cutadapt v.{getv(v,'reorient_pe','cutadapt')}.")
   if(is_set(getp(p, "qc_polyglen", NA))){
     res <- c(res, glue("Poly-G tails (>= {getp(p,'qc_polyglen',10)} nt) were trimmed using \\
