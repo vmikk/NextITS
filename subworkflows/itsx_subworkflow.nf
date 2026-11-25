@@ -69,11 +69,13 @@ process primer_trim {
     echo -e "Reverse primer RC: " "\$RR"
 
     ## Trim primers
+    ## Reads come from `primer_check`, where they were already oriented as F...R_rc,
+    ## so the reverse orientation is not searched (no `--revcomp`)
     echo -e "\\nTrimming primers"
     cutadapt \
       -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
       --errors ${params.primer_mismatches} \
-      --revcomp --rename "{id}" \
+      --rename "{id}" \
       --discard-untrimmed \
       --minimum-length ${params.trim_minlen} \
       --cores ${task.cpus} \
