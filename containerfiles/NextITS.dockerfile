@@ -42,18 +42,18 @@ RUN git clone https://github.com/rec3141/papa2.git . \
 FROM scratch AS itsx2_src
 
 ## Build stage 2 - Main
-FROM rocker/r-ver:4.6.1 AS main
+FROM rocker/r-ver:4.6.2 AS main
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV SHELL=/bin/bash
 LABEL org.opencontainers.image.authors="vladimir.mikryukov@ut.ee"
-LABEL org.opencontainers.image.version="1.2.4"
+LABEL org.opencontainers.image.version="1.2.5"
 
 RUN apt-get update -qq \
   && apt-get -y --no-install-recommends install \
     tar zip unzip pigz gzip zstd xz-utils bzip2 coreutils \
-    curl wget git less gawk nano rename bc \
+    curl wget git less gawk nano rename bc bsdextrautils \
     ca-certificates locales  \
     libtre-dev libtre5 zlib1g zlib1g-dev liblzma-dev libbz2-dev libcurl4-openssl-dev libglpk-dev libglpk40 \
     libgomp1 \
@@ -81,11 +81,13 @@ RUN install2.r --error --skipinstalled --ncpus -1 \
     jsonlite \
     vegan
 
-RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE)' \
-    && R -e 'BiocManager::install("ShortRead",  ask = FALSE)' \
-    && R -e 'BiocManager::install("DECIPHER",   ask = FALSE)' \
-    && R -e 'BiocManager::install("dada2",      ask = FALSE)' \
-    && R -e 'BiocManager::install("phyloseq",   ask = FALSE)' \
+## `update = FALSE`: otherwise BiocManager replaces rocker's littler with a P3M binary
+## linked against /opt/R/<ver>/lib/R/lib, which breaks `r` / install2.r (libR.so not found)
+RUN    R -e 'BiocManager::install("Biostrings", ask = FALSE, update = FALSE)' \
+    && R -e 'BiocManager::install("ShortRead",  ask = FALSE, update = FALSE)' \
+    && R -e 'BiocManager::install("DECIPHER",   ask = FALSE, update = FALSE)' \
+    && R -e 'BiocManager::install("dada2",      ask = FALSE, update = FALSE)' \
+    && R -e 'BiocManager::install("phyloseq",   ask = FALSE, update = FALSE)' \
     && rm -rf /tmp/downloaded_packages
 
 RUN install2.r --error --skipinstalled \
@@ -100,7 +102,7 @@ RUN install2.r --error --skipinstalled \
     && rm -rf /tmp/downloaded_packages
 
 ## Install conda
-ARG MINIFORGE_VERSION=26.3.2-3
+ARG MINIFORGE_VERSION=26.9.4-2
 RUN mkdir -p /opt/software \
   && cd /opt/software \
   && curl -fsSL "https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/Miniforge3-${MINIFORGE_VERSION}-Linux-x86_64.sh" -o miniforge.sh \
@@ -134,24 +136,26 @@ RUN /opt/software/conda/bin/mamba install -y \
     "vsearch>=2.32.0" \
     "swarm>=3.2.0" \
     "seqkit>=2.14.0" \
-    "seqfu>=1.30.0" \
-    "fastp>=1.3.7" \
+    "seqfu>=1.30.3" \
+    "fastp>=1.4.0" \
     "blast>=2.17.0" \
     "bioawk" \
     "miller>=6.22.0" \
     "xsv>=0.13.0" \
     "bedtools>=2.31.1" \
-    "parallel>=20260722" \
-    "csvtk>=0.38.0" \
+    "parallel>=20260922" \
+    "csvtk>=0.39.0" \
     "cutadapt>=5.2" \
     "itsx>=1.1.3" \
     "infernal>=1.1.5" \
-    "bbmap>=40.02" \
+    "bbmap>=40.05" \
     "ripgrep>=15.1.0" \
+    "fd-find>=10.5.2" \
+    "mmseqs2=20.ae60e" \
     # bioconda sassy is outdated; it is built from source in the `sassy_build` stage \
     # "sassy>=0.3.1" \
-  && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes \
-  && /opt/software/conda/bin/conda clean -afy
+  && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes
+  # && /opt/software/conda/bin/conda clean -afy
 
 ## papa2
 RUN --mount=type=bind,from=papa2_build,source=/build,target=/tmp/papa2_src,rw \
@@ -195,7 +199,7 @@ RUN wget https://github.com/shenwei356/rush/releases/download/v0.11.0/rush_linux
   && rm rush_linux_amd64.tar.gz
 
 ## brename
-RUN wget https://github.com/shenwei356/brename/releases/download/v2.14.0/brename_linux_amd64.tar.gz \
+RUN wget https://github.com/shenwei356/brename/releases/download/v2.15.0/brename_linux_amd64.tar.gz \
   && tar -xzf brename_linux_amd64.tar.gz \
   && mv brename /opt/software/conda/bin/ \
   && rm brename_linux_amd64.tar.gz
@@ -239,9 +243,9 @@ RUN --mount=type=bind,from=itsx2_src,target=/tmp/itsx2_src,rw \
 
 ## DuckDB
 RUN cd /opt/software \
-    && curl -L https://github.com/duckdb/duckdb/releases/download/v1.5.6/duckdb_cli-linux-amd64.zip -o duckdb_cli-linux-amd64.zip \
-    && unzip duckdb_cli-linux-amd64.zip -d /opt/software/conda/bin/ \
-    && rm duckdb_cli-linux-amd64.zip
+    && curl -L https://github.com/duckdb/duckdb/releases/download/v2.0.1/duckdb-cli-linux-amd64.tar.gz -o duckdb_cli-linux-amd64.tar.gz \
+    && tar -xzf duckdb_cli-linux-amd64.tar.gz -C /opt/software/conda/bin/ \
+    && rm duckdb_cli-linux-amd64.tar.gz
 
 ## Set up environment for both Docker and Singularity compatibility
 ENV PATH="/opt/software/conda/bin:${PATH}"
@@ -281,7 +285,7 @@ ENTRYPOINT ["/opt/software/entrypoint.sh"]
 FROM main AS test
 
 # Set environment variable for R version testing
-ENV R_VERSION=4.6.1
+ENV R_VERSION=4.6.2
 
 RUN echo "=== Testing R installation and packages ===" \
   && R --quiet -e "stopifnot(getRversion() == '${R_VERSION}')" \
@@ -319,7 +323,7 @@ RUN echo "=== Testing R installation and packages ===" \
           fi; \
      done \
   && echo "=== Testing manually installed tools ===" \
-  && tools_manual="seqhasher phredsort ucs usearch fqgrep rush brename mumu duckdb runiq sd sassy" \
+  && tools_manual="seqhasher phredsort ucs usearch fqgrep rush brename mumu duckdb runiq sd sassy rev" \
   && for tool in $tools_manual; do \
        echo -n "Testing $tool... " \
        && if command -v $tool >/dev/null 2>&1; then \
