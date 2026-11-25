@@ -498,6 +498,10 @@ process demux_illumina {
 // Pairs without any primer are discarded
 // (the requirement of both primers is applied later, on merged reads, by `primer_check`)
 //
+// If the pairs were already oriented by primers during demultiplexing
+// (pass 0 of `demux_illumina`: multiplexed input, dual asymmetric tags, `--illumina_demux_orient primers`),
+// the same cutadapt search would not change anything, so the reads are passed through
+//
 // NB. for paired-end reads, `--revcomp` does not reverse-complement sequences:
 //     it re-runs the adapter search with R1 and R2 swapped, and keeps the better-scoring orientation
 process reorient_pe {
@@ -515,8 +519,13 @@ process reorient_pe {
       tuple val(sampID), path("Reoriented/${sampID}_R{1,2}.fq.gz"), emit: reads, optional: true
       path "${sampID}_reorient.tsv", emit: stats
       tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
+      tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
 
     script:
+    // Were the pairs oriented by primers during demultiplexing (pass 0 of `demux_illumina`)?
+    def preoriented = !params.demultiplexed.toString().toBoolean() &&
+                      params.illumina_barcodetype == "dual_asymmetric" &&
+                      params.illumina_demux_orient == "primers"
     """
     echo -e "Reorienting read pairs\\n"
     echo -e "Sample: "  ${sampID}
@@ -526,6 +535,19 @@ process reorient_pe {
     echo -e "Reverse primer: " ${params.primer_reverse}
 
     mkdir -p Reoriented
+
+    if [[ ${preoriented} == true ]]; then
+
+    ## Pairs were oriented by primers during demultiplexing (and pairs without primers were discarded there)
+    echo -e "\\nRead pairs were already oriented by primers during demultiplexing, passing them through"
+    ln -s ../${reads[0]} Reoriented/${sampID}_R1.fq.gz
+    ln -s ../${reads[1]} Reoriented/${sampID}_R2.fq.gz
+
+    NPAIRS=\$(seqkit stats -T -j 1 ${reads[0]} | awk 'NR == 2 { print \$4 }')
+    echo -e "SampleID\\tInput_Pairs\\tReoriented_Pairs\\tSwapped_Pairs" > ${sampID}_reorient.tsv
+    echo -e "${sampID}\\t\$NPAIRS\\t\$NPAIRS\\t0" >> ${sampID}_reorient.tsv
+
+    else
 
     ## Primers are not anchored, there could be a linker or a tag in front of them
     ## IUPAC codes are honoured by default
@@ -553,6 +575,8 @@ process reorient_pe {
     print("SampleID\\tInput_Pairs\\tReoriented_Pairs\\tSwapped_Pairs")
     print(f"{sys.argv[2]}\\t{rc['input']}\\t{rc['output']}\\t{rc.get('reverse_complemented') or 0}")
     PYEOF
+
+    fi
 
     cat ${sampID}_reorient.tsv
 
