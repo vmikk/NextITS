@@ -1,5 +1,5 @@
 # NextITS - Dockerfile, main container
-# Multi-stage build compiles Rust tools (runiq, sd) and papa2 (libpapa2.so)
+# Multi-stage build compiles Rust tools (runiq, sd, sassy) and papa2 (libpapa2.so)
 # Nextflow is included in the image
 
 ## To build the image, run:
@@ -12,7 +12,20 @@
 FROM rust:1.99.0-slim AS rust
 RUN cargo install runiq sd
 
-## Build stage 1.2 - papa2 (libpapa2.so)
+## Build stage 1.2 - sassy (approximate primer matching)
+## Built from source because the bioconda package is outdated
+## Requires a CPU with AVX2 (x86-64-v3) at runtime
+## Bookworm base (glibc 2.36) keeps the binary compatible with the Ubuntu-based runtime image
+FROM rust:1.99.0-slim-bookworm AS sassy_build
+RUN apt-get update -qq \
+  && apt-get -y --no-install-recommends install git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+RUN RUSTFLAGS="-C target-cpu=x86-64-v3" \
+    cargo install --locked --profile dist \
+      --git https://github.com/RagnarGrootKoerkamp/sassy --tag v0.3.1 sassy \
+  && sassy --version
+
+## Build stage 1.3 - papa2 (libpapa2.so)
 ## need to use rocker image to link against the same glibc
 FROM rocker/r-ver:4.6.1 AS papa2_build
 RUN apt-get update -qq \
@@ -24,7 +37,7 @@ RUN git clone https://github.com/rec3141/papa2.git . \
   && git describe --tags \
   && make libpapa2.so
 
-## Build stage 1.3 - ITSx2 source (empty by default)
+## Build stage 1.4 - ITSx2 source (empty by default)
 ## Replaced with a local directory via `--build-context itsx2_src=/path/to/itsx2`
 FROM scratch AS itsx2_src
 
@@ -135,8 +148,8 @@ RUN /opt/software/conda/bin/mamba install -y \
     "infernal>=1.1.5" \
     "bbmap>=40.02" \
     "ripgrep>=15.1.0" \
-    "fd-find>=10.5.0" \
-    "mmseqs2" \
+    # bioconda sassy is outdated; it is built from source in the `sassy_build` stage \
+    # "sassy>=0.3.1" \
   && /opt/software/conda/bin/mamba clean --all --force-pkgs-dirs --yes \
   && /opt/software/conda/bin/conda clean -afy
 
@@ -198,6 +211,7 @@ RUN git clone --depth 1 https://github.com/frederic-mahe/mumu.git \
 ## Rust tools (from the Cargo-based stage)
 COPY --from=rust /usr/local/cargo/bin/runiq /opt/software/conda/bin/runiq
 COPY --from=rust /usr/local/cargo/bin/sd    /opt/software/conda/bin/sd
+COPY --from=sassy_build /usr/local/cargo/bin/sassy /opt/software/conda/bin/sassy
 
 ## Update ITSx databases
 RUN cd /opt/software \
@@ -305,7 +319,7 @@ RUN echo "=== Testing R installation and packages ===" \
           fi; \
      done \
   && echo "=== Testing manually installed tools ===" \
-  && tools_manual="seqhasher phredsort ucs usearch fqgrep rush brename mumu duckdb runiq sd" \
+  && tools_manual="seqhasher phredsort ucs usearch fqgrep rush brename mumu duckdb runiq sd sassy" \
   && for tool in $tools_manual; do \
        echo -n "Testing $tool... " \
        && if command -v $tool >/dev/null 2>&1; then \
