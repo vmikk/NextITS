@@ -25,7 +25,7 @@ def helpMsg() {
         --its_region        ITS part selector - "full" (defalut), "ITS1", "ITS2", "none" (trims primers only), or "ITS1_5.8S_ITS2"
         --primer_forward    Forward primer sequence (default, ITS9mun)
         --primer_reverse    Reverse primer sequence (default, ITS4ngsUni)
-        --primer_mismatches
+        --primer_mismatches Max number of primer mismatches, edit distance incl. indels (default, 2)
         --primer_foverlap   Min primer overlap (default, F primer length - 2)
         --primer_roverlap   Min primer overlap (default, R primer length - 2)
         --qc_maxn           Discard sequences with more than the specified number of Ns 
