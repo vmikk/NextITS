@@ -981,6 +981,7 @@ process read_counts {
       path(samples_demux, stageAs: "3_demux/*")
       path(samples_primerch, stageAs: "4_primerch/*")
       path(samples_primermult, stageAs: "4_primerartefacts/*")
+      path(primercheck_summary, stageAs: "4_primercheck/*")
       path(longchim, stageAs: "4_longchim/*")
       path(samples_itsx_or_primertrim, stageAs: "5_itsxtrim/*")
       path(homopolymers, stageAs: "5_homopolymers/*")
@@ -1003,6 +1004,7 @@ process read_counts {
       path "Counts_3.Joined.txt",               emit: counts_3_joined,       optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,       optional: true
       path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef,  optional: true
+      path "Counts_4.PrimerCheckCategories.txt", emit: counts_4_primercat,  optional: true
       path "Counts_4.LongChimera.txt",          emit: counts_4_longchim,     optional: true
       path "Counts_5.ITSx_or_PrimTrim.txt",     emit: counts_5_itsx_ptrim,   optional: true
       path "Counts_5.Homopolymers.txt",         emit: counts_5_homopolymers, optional: true
@@ -1083,6 +1085,18 @@ process read_counts {
     else
       seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_primerartefacts/* > Counts_4.PrimerArtefacts.txt
+    fi
+
+
+    ## Primer-check categories (per-sample tables with the number of reads per primer layout)
+    echo -e "\\n..Primer-check categories"
+    if [ `find 4_primercheck -name no_primercheck 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.PrimerCheckCategories.txt
+    else
+      ## Concatenate tables, keep a single header
+      awk 'FNR > 1 || NR == 1' 4_primercheck/* > Counts_4.PrimerCheckCategories.txt
     fi
 
 
@@ -1189,6 +1203,7 @@ process read_counts {
       --demuxed      Counts_3.Demux.txt \
       --primer       Counts_4.PrimerCheck.txt \
       --primerartef  Counts_4.PrimerArtefacts.txt \
+      --primercat    Counts_4.PrimerCheckCategories.txt \
       --longchim     Counts_4.LongChimera.txt \
       --itsx         Counts_5.ITSx_or_PrimTrim.txt \
       --homopolymer  Counts_5.Homopolymers.txt \
