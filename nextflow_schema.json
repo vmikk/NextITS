@@ -136,7 +136,8 @@
           "type": "integer",
           "default": 2,
           "fa_icon": "fas fa-chevron-circle-down",
-          "description": "Allowed number of mismatches for primers."
+          "description": "Allowed number of mismatches for primers.",
+          "help_text": "Maximum edit distance (substitutions and indels) between a primer and a read. Used both in the primer artefact check (sassy) and in the primer search with cutadapt."
         },
         "primer_foverlap": {
           "type": "integer",
