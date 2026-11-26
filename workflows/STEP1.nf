@@ -474,160 +474,128 @@ process primer_check {
 
     input:
       path input
-      path primer_F
-      path primer_R
-      path primer_Fr
-      path primer_Rr
 
     output:
-      path "${input.getSimpleName()}_PrimerChecked.fq.gz", emit: fq_primer_checked, optional: true
-      path "${input.getSimpleName()}_PrimerArtefacts.fq.gz", emit: primerartefacts, optional: true
+      path "${input.getSimpleName()}_PrimerChecked.fq.gz",     emit: fq_primer_checked, optional: true
+      path "${input.getSimpleName()}_PrimerArtefacts.fq.gz",   emit: primerartefacts,   optional: true
+      path "${input.getSimpleName()}_PrimerCheck_summary.tsv", emit: summary
+      path "${input.getSimpleName()}_PrimerCheck_reads.tsv.gz", emit: reads
+      tuple val("${task.process}"), val('sassy'), eval('sassy --version | sed "s/sassy //"'), topic: versions
       tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
-      tuple val("${task.process}"), val('runiq'), eval('runiq --version | sed "s/runiq //"'), topic: versions
-      tuple val("${task.process}"), val('mlr'), eval('mlr --version | sed "s/mlr //"'), topic: versions
-      tuple val("${task.process}"), val('bedtools'), eval('bedtools --version | sed "s/bedtools v//"'), topic: versions
-      tuple val("${task.process}"), val('csvtk'), eval('csvtk version | sed "s/csvtk v//"'), topic: versions
       tuple val("${task.process}"), val('cutadapt'), eval('cutadapt --version'), topic: versions
 
     script:
+    def sample = input.getSimpleName()
     """
     echo -e "Input file: " ${input}
     echo -e "Forward primer: " ${params.primer_forward}
     echo -e "Reverse primer: " ${params.primer_reverse}
 
-    ## Limit Go runtime threads of seqkit, csvtk, and mlr (by default, one per host core)
+    ## Limit Go runtime threads of seqkit (by default, one per host core)
     export GOMAXPROCS=${task.cpus}
 
-    ### Count number of pattern occurrences for each sequence
-    count_primers (){
-      # \$1 = file with primers
+    ## Primers (sassy supports IUPAC ambiguity codes, no need to disambiguate)
+    printf ">F\\n%s\\n>R\\n%s\\n" \
+      "\$(echo "${params.primer_forward}" | tr 'a-z' 'A-Z')" \
+      "\$(echo "${params.primer_reverse}" | tr 'a-z' 'A-Z')" \
+      > primers.fa
 
-      seqkit replace -p "\\s.+" --threads 1 ${input} \
-      | seqkit locate \
-          --max-mismatch ${params.primer_mismatches} \
-          --only-positive-strand \
-          --pattern-file "\$1" \
-          --threads ${task.cpus} \
-      | awk -vOFS='\\t' 'NR > 1 { print \$1 , \$5 , \$6 }' \
-      | runiq - \
-      | mlr --tsv \
-          --implicit-tsv-header \
-          --headerless-tsv-output \
-          sort -f 1 -n 2 \
-      | bedtools merge -i stdin
+    ## Find primer sites (edit distance <= primer_mismatches, both strands),
+    ## keep the first word of the header as read ID (columns are selected by name),
+    ## merge overlapping hits and classify reads by the arrangement of primer sites
+    echo -e "\\nSearching for primer sites"
+    sassy search \
+      -k ${params.primer_mismatches} \
+      -f primers.fa \
+      -j ${task.cpus} \
+      ${input} \
+      2> sassy.log \
+    | awk -F'\\t' -v OFS='\\t' '
+        NR == 1 { for(i = 1; i <= NF; i++){ col[\$i] = i }; next }
+        { split(\$col["text_id"], id, " ")
+          print id[1], \$col["pat_id"], \$col["strand"], \$col["start"], \$col["end"], \$col["cost"] }' \
+    | LC_ALL=C sort -t\$'\\t' -k1,1 -k4,4n -S 256M --parallel=${task.cpus} \
+    | classify_primer_hits.awk \
+    > primer_classes.tsv
+
+    ## Artefacts = reads with 2+ primer sites in an invalid arrangement
+    awk -F'\\t' 'NR > 1 && \$4 !~ /^(valid_fwd|valid_rev|one_primer)\$/ { print \$1 }' \
+      primer_classes.tsv \
+      > artefacts.txt
+
+    ## Require both primers and reorient sequences (cutadapt),
+    ## discard sequences without both primers
+    RR=\$(rc.sh ${params.primer_reverse})
+    reorient (){
+      # \$1 = input file (or "-" for stdin)
+      cutadapt \
+        -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
+        --errors ${params.primer_mismatches} \
+        --revcomp --rename "{header}" \
+        --discard-untrimmed \
+        --cores ${task.cpus} \
+        --action none \
+        --output ${sample}_PrimerChecked.fq.gz \
+        "\$1"
     }
 
-    echo -e "\\nCounting primers"
-    echo -e "..forward primer"
-    count_primers ${primer_F}  >  PF.txt
+    if [ -s artefacts.txt ]; then
 
-    echo -e "..rc-forward primer"
-    count_primers ${primer_Fr} >> PF.txt
-    
-    echo -e "..reverse primer"
-    count_primers ${primer_R}  >  PR.txt
+      echo -e "\\nNumber of artefacts found: " \$(wc -l < artefacts.txt)
 
-    echo -e "..rc-reverse primer"
-    count_primers ${primer_Rr} >> PR.txt
-
-    ## Sort by seqID and start position, remove overlapping regions,
-    ## Find duplicated records
-    echo -e "\\nLooking for multiple primer occurrences"
-    
-    echo -e "..Processing forward primers"
-    if [ -s PF.txt ]; then
-
-      csvtk sort \
-        -t -T -H -k 1:N -k 2:n \
-        --num-cpus ${task.cpus} \
-        PF.txt \
-      | bedtools merge -i stdin \
-      | awk '{ print \$1 }' \
-      | runiq -i - \
-      > multiprimer.txt
-
-    else
-      echo -e "...No forward primer matches found (in both orientations)"
-    fi
-
-    echo -e "..Processing reverse primers"
-    if [ -s PR.txt ]; then
-
-      csvtk sort \
-        -t -T -H -k 1:N -k 2:n \
-        --num-cpus ${task.cpus} \
-        PR.txt \
-      | bedtools merge -i stdin \
-      | awk '{ print \$1 }' \
-      | runiq -i - \
-      >> multiprimer.txt
-
-    else
-      echo -e "...No reverse primer matches found (in both orientations)"
-    fi
-
-
-    ## If some artefacts are found
-    if [ -s multiprimer.txt ]; then
-
-      ## Keep only uinque seqIDs
-      runiq multiprimer.txt > multiprimers.txt
-      rm multiprimer.txt
-
-      echo -e "\\nNumber of artefacts found: " \$(wc -l < multiprimers.txt)
-
-      echo -e "..Removing artefacts"
-      ## Remove primer artefacts
-      seqkit grep --invert-match \
-        --threads ${task.cpus} \
-        --pattern-file multiprimers.txt \
-        --out-file no_multiprimers.fq.gz \
-        ${input}
-
-      ## Extract primer artefacts
       echo -e "..Extracting artefacts"
       seqkit grep \
-        --threads ${task.cpus} \
-        --pattern-file multiprimers.txt \
-        --out-file "${input.getSimpleName()}_PrimerArtefacts.fq.gz" \
+        --threads 1 \
+        --pattern-file artefacts.txt \
+        --out-file ${sample}_PrimerArtefacts.fq.gz \
         ${input}
 
-      echo -e "..done"
+      echo -e "\\nReorienting sequences"
+      seqkit grep \
+        --invert-match \
+        --threads 1 \
+        --pattern-file artefacts.txt \
+        ${input} \
+      | reorient -
 
     else
 
       echo -e "\\nNo primer artefacts found"
-      ln -s ${input} no_multiprimers.fq.gz
-    
+      echo -e "\\nReorienting sequences"
+      reorient ${input}
+
     fi
-    echo -e "..Done"
 
-    echo -e "\\nReorienting sequences"
+    ## Summary of read categories
+    echo -e "\\nSummarizing primer check"
+    TOTAL=\$(seqkit stats -T -j 1 ${input} | awk 'NR == 2 { print \$4 }')
+    KEPT=\$(seqkit stats -T -j 1 ${sample}_PrimerChecked.fq.gz | awk 'NR == 2 { print \$4 }')
 
-    ## Reverse-complement rev primer
-    RR=\$(rc.sh ${params.primer_reverse})
+    awk -F'\\t' -v OFS='\\t' \
+      -v sample="${sample}" -v total="\$TOTAL" -v kept="\$KEPT" '
+      NR > 1 { n[\$4]++; classified++ }
+      END {
+        artef = n["single_primer_F"] + n["single_primer_R"] + n["multiprimer"] + n["misoriented"]
+        print "SampleID", "Total", "Valid_Fwd", "Valid_Rev", "One_Primer", "No_Primer", \
+          "SinglePrimer_F", "SinglePrimer_R", "Multiprimer", "Misoriented", "Artefacts", "PrimerChecked"
+        print sample, total, n["valid_fwd"] + 0, n["valid_rev"] + 0, n["one_primer"] + 0, total - classified, \
+          n["single_primer_F"] + 0, n["single_primer_R"] + 0, n["multiprimer"] + 0, n["misoriented"] + 0, artef, kept
+      }' primer_classes.tsv \
+      > ${sample}_PrimerCheck_summary.tsv
 
-    ## Reorient sequences, discard sequences without both primers
-    cutadapt \
-      -a ${params.primer_forward}";required;min_overlap=${params.primer_foverlap}"..."\$RR"";required;min_overlap=${params.primer_roverlap}" \
-      --errors ${params.primer_mismatches} \
-      --revcomp --rename "{header}" \
-      --discard-untrimmed \
-      --cores ${task.cpus} \
-      --action none \
-      --output ${input.getSimpleName()}_PrimerChecked.fq.gz \
-      no_multiprimers.fq.gz
+    cat ${sample}_PrimerCheck_summary.tsv
 
-    echo -e "\\nAll done"
+    ## Per-read primer layout (only reads with at least one primer site)
+    gzip -c primer_classes.tsv > ${sample}_PrimerCheck_reads.tsv.gz
 
     ## Clean up
-    if [ -f no_multiprimers.fq.gz ]; then rm no_multiprimers.fq.gz; fi
+    rm primer_classes.tsv
 
     ## Remove empty file (no valid sequences)
     echo -e "\\nRemoving empty files"
-    find . -type f -name ${input.getSimpleName()}_PrimerChecked.fq.gz -size -29c -print -delete
+    find . -type f -name ${sample}_PrimerChecked.fq.gz -size -29c -print -delete
     echo -e "..Done"
-    
+
     """
 }
 
