@@ -27,7 +27,7 @@ option_list <- list(
   make_option("--assets",       type = "character", default = "assets", help = "Report asset directory [%default]"),
   make_option("--out",          type = "character", default = "Seqstats_report.html", help = "Output HTML [%default]"),
   make_option("--min-reads",        type = "double", default = 100, help = "Warn below this many primer-checked reads per sample [%default]"),
-  make_option("--max-artefact-pct", type = "double", default = 20,  help = "Warn above this percentage of multiprimer artefacts per sample [%default]"),
+  make_option("--max-artefact-pct", type = "double", default = 20,  help = "Warn above this percentage of primer artefacts per sample [%default]"),
   make_option("--min-demux-pct",    type = "double", default = 50,  help = "Warn if less than this percentage of raw reads (Illumina: read pairs) was demultiplexed [%default]"),
   make_option("--min-primer-pct",   type = "double", default = 40,  help = "Warn if less than this percentage of raw reads (Illumina: read pairs) passed the primer check [%default]")
 )
@@ -90,6 +90,12 @@ reads_qc    <- rv("Reads_Passed_QC")
 reads_demux <- rv("Reads_Demultiplexed", sum(num0(per_sample$Demultiplexed_Reads)))
 reads_prim  <- rv("Reads_PrimerChecked", sum(num0(per_sample$PrimerChecked_Reads)))
 reads_artef <- rv("PrimerArtefacts_Reads", sum(num0(per_sample$PrimerArtefacts_Reads)))
+## Artefact types and reads without both primers, as recorded by the primer check
+## (quick_stats.R fills the columns with zeros if the categories are not available)
+has_pcat <- has_primer_cats(per_sample)
+reads_artef_cat <- if (has_pcat) split_artefacts(reads_artef,
+  lapply(ARTEF_COLS, function(k) rv(k, sum(num0(per_sample[[k]]))))) else NULL
+reads_nopr  <- if (has_pcat) rv("PrimerCheck_MissingPrimer", sum(num0(per_sample$PrimerCheck_MissingPrimer))) else NA_real_
 
 ## Illumina: read pairs after reorientation, merged and joined reads
 reads_reo    <- rv("Pairs_Reoriented", sum(num0(col_or(per_sample, 0, "Reoriented_Pairs"))))
@@ -134,7 +140,7 @@ kpis <- kpi_row(
            if (n_samples > 0L) paste0(fmt_int(min(prim_per_sample)), " – ", fmt_int(max(prim_per_sample)),
                                       " primer-checked reads") else NULL,
            grade(med_reads, warn = 5 * opt$`min-reads`, bad = opt$`min-reads`)),
-  kpi_card("Multiprimer artefacts", fmt_pct(pct_artef),
+  kpi_card("Primer artefacts", fmt_pct(pct_artef),
            paste0(fmt_int(reads_artef), " reads of ", fmt_int(reads_artef + reads_prim), " primer-screened"),
            grade(pct_artef, warn = opt$`max-artefact-pct` / 2, bad = opt$`max-artefact-pct`, higher_better = FALSE))
 )
@@ -161,7 +167,7 @@ rules <- list(
        "Library depth", "%d sample(s) below the depth floor",
        paste0("< ", fmt_int(opt$`min-reads`), " primer-checked reads")),
   flag(per_sample, num0(per_sample$PrimerArtefacts_Percent) >= opt$`max-artefact-pct`,
-       "Multiprimer artefacts", "%d sample(s) above the artefact ceiling",
+       "Primer artefacts", "%d sample(s) above the artefact ceiling",
        paste0("≥ ", fmt_pct(opt$`max-artefact-pct`, 0))),
   run_flag(pct_demux, opt$`min-demux-pct`, "Demultiplexing rate", "demultiplexed"),
   run_flag(pct_prim,  opt$`min-primer-pct`, "Primer-check rate", "primer-checked")
@@ -191,13 +197,20 @@ take <- function(x, avail) {
   max(min(x, avail), 0)
 }
 
-## Primer screening: artefacts, primer-checked, and the rest (no primers)
+## Primer screening: artefacts (split by type if known), primer-checked, and the rest (no primers).
+## Reads without primers are taken from the primer check if it counted them
 primer_links <- function(from, avail) {
   prim  <- take(reads_prim, avail)
   artef <- take(reads_artef, if (is.finite(avail)) avail - num0(prim) else NA_real_)
   add_link(from, "Primer-checked", prim)
-  add_link(from, "Primer artefacts", artef)
-  if (is.finite(avail)) add_link(from, "No primers", avail - num0(prim) - num0(artef))
+  if (has_pcat) {
+    parts <- split_artefacts(artef, reads_artef_cat[ARTEF_CATS])
+    for (k in names(parts)) add_link(from, k, parts[[k]])
+  } else {
+    add_link(from, "Primer artefacts", artef)
+  }
+  rest <- if (is.finite(avail)) avail - num0(prim) - num0(artef) else NA_real_
+  add_link(from, "No primers", if (has_pcat) take(reads_nopr, rest) else rest)
 }
 
 if (is_illumina) {
@@ -289,13 +302,22 @@ if (is_illumina) {
   qc_ok  <- num0(col_or(per_sample, 0, "QC_Reads"))
   fate[, `Not merged` := pmax(reo - merged - joined, 0)]
   fate[, `Failed QC`  := pmax(merged - qc_ok, 0)]
-  fate[, `No primers` := pmax(demux - reo, 0) + pmax(qc_ok + joined - `Primer artefacts` - `Primer-checked`, 0)]
+  ## Reads without both primers: counted by the primer check if available,
+  ## otherwise what the primer check did not pass on
+  nopr <- if (has_pcat) num0(per_sample$PrimerCheck_MissingPrimer) else pmax(qc_ok + joined - fate$`Primer artefacts` - fate$`Primer-checked`, 0)
+  fate[, `No primers` := pmax(demux - reo, 0) + nopr]
 } else {
-  fate[, `No primers` := pmax(demux - `Primer artefacts` - `Primer-checked`, 0)]
+  fate[, `No primers` := if (has_pcat) num0(per_sample$PrimerCheck_MissingPrimer) else pmax(demux - `Primer artefacts` - `Primer-checked`, 0)]
+}
+
+## Artefact types, whatever they do not cover stays under "Primer artefacts"
+if (has_pcat) {
+  parts <- split_artefacts(fate$`Primer artefacts`, lapply(ARTEF_COLS, function(k) per_sample[[k]]))
+  fate[, (names(parts)) := parts]
 }
 
 SAMPLE_COL <- c("Primer-checked" = FATE_COL[["Retained"]], FATE_COL)
-FATE_CATS <- c("Primer-checked", "Primer artefacts", "No primers",
+FATE_CATS <- c("Primer-checked", if (has_pcat) ARTEF_CATS, "Primer artefacts", "No primers",
                if (is_illumina) c("Not merged", "Failed QC"))
 FATE_CATS <- FATE_CATS[vapply(FATE_CATS, function(k) sum(fate[[k]]) > 0 || k == "Primer-checked", logical(1))]
 
@@ -331,7 +353,9 @@ depth_fig <- if (n_samples > 1L) {
 sample_cols <- intersect(c(
   "Sample", "RunID", "Demultiplexed_Reads",
   "Reoriented_Pairs", "Merged_Reads", "NotMerged_Pairs", "Merged_Percent", "Joined_Reads", "QC_Reads",
-  "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent"),
+  "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent",
+  "PrimerArtefacts_SinglePrimer", "PrimerArtefacts_Multiprimer", "PrimerArtefacts_Misoriented",
+  "PrimerCheck_MissingPrimer"),
   names(per_sample))
 
 sample_view <- copy(per_sample)[, ..sample_cols]
@@ -344,7 +368,9 @@ sample_labels <- c(
   Reoriented_Pairs = "Reoriented pairs", Merged_Reads = "Merged", NotMerged_Pairs = "Not merged pairs",
   Merged_Percent = "Merged, %", Joined_Reads = "Joined", QC_Reads = "Passed QC",
   PrimerChecked_Reads = "Primer-checked",
-  PrimerArtefacts_Reads = "Artefact reads", PrimerArtefacts_Percent = "Artefacts")
+  PrimerArtefacts_Reads = "Artefact reads", PrimerArtefacts_Percent = "Artefacts",
+  PrimerArtefacts_SinglePrimer = "Single-primer", PrimerArtefacts_Multiprimer = "Multiprimer",
+  PrimerArtefacts_Misoriented = "Misoriented", PrimerCheck_MissingPrimer = "Missing primer")
 
 ## ------------------------------------------------------- demultiplexing
 
