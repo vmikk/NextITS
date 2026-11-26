@@ -1,0 +1,40 @@
+## Optional MultiQC configuration for NextITS
+##
+## The primary NextITS reports are Step1_report.html / Step2_report.html and need nothing from MultiQC
+## This config is for groups that already aggregate a whole project with MultiQC 
+## and want the NextITS numbers folded in:
+##
+##   multiqc -c assets/multiqc_config.yml <results_dir>
+##
+## The *_mqc.tsv files under 08_RunSummary/MultiQC and 04.PooledResults/MultiQC
+## are picked up from their filenames alone; this file only fixes the ordering
+## and titling, which would otherwise vary between runs
+
+title: "NextITS"
+subtitle: "Metabarcoding of long-read rRNA amplicons"
+intro_text: >-
+  Summary statistics exported by the NextITS pipeline.
+  For the full run reports, including read-fate flows, ITSx diagnostics and clustering funnels,
+  open Step1_report.html and Step2_report.html in the results directory
+
+report_comment: >-
+  Generated from NextITS <code>*_mqc.tsv</code> exports. 
+  See <a href="https://github.com/vmikk/NextITS">github.com/vmikk/NextITS</a>
+
+## Custom-content sections are ordered randomly unless pinned
+custom_content:
+  order:
+    - nextits_step1_run_funnel
+    - nextits_step1_read_fate
+    - nextits_step2_genstats
+
+report_section_order:
+  nextits_step1_run_funnel:
+    order: 1000
+  nextits_step1_read_fate:
+    order: 900
+
+## NextITS writes its own report (MultiQC here is an aggregation layer only)
+show_analysis_paths: true
+show_analysis_time: true
+template_dark_mode: true
