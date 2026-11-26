@@ -45,6 +45,7 @@ option_list <- list(
   make_option("--demuxed",    action="store", default=NA, type='character', help="Counts of demultiplexed reads"),
   make_option("--primer",     action="store", default=NA, type='character', help="Counts of reads with both primers detected"),
   make_option("--primerartef",action="store", default=NA, type='character', help="Counts of primer artefacts"),
+  make_option("--primercat",  action="store", default=NA, type='character', help="Primer-check categories (per-sample tables, optional)"),
   make_option("--longchim",   action="store", default=NA, type='character', help="Counts of long chimeras (optional)"),
   make_option("--itsx",       action="store", default=NA, type='character', help="Read counts after ITSx or primer removal"),
   make_option("--homopolymer",action="store", default=NA, type='character', help="Homopolymer correction results"),
@@ -84,6 +85,7 @@ QC          <- opt$qc
 DEMUXED     <- opt$demuxed
 PRIMER      <- opt$primer
 PRIMERARTEF <- opt$primerartef
+PRIMERCAT   <- opt$primercat
 LONGCHIM    <- opt$longchim
 ITSX        <- opt$itsx
 HOMOPOLY    <- opt$homopolymer
@@ -109,6 +111,7 @@ cat(paste("Counts - QC: " ,          QC, "\n", sep=""))
 cat(paste("Counts - Demux: " ,       DEMUXED, "\n", sep=""))
 cat(paste("Counts - PrimerCheck: " , PRIMER, "\n", sep=""))
 cat(paste("Counts - Primer Artefacts: " ,                              PRIMERARTEF, "\n", sep=""))
+cat(paste("Counts - Primer-check categories: " ,                       PRIMERCAT, "\n", sep=""))
 cat(paste("Counts - Long chimeras: " ,                                 LONGCHIM, "\n", sep=""))
 cat(paste("Counts - ITSx or Primer Trim: " ,                           ITSX, "\n", sep=""))
 cat(paste("Counts - Homopolymer correction results: " ,                HOMOPOLY, "\n", sep=""))
@@ -221,6 +224,18 @@ if(ILLUMINA){
 cat("..Loading primer-checked data counts\n")
 SEQKITCOUNTS$PRIMER      <- fread(PRIMER)
 SEQKITCOUNTS$PRIMERARTEF <- fread(PRIMERARTEF)
+
+## Primer-check categories (number of reads per arrangement of primer sites)
+## Sample IDs are the same as in the primer-checked counts (`<SampleID>_PrimerChecked.fq.gz`),
+## for Illumina joined reads, the suffix `_JoinedPE` is removed later
+if(!is.na(PRIMERCAT) && file.exists(PRIMERCAT) && file.size(PRIMERCAT) > 0){
+  cat("..Loading primer-check categories\n")
+  PRIMERCAT_data <- fread(PRIMERCAT, colClasses = list(character = "SampleID"))
+  pcdata <- TRUE
+} else {
+  cat("..No primer-check categories found\n")
+  pcdata <- FALSE
+}
 
 ## Long chimeras (if the filter was enabled)
 ## The table has 4 count columns per sample, so it is merged separately (not via `custom_process`)
@@ -433,6 +448,28 @@ PER_SAMPLE_COUNTS_merged[
   PrimerArtefacts_Percent := 100
 ]
 
+## Add primer-check categories
+##  SinglePrimer   = products of a single primer (F...F_rc or R...R_rc)
+##  Multiprimer    = repeated or internal primers, concatemers
+##  Misoriented    = one forward and one reverse primer in a wrong orientation
+##  MissingPrimer  = reads without both primers (discarded by cutadapt)
+## (Illumina: merged and joined reads of a sample are summed)
+if(pcdata == TRUE && nrow(PRIMERCAT_data) > 0){
+  cat("Adding primer-check categories\n")
+  PRIMERCAT_data[ , SampleID := sub(pattern = "_JoinedPE$", replacement = "", x = SampleID) ]
+  PRIMERCAT_counts <- PRIMERCAT_data[ , .(
+    PrimerArtefacts_SinglePrimer = sum(SinglePrimer_F + SinglePrimer_R, na.rm = TRUE),
+    PrimerArtefacts_Multiprimer  = sum(Multiprimer, na.rm = TRUE),
+    PrimerArtefacts_Misoriented  = sum(Misoriented, na.rm = TRUE),
+    PrimerCheck_MissingPrimer    = sum(Total - Artefacts - PrimerChecked, na.rm = TRUE)),
+    by = "SampleID" ]
+
+  PER_SAMPLE_COUNTS_merged <- merge(
+    x = PER_SAMPLE_COUNTS_merged,
+    y = PRIMERCAT_counts,
+    by.x = "file", by.y = "SampleID", all.x = TRUE)
+}
+
 ## Estimate tag-jump stats
 if(tjdata == TRUE){
   cat("Estimating tag-jump removal yields\n")
@@ -557,6 +594,8 @@ setcolorder(PER_SAMPLE_COUNTS_merged,
     "file", "Demultiplexed_Reads",
     "Reoriented_Pairs", "Merged_Reads", "NotMerged_Pairs", "Merged_Percent", "Joined_Reads", "QC_Reads",
     "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent", 
+    "PrimerArtefacts_SinglePrimer", "PrimerArtefacts_Multiprimer", "PrimerArtefacts_Misoriented",
+    "PrimerCheck_MissingPrimer",
     "LongChimera_Inverted_Reads", "LongChimera_Repeat_Reads",
     "LongChimera_Inverted_Uniq", "LongChimera_Repeat_Uniq",
     "ReferenceBasedChimera_Reads", "ReferenceBasedChimera_NumUniqSequences", 
@@ -613,6 +652,15 @@ if("PrimerArtefacts_Reads" %in% colnames(PER_SAMPLE_COUNTS_merged)){
     PrimerArtefacts_Reads / (Reads_PrimerChecked + PrimerArtefacts_Reads) * 100, 2) ]
   PER_RUN_COUNTS_merged[ Reads_PrimerChecked == 0 & PrimerArtefacts_Reads > 0, PrimerArtefacts_Percent := 100 ]
 }
+
+## Primer-check categories
+for(cc in c("PrimerArtefacts_SinglePrimer", "PrimerArtefacts_Multiprimer",
+            "PrimerArtefacts_Misoriented", "PrimerCheck_MissingPrimer")){
+  if(cc %in% colnames(PER_SAMPLE_COUNTS_merged)){
+    PER_RUN_COUNTS_merged[ , (cc) := sum(PER_SAMPLE_COUNTS_merged[[cc]], na.rm = TRUE) ]
+  }
+}
+rm(cc)
 
 ## Long chimeras
 ## (number of unique sequences is summed over samples, the same sequence may be counted several times)
