@@ -30,6 +30,7 @@ option_list <- list(
   make_option("--demuxed",    action="store", default=NA, type='character', help="Counts of demultiplexed reads"),
   make_option("--primer",     action="store", default=NA, type='character', help="Counts of reads with both primers detected"),
   make_option("--primerartef",action="store", default=NA, type='character', help="Counts of primer artefacts"),
+  make_option("--primercat",  action="store", default=NA, type='character', help="Primer-check categories (per-sample tables, optional)"),
   make_option("--reoriented", action="store", default=NA, type='character', help="Illumina: per-sample input and reoriented read pairs"),
   make_option("--merged",     action="store", default=NA, type='character', help="Illumina: per-sample merged reads"),
   make_option("--joined",     action="store", default=NA, type='character', help="Illumina: counts of joined non-merged read pairs"),
@@ -50,6 +51,7 @@ QC          <- to_na( opt$qc )
 DEMUXED     <- to_na( opt$demuxed )
 PRIMER      <- to_na( opt$primer )
 PRIMERARTEF <- to_na( opt$primerartef )
+PRIMERCAT   <- to_na( opt$primercat )
 REORIENTED  <- to_na( opt$reoriented )
 MERGED      <- to_na( opt$merged )
 JOINED      <- to_na( opt$joined )
@@ -181,6 +183,9 @@ cat("..Loading primer-checked data counts\n")
 SEQKITCOUNTS$PRIMER      <- read_seqkit(PRIMER)
 SEQKITCOUNTS$PRIMERARTEF <- read_seqkit(PRIMERARTEF)
 
+cat("..Loading primer-check categories\n")
+PRIMERCAT_data <- read_custom(PRIMERCAT)
+
 
 ## Remove NULL-files
 null_seqk <- vapply(SEQKITCOUNTS, function(x){ is.null(x) || nrow(x) == 0 }, logical(1))
@@ -260,8 +265,35 @@ if(length(COUNTS) > 0){
   PER_SAMPLE_COUNTS_merged <- data.table(file = character())
 }
 
+## Add primer-check categories
+##  SinglePrimer   = products of a single primer (F...F_rc or R...R_rc)
+##  Multiprimer    = repeated or internal primers, concatemers
+##  Misoriented    = one forward and one reverse primer in a wrong orientation
+##  MissingPrimer  = reads without both primers (discarded by cutadapt)
+## (Illumina: merged and joined reads of a sample are summed)
+PRIMERCAT_cols <- c(
+  "PrimerArtefacts_SinglePrimer", "PrimerArtefacts_Multiprimer",
+  "PrimerArtefacts_Misoriented", "PrimerCheck_MissingPrimer")
+
+if(!is.null(PRIMERCAT_data)){
+  cat("Adding primer-check categories\n")
+  PRIMERCAT_data[ , SampleID := sub(pattern = "_JoinedPE$", replacement = "", x = SampleID) ]
+  PRIMERCAT_counts <- PRIMERCAT_data[ , .(
+    PrimerArtefacts_SinglePrimer = sum(SinglePrimer_F + SinglePrimer_R, na.rm = TRUE),
+    PrimerArtefacts_Multiprimer  = sum(Multiprimer, na.rm = TRUE),
+    PrimerArtefacts_Misoriented  = sum(Misoriented, na.rm = TRUE),
+    PrimerCheck_MissingPrimer    = sum(Total - Artefacts - PrimerChecked, na.rm = TRUE)),
+    by = "SampleID" ]
+  setnames(PRIMERCAT_counts, "SampleID", "file")
+
+  PER_SAMPLE_COUNTS_merged <- merge(
+    x = PER_SAMPLE_COUNTS_merged,
+    y = PRIMERCAT_counts,
+    by = "file", all.x = TRUE)
+}
+
 ## Columns that must be present even if the input is missing
-for(cc in c("Demultiplexed_Reads", "PrimerChecked_Reads", "PrimerArtefacts_Reads")){
+for(cc in c("Demultiplexed_Reads", "PrimerChecked_Reads", "PrimerArtefacts_Reads", PRIMERCAT_cols)){
   if(! cc %in% colnames(PER_SAMPLE_COUNTS_merged)){
     PER_SAMPLE_COUNTS_merged[ , (cc) := 0 ]
   }
@@ -298,7 +330,8 @@ setcolorder(PER_SAMPLE_COUNTS_merged,
   neworder = c(
     "file", "Demultiplexed_Reads",
     "Reoriented_Pairs", "Merged_Reads", "NotMerged_Pairs", "Merged_Percent", "Joined_Reads", "QC_Reads",
-    "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent"))
+    "PrimerChecked_Reads", "PrimerArtefacts_Reads", "PrimerArtefacts_Percent",
+    PRIMERCAT_cols))
 
 setorder(PER_SAMPLE_COUNTS_merged, file)
 
@@ -343,6 +376,12 @@ PER_RUN_COUNTS_merged[ , PrimerArtefacts_Reads := sum(PER_SAMPLE_COUNTS_merged$P
 PER_RUN_COUNTS_merged[ , PrimerArtefacts_Percent := 0 ]
 PER_RUN_COUNTS_merged[ Reads_PrimerChecked + PrimerArtefacts_Reads > 0,
   PrimerArtefacts_Percent := round(PrimerArtefacts_Reads / (Reads_PrimerChecked + PrimerArtefacts_Reads) * 100, 2) ]
+
+## Primer-check categories
+for(cc in PRIMERCAT_cols){
+  PER_RUN_COUNTS_merged[ , (cc) := sum(PER_SAMPLE_COUNTS_merged[[cc]], na.rm = TRUE) ]
+}
+rm(cc)
 
 
 ## Export summary stats
