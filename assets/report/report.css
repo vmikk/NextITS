@@ -181,6 +181,9 @@
     --fate-notmerged:  #b36739;
     --fate-failedqc:   #ba76b7;
     --fate-artefacts:  #c98212;
+    --fate-artsingle:  #c98212;
+    --fate-artmulti:   #e6b04f;
+    --fate-artmisor:   #94590b;
     --fate-lcinv:      #a8355e;
     --fate-lcrep:      #9dbde0;
     --fate-noits:      #8976cd;
