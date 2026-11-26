@@ -69,7 +69,7 @@ if (is_usable_file(opt$`per-sample`)) {
     "pconfig:",
     "    - Sample: { title: 'Sample' }",
     "    - Demux: { title: 'Demultiplexed', description: 'Demultiplexed reads', format: '{:,.0f}', min: 0, scale: 'Blues' }",
-    "    - Artefacts: { title: 'Artefacts', description: 'Multiprimer artefacts, % of primer-screened reads', suffix: '%', min: 0, max: 100, scale: 'OrRd' }",
+    "    - Artefacts: { title: 'Artefacts', description: 'Primer artefacts, % of primer-screened reads', suffix: '%', min: 0, max: 100, scale: 'OrRd' }",
     if (has_longchim) "    - LongChim: { title: 'Long chimeras', description: 'Long chimeras (inverted and repeat), % of primer-checked reads', suffix: '%', min: 0, max: 100, scale: 'OrRd' }",
     "    - ITSx_yield: { title: 'ITSx yield', description: 'ITSx-extracted reads, % of primer-checked reads', suffix: '%', min: 0, max: 100, scale: 'RdYlGn' }",
     "    - Retained: { title: 'Retained', description: 'Reads in the sequence table, % of demultiplexed reads', suffix: '%', min: 0, max: 100, scale: 'RdYlGn' }",
@@ -91,6 +91,16 @@ if (is_usable_file(opt$`per-sample`)) {
     `No ITSx detection` = pmax(primer_ok - lc_inv - lc_rep - itsx_ok, 0),
     `Other filtering`   = pmax(itsx_ok - retained, 0))
   if (!has_longchim) fate[, c("Long chimera (inverted)", "Long chimera (repeat)") := NULL]
+
+  ## Artefact types and reads without both primers, if the primer check recorded them
+  ## (any artefacts not covered by the types stay under "Primer artefacts")
+  if (has_primer_cats(ps)) {
+    parts <- split_artefacts(artefacts, lapply(ARTEF_COLS, function(k) ps[[k]]))
+    fate[, (names(parts)) := parts]
+    fate[, `No primers` := num0(ps$PrimerCheck_MissingPrimer)]
+    setcolorder(fate, c("Sample", "Retained", "No primers", ARTEF_CATS, "Primer artefacts"))
+    if (sum(fate$`Primer artefacts`) == 0) fate[, `Primer artefacts` := NULL]
+  }
   write_mqc("nextits_step1_read_fate_mqc.tsv", c(
     "id: 'nextits_step1_read_fate'",
     "section_name: 'NextITS: read fate'",
