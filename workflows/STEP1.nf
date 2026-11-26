@@ -1238,6 +1238,7 @@ process quick_stats {
       path(samples_demux, stageAs: "3_demux/*")
       path(samples_primerch, stageAs: "4_primerch/*")
       path(samples_primermult, stageAs: "4_primerartefacts/*")
+      path(primercheck_summary, stageAs: "4_primercheck/*")
       path(pe_reorient, stageAs: "pe_reorient_stats.tsv")   // Illumina: per-sample input and reoriented pairs
       path(pe_merge, stageAs: "pe_merge_stats.tsv")         // Illumina: per-sample merged reads
       path(pe_joined, stageAs: "3_joined/*")                // Illumina: joined non-merged reads
@@ -1252,6 +1253,7 @@ process quick_stats {
       path "Counts_3.Joined.txt",               emit: counts_3_joined,      optional: true
       path "Counts_4.PrimerCheck.txt",          emit: counts_4_primer,      optional: true
       path "Counts_4.PrimerArtefacts.txt",      emit: counts_4_primerartef, optional: true
+      path "Counts_4.PrimerCheckCategories.txt", emit: counts_4_primercat, optional: true
       tuple val("${task.process}"), val('seqkit'), eval('seqkit version | sed "s/seqkit v//"'), topic: versions
       tuple val("${task.process}"), val('R'), eval('Rscript -e "cat(R.version.string)" | sed "s/R version //" | cut -d" " -f1'),  topic: versions
       tuple val("${task.process}"), val('data.table'), eval('Rscript -e "cat(as.character(packageVersion(\'data.table\')))"'),  topic: versions
@@ -1329,6 +1331,17 @@ process quick_stats {
       seqkit stat --basename --tabular --threads ${task.cpus} --quiet \
         4_primerartefacts/* > Counts_4.PrimerArtefacts.txt
     fi
+
+    ## Primer-check categories (per-sample tables with the number of reads per primer layout)
+    echo -e "\\n..Primer-check categories"
+    if [ `find 4_primercheck -name no_primercheck 2>/dev/null` ]
+    then
+      echo -e "... No files found"
+      touch Counts_4.PrimerCheckCategories.txt
+    else
+      ## Concatenate tables, keep a single header
+      awk 'FNR > 1 || NR == 1' 4_primercheck/* > Counts_4.PrimerCheckCategories.txt
+    fi
     
     ## Summarize read counts
     quick_stats.R \
@@ -1337,6 +1350,7 @@ process quick_stats {
       --demuxed      Counts_3.Demux.txt \
       --primer       Counts_4.PrimerCheck.txt \
       --primerartef  Counts_4.PrimerArtefacts.txt \
+      --primercat    Counts_4.PrimerCheckCategories.txt \
       --threads      ${task.cpus} \
       \$ILLUMINA_OPTS
 
