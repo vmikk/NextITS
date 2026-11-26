@@ -72,6 +72,9 @@
   --fate-notmerged:  #9d562b;
   --fate-failedqc:   #a962a7;
   --fate-artefacts:  #e39420;
+  --fate-artsingle:  #e39420;   /* artefacts: single primer */
+  --fate-artmulti:   #efbb55;   /* artefacts: multiprimer */
+  --fate-artmisor:   #a5620f;   /* artefacts: misoriented primers */
   --fate-lcinv:      #9b274e;   /* long chimeras, inverted */
   --fate-lcrep:      #2a4c6f;   /* long chimeras, repeat */
   --fate-noits:      #674eb0;
