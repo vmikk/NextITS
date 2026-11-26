@@ -1519,10 +1519,6 @@ workflow S1 {
   run_hp = params.hp
   run_tj = params.tj
 
-  // Primer disambiguation
-  disambiguate()
-
-
   /*
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       Demultiplex data
@@ -1657,11 +1653,7 @@ workflow S1 {
 
   // Check primers
   primer_check_out = primer_check(
-    ch_for_primer_check,
-    disambiguate.out.F,
-    disambiguate.out.R,
-    disambiguate.out.Fr,
-    disambiguate.out.Rr
+    ch_for_primer_check
     )
 
 
@@ -1829,6 +1821,7 @@ workflow S1 {
   // Primer-checked and multiprimer sequences
   ch_all_primerchecked = primer_check_out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
   ch_all_primerartefacts = primer_check_out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
+  ch_all_primercheck = primer_check_out.summary.collect().ifEmpty(file("no_primercheck"))
 
   // Long-chimera counts (empty if `long_chimera` is disabled)
   ch_longchim = ITS_EXTRACTION.out.longchim_counts.flatten().collect().ifEmpty(file("no_longchim"))
@@ -1862,6 +1855,7 @@ workflow S1 {
     ch_all_demux,            // demultiplexed sequences per sample
     ch_all_primerchecked,    // primer-cheched sequences
     ch_all_primerartefacts,  // multiprimer artefacts
+    ch_all_primercheck,      // primer-check categories (per-sample tables)
     ch_longchim,             // long chimeras (per-sample counts)
     ch_all_trim,             // ITSx-extracted or primer-trimmed sequences
     ch_homopolymers,         // Homopolymer stats
@@ -1977,9 +1971,6 @@ workflow seqstats {
   is_demultiplexed = params.demultiplexed
   is_illumina = params.seqplatform == "Illumina"
 
-  // Primer disambiguation
-  disambiguate()
-
   // Illumina paired-end reads (multiplexed or per-sample)
   // (same as in Step-1)
   if( is_illumina ){
@@ -2085,11 +2076,7 @@ workflow seqstats {
 
   // Check primers
   primer_check(
-    ch_for_primer_check,
-    disambiguate.out.F,
-    disambiguate.out.R,
-    disambiguate.out.Fr,
-    disambiguate.out.Rr
+    ch_for_primer_check
     )
 
 
@@ -2136,6 +2123,7 @@ workflow seqstats {
   // Primer-checked and multiprimer sequences
   ch_all_primerchecked   = primer_check.out.fq_primer_checked.flatten().collect().ifEmpty(file("no_primerchecked"))
   ch_all_primerartefacts = primer_check.out.primerartefacts.flatten().collect().ifEmpty(file("no_multiprimer"))
+  ch_all_primercheck     = primer_check.out.summary.collect().ifEmpty(file("no_primercheck"))
 
   // Count reads and prepare summary stats for the run
   quick_stats(
@@ -2144,6 +2132,7 @@ workflow seqstats {
       ch_all_demux,            // demultiplexed sequences per sample
       ch_all_primerchecked,    // primer-cheched sequences
       ch_all_primerartefacts,  // primer artefacts
+      ch_all_primercheck,      // primer-check categories (per-sample tables)
       ch_pe_reorient,          // Illumina: per-sample input and reoriented read pairs
       ch_pe_merge,             // Illumina: per-sample merged reads
       ch_pe_joined             // Illumina: joined non-merged reads
