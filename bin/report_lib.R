@@ -183,6 +183,9 @@ FATE_COL <- c(
   "No primers"        = "var(--fate-noprimers)",
   "Not merged"        = "var(--fate-notmerged)",
   "Primer artefacts"  = "var(--fate-artefacts)",
+  "Single-primer artefacts" = "var(--fate-artsingle)",
+  "Multiprimer artefacts"   = "var(--fate-artmulti)",
+  "Misoriented primers"     = "var(--fate-artmisor)",
   "Long chimera (inverted)" = "var(--fate-lcinv)",
   "Long chimera (repeat)"   = "var(--fate-lcrep)",
   "No ITS detection"  = "var(--fate-noits)",
@@ -195,6 +198,40 @@ FATE_COL <- c(
 ## (`[[` on a missing name errors rather than returning NULL)
 col_for <- function(colours, k) {
   if (k %in% names(colours)) unname(colours[[k]]) else PAL_OTHER
+}
+
+## ----------------------------------------------- primer-check categories
+
+## Artefact categories from the primer check (columns of per_sample.tsv and per_run.tsv);
+## together they add up to `PrimerArtefacts_Reads`
+ARTEF_COLS <- c(
+  "Single-primer artefacts" = "PrimerArtefacts_SinglePrimer",   # F...F_rc or R...R_rc
+  "Multiprimer artefacts"   = "PrimerArtefacts_Multiprimer",    # repeated or internal primers, concatemers
+  "Misoriented primers"     = "PrimerArtefacts_Misoriented")    # one F and one R primer in a wrong orientation
+ARTEF_CATS <- names(ARTEF_COLS)
+
+## TRUE if the table has the primer-check categories and at least one of them is non-zero.
+## Older result folders lack the columns, and quick_stats.R fills them with zeros
+## if the primer check did not record the categories
+has_primer_cats <- function(dt) {
+  cols <- c(ARTEF_COLS, "PrimerCheck_MissingPrimer")
+  all(cols %in% names(dt)) &&
+    any(vapply(cols, function(k) sum(num0(dt[[k]])) > 0, logical(1)))
+}
+
+## Split artefact counts (`total`, a vector or a single number) into the categories in `parts`
+## (a named list of counts). Each part is capped by what is left of the total, so the parts never
+## add up to more than the total; any remainder stays under "Primer artefacts" (zero if the counts agree)
+split_artefacts <- function(total, parts) {
+  left <- num0(total)
+  out <- list()
+  for (k in names(parts)) {
+    v <- pmax(pmin(num0(parts[[k]]), left), 0)
+    out[[k]] <- v
+    left <- left - v
+  }
+  out[["Primer artefacts"]] <- left
+  out
 }
 
 ## ----------------------------------------------------------------- cards
