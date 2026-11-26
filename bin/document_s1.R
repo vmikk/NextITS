@@ -73,6 +73,7 @@ citation_db <- list(
   seqkit    = "Shen W, Sipos B, Zhao L (2024) SeqKit2: A Swiss Army Knife for Sequence and Alignment Processing. iMeta e191. DOI:10.1002/imt2.191",
   csvtk     = "Shen W (2025) csvtk - a cross-platform, efficient and practical CSV/TSV toolkit. URL: https://github.com/shenwei356/csvtk",
 # brename   = "Shen W (2025) brename - batch renaming safely, URL: https://github.com/shenwei356/brename",
+  sassy     = "Beeloo R, Groot Koerkamp R (2026) Sassy: fuzzy Searching DNA Sequences using SIMD. Bioinformatics. DOI:10.1093/bioinformatics/btag244",
   cutadapt  = "Martin M (2011) Cutadapt removes adapter sequences. EMBnet.journal 17(1):10-12, DOI:10.14806/ej.17.1.200",
   usearch   = "Edgar RC (2010) Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26(19):2460-2461. DOI:10.1093/bioinformatics/btq461",
   pemerge   = "Edgar RC, Flyvbjerg H (2015) Error filtering, pair assembly and error correction for next-generation sequencing reads. Bioinformatics 31(21):3476-3482. DOI:10.1093/bioinformatics/btv401",
@@ -242,9 +243,16 @@ emit_qc_illumina <- function(p, v) {
 }
 
 emit_primer_check <- function(p, v) {
-  glue("Primers were trimmed using \\
+  glue("Primer sites were located in both strands of each read using \\
+    sassy v.{getv(v, 'primer_check', 'sassy')} (Beeloo and Groot Koerkamp, 2026) \\
+    with an edit distance <= {getp(p, 'primer_mismatches', 2)} (degenerate primer positions were matched as IUPAC codes). \\
+    Reads with two or more primer sites in an invalid arrangement were removed as primer artefacts: \\
+    products of a single primer (forward or reverse primer at both ends), \\
+    reads with repeated or internal primers (including concatenated amplicons), \\
+    and reads with misoriented primers. \\
+    The remaining reads were checked for the presence of both primers using \\
     cutadapt v.{getv(v, 'primer_check', 'cutadapt')} (Martin, 2011) \\
-    with <= {getp(p, 'primer_mismatches', 2)} mismatches. \\
+    with <= {getp(p, 'primer_mismatches', 2)} errors, and reverse-complemented where needed so that all reads have the same orientation. \\
     Reads without both primers were discarded.")
 }
 
@@ -379,7 +387,7 @@ build_docs <- function(versions, params){
 
   ## Primer trimming
   body <- c(body, emit_primer_check(params, versions))
-  tools_used <- c(tools_used, c("cutadapt"))
+  tools_used <- c(tools_used, c("sassy", "cutadapt"))
 
   ## Long-chimera removal (optional)
   if(is_true(getp(params, "long_chimera", FALSE))){
