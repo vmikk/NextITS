@@ -34,7 +34,7 @@ option_list <- list(
   make_option("--assets",       type = "character", default = "assets", help = "Report asset directory [%default]"),
   make_option("--out",          type = "character", default = "Step1_report.html", help = "Output HTML [%default]"),
   make_option("--min-reads",        type = "double", default = 100,  help = "Warn below this many demultiplexed reads [%default]"),
-  make_option("--max-artefact-pct", type = "double", default = 20,   help = "Warn above this multiprimer artefact %% [%default]"),
+  make_option("--max-artefact-pct", type = "double", default = 20,   help = "Warn above this primer artefact %% [%default]"),
   make_option("--min-itsx-pct",     type = "double", default = 50,   help = "Warn below this ITSx yield %% [%default]"),
   make_option("--min-retained-pct", type = "double", default = 30,   help = "Warn below this retained-read %% [%default]")
 )
@@ -102,6 +102,12 @@ reads_qc    <- rv("Reads_Passed_QC")
 reads_demux <- rv("Reads_Demultiplexed", sum(num0(per_sample$Demultiplexed_Reads)))
 reads_prim  <- rv("Reads_PrimerChecked", sum(num0(per_sample$PrimerChecked_Reads)))
 reads_artef <- rv("PrimerArtefacts_Reads", sum(num0(per_sample$PrimerArtefacts_Reads)))
+## Artefact types and reads without both primers, as recorded by the primer check
+## (older result folders do not have these columns)
+has_pcat <- has_primer_cats(per_sample)
+reads_artef_cat <- if (has_pcat) split_artefacts(reads_artef,
+  lapply(ARTEF_COLS, function(k) rv(k, sum(num0(per_sample[[k]]))))) else NULL
+reads_nopr  <- if (has_pcat) rv("PrimerCheck_MissingPrimer", sum(num0(per_sample$PrimerCheck_MissingPrimer))) else NA_real_
 reads_itsx  <- rv("Reads_ITSx_Extracted", if (has_itsx) sum(num0(per_sample$ITSx_Extracted_Reads)) else NA_real_)
 reads_lcinv <- if (has_longchim) rv("LongChimera_Inverted_Reads", sum(num0(per_sample$LongChimera_Inverted_Reads))) else 0
 reads_lcrep <- if (has_longchim) rv("LongChimera_Repeat_Reads",   sum(num0(per_sample$LongChimera_Repeat_Reads)))   else 0
@@ -132,7 +138,7 @@ kpis <- kpi_row(
   if (is_illumina) kpi_card("Merged pairs", fmt_pct(pct_merged),
            paste0(fmt_int(reads_merged), " of ", fmt_int(reads_reo), " reoriented pairs"),
            grade(pct_merged, warn = 80, bad = 50)),
-  kpi_card("Multiprimer artefacts", fmt_pct(pct_artef),
+  kpi_card("Primer artefacts", fmt_pct(pct_artef),
            paste0(fmt_int(reads_artef), " reads of ", fmt_int(reads_artef + reads_prim), " primer-screened"),
            grade(pct_artef, warn = opt$`max-artefact-pct` / 2, bad = opt$`max-artefact-pct`, higher_better = FALSE)),
   if (has_itsx) kpi_card(paste0(itsx_tool, " yield"), fmt_pct(pct_itsx),
@@ -158,7 +164,7 @@ rules <- list(
        "Library depth", "%d sample(s) below the depth floor",
        paste0("< ", fmt_int(opt$`min-reads`), " reads")),
   flag(per_sample, num0(per_sample$PrimerArtefacts_Percent) >= opt$`max-artefact-pct`,
-       "Multiprimer artefacts", "%d sample(s) above the artefact ceiling",
+       "Primer artefacts", "%d sample(s) above the artefact ceiling",
        paste0("≥ ", fmt_pct(opt$`max-artefact-pct`, 0))),
   if (has_itsx) flag(per_sample, num0(per_sample$ITSx_Yield_Percent) < opt$`min-itsx-pct`,
        paste0(itsx_tool, " yield"), "%d sample(s) below the yield floor",
@@ -191,8 +197,21 @@ if (is_illumina) {
   qc_ok  <- num0(col_or(per_sample, 0, "QC_Reads"))
   fate[, not_merged := pmax(reo - merged - joined, 0)]
   fate[, failed_qc  := pmax(merged - qc_ok, 0)]
-  fate[, no_primers := pmax(demux - reo, 0) + pmax(qc_ok + joined - artefacts - primer_ok, 0)]
+  ## Reads without both primers: counted by the primer check if available,
+  ## otherwise what the primer check did not pass on
+  nopr <- if (has_pcat) num0(per_sample$PrimerCheck_MissingPrimer) else pmax(qc_ok + joined - fate$artefacts - fate$primer_ok, 0)
+  fate[, no_primers := pmax(demux - reo, 0) + nopr]
   setnames(fate, c("not_merged", "failed_qc", "no_primers"), c("Not merged", "Failed QC", "No primers"))
+} else if (has_pcat) {
+  ## PacBio: reads without both primers, counted by the primer check
+  fate[, `No primers` := num0(per_sample$PrimerCheck_MissingPrimer)]
+}
+
+## Artefact types, whatever they do not cover stays under "Primer artefacts"
+if (has_pcat) {
+  parts <- split_artefacts(fate$artefacts, lapply(ARTEF_COLS, function(k) per_sample[[k]]))
+  fate[, (ARTEF_CATS) := parts[ARTEF_CATS]]
+  fate[, artefacts := parts[["Primer artefacts"]]]
 }
 
 chim_denovo <- num0(col_or(per_sample, 0, "DeNovoChimeras_NumReads"))
@@ -214,8 +233,10 @@ setnames(fate,
   c("Primer artefacts", LONGCHIM_CATS, "No ITS detection", "Chimeric", "Tag jumps", "Other filtering", "Retained"))
 
 FATE_CATS <- c("Retained",
-               if (is_illumina) c("No primers", "Not merged", "Failed QC"),
-               "Primer artefacts", if (has_longchim) LONGCHIM_CATS, "No ITS detection",
+               if (is_illumina || has_pcat) "No primers",
+               if (is_illumina) c("Not merged", "Failed QC"),
+               if (has_pcat) ARTEF_CATS, "Primer artefacts",
+               if (has_longchim) LONGCHIM_CATS, "No ITS detection",
                "Chimeric", "Tag jumps", "Other filtering")
 FATE_CATS <- FATE_CATS[vapply(FATE_CATS, function(k) sum(fate[[k]]) > 0 || k == "Retained", logical(1))]
 
@@ -236,6 +257,16 @@ add_link <- function(from, to, value) {
   if (is.finite(value) && value > 0) lk <<- rbind(lk, data.table(source = from, target = to, value = value))
 }
 
+## Primer screening losses: artefacts (split by type if known) and reads without both primers
+primer_loss_links <- function(from) {
+  if (has_pcat) {
+    for (k in names(reads_artef_cat)) add_link(from, k, reads_artef_cat[[k]])
+    add_link(from, "No primers", reads_nopr)
+  } else {
+    add_link(from, "Primer artefacts", reads_artef)
+  }
+}
+
 if (is_illumina) {
   ## Raw pairs -> demultiplexed -> reoriented -> merged (+ joined) -> passed QC -> primer-checked
   NODE_COL <- c(NODE_COL, "Raw pairs" = TRUNK, "Reoriented" = TRUNK,
@@ -250,7 +281,7 @@ if (is_illumina) {
   add_link("Merged", "Passed QC", reads_qc)
   add_link("Merged", "Failed QC", reads_merged - reads_qc)
   add_link("Joined", "Passed QC", reads_joined)
-  add_link("Passed QC", "Primer artefacts", reads_artef)
+  primer_loss_links("Passed QC")
   add_link("Passed QC", "Primer-checked", reads_prim)
 } else {
   entry <- "Raw reads"
@@ -263,7 +294,7 @@ if (is_illumina) {
   }
   add_link(entry, "Demultiplexed", reads_demux)
   add_link(entry, "Undemultiplexed", (if (is.finite(reads_qc)) reads_qc else reads_raw) - reads_demux)
-  add_link("Demultiplexed", "Primer artefacts", reads_artef)
+  primer_loss_links("Demultiplexed")
   add_link("Demultiplexed", "Primer-checked", reads_prim)
 }
 
@@ -275,7 +306,8 @@ if (has_itsx && is.finite(reads_itsx)) {
   add_link("Primer-checked", "No ITS detection", reads_prim - reads_lc - reads_itsx)
   last <- "ITS extracted"
 }
-for (k in setdiff(FATE_CATS, c("Retained", "Primer artefacts", LONGCHIM_CATS, "No ITS detection"))) {
+## Losses after ITS extraction (earlier losses are linked above)
+for (k in intersect(FATE_CATS, c("Chimeric", "Tag jumps", "Other filtering"))) {
   add_link(last, k, sum(fate[[k]]))
 }
 add_link(last, "Retained", reads_final)
@@ -353,6 +385,8 @@ sample_cols <- intersect(c(
   "Reoriented_Pairs", "Merged_Reads", "Merged_Percent", "Joined_Reads", "QC_Reads",
   "PrimerChecked_Reads",
   "PrimerArtefacts_Reads", "PrimerArtefacts_Percent",
+  "PrimerArtefacts_SinglePrimer", "PrimerArtefacts_Multiprimer", "PrimerArtefacts_Misoriented",
+  "PrimerCheck_MissingPrimer",
   "LongChimera_Inverted_Reads", "LongChimera_Repeat_Reads",
   "ITSx_Extracted_Reads", "ITSx_Yield_Percent",
   "DeNovoChimeras_NumReads", "TagJump_Reads", "TagJump_Events",
@@ -376,6 +410,8 @@ sample_labels <- c(
   Joined_Reads = "Joined", QC_Reads = "Passed QC",
   PrimerChecked_Reads = "Primer-checked",
   PrimerArtefacts_Reads = "Artefact reads", PrimerArtefacts_Percent = "Artefacts",
+  PrimerArtefacts_SinglePrimer = "Single-primer", PrimerArtefacts_Multiprimer = "Multiprimer",
+  PrimerArtefacts_Misoriented = "Misoriented", PrimerCheck_MissingPrimer = "Missing primer",
   LongChimera_Inverted_Reads = "Long chimeras (inverted)", LongChimera_Repeat_Reads = "Long chimeras (repeat)",
   ## In `its_region = "none"` runs this column counts primer-trimmed reads, not extracted ones
   ITSx_Extracted_Reads = if (did_extract) "ITSx reads" else "Primer-trimmed reads",
