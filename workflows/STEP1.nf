@@ -418,49 +418,11 @@ process demux {
 }
 
 
-// Primer disambiguation
-process disambiguate {
-
-    label "main_container"
-
-    // publishDir "${params.outdir}/02_PrimerCheck", mode: "${params.storagemode}"
-    // cpus 1
-
-    output:
-      path "primer_F.fasta",  emit: F
-      path "primer_R.fasta",  emit: R
-      path "primer_Fr.fasta", emit: Fr
-      path "primer_Rr.fasta", emit: Rr
-
-    script:
-
-    """
-
-    ## Disambiguate forward primer
-    echo -e "Disambiguating forward primer"
-    disambiguate_primers.R \
-      ${params.primer_forward} \
-      primer_F.fasta
-
-    ## Disambiguate reverse primer
-    echo -e "\\nDisambiguating reverse primer"
-    disambiguate_primers.R \
-      ${params.primer_reverse} \
-      primer_R.fasta
-
-    ## Reverse-complement primers
-    echo -e "\\nReverse-complementing primers"
-    seqkit seq -r -p --seq-type dna primer_F.fasta > primer_Fr.fasta
-    seqkit seq -r -p --seq-type dna primer_R.fasta > primer_Rr.fasta
-
-    """
-}
-
-
-// Check primers + QC + Reorient sequences
-// Count number of primer occurrences withnin a read,
-// discard reads with > 1 primer occurrence
-// NB. read names should not contain spaces! (because of bedtools)
+// Check primers + Reorient sequences
+// Find primer sites with sassy (edit distance, IUPAC codes, both strands),
+// classify reads by the arrangement of primer sites,
+// remove artefacts (single-primer products, repeated or internal primers, misoriented primers),
+// then keep reads with both primers and reorient them with cutadapt
 process primer_check {
 
     label "main_container"
