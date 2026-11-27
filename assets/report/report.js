@@ -288,6 +288,18 @@
         if (zl && v.length > 2) s += "<br/>" + zl + ": " + fmtNum(v[2]);
         return s;
       };
+    },
+    /* Occupancy chart: one point per (samples, reads) combination, v[2] = how many OTUs share it */
+    occPoint: function (xl, yl, unit, nSamples) {
+      return function (p) {
+        var v = p.value || [];
+        var s = p.name ? "<b>" + p.name + "</b><br/>" : "";
+        s += xl + ": " + fmtNum(v[0]);
+        if (nSamples > 0) s += " (" + (100 * v[0] / nSamples).toFixed(1) + "% of samples)";
+        s += "<br/>" + yl + ": " + fmtNum(v[1]);
+        if (!p.name) s += "<br/>" + unit + " at this point: " + fmtNum(v[2]);
+        return s;
+      };
     }
   };
 
