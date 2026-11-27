@@ -74,8 +74,9 @@ unit <- if (clustering == "none" && preclust == "none") {
   "OTUs"
 }
 
-otu_tot <- otu[, .(Total = sum(Abundance), Samples = .N), by = OTU]
-setorder(otu_tot, -Total)
+## `Max` is the largest single-sample count, used to tell one-sample dominants from widespread OTUs
+otu_tot <- otu[, .(Total = sum(Abundance), Samples = uniqueN(SampleID), Max = max(Abundance)), by = OTU]
+setorder(otu_tot, -Total, OTU)
 n_otu     <- nrow(otu_tot)
 n_samples <- uniqueN(otu$SampleID)
 n_reads   <- sum(otu$Abundance)
@@ -239,21 +240,20 @@ rich_fig <- {
 ## Rarefaction answers the question the scatter above only hints at.
 rare_fig <- if (n_samples >= 2L && n_samples <= opt$`rarefaction-max` &&
                 requireNamespace("vegan", quietly = TRUE)) {
-  mat <- tryCatch({
-    w <- dcast(otu, SampleID ~ OTU, value.var = "Abundance", fill = 0, fun.aggregate = sum)
-    ids <- w$SampleID
-    m <- as.matrix(w[, -1L])
-    rownames(m) <- ids
-    m
-  }, error = function(e) NULL)
-  if (!is.null(mat) && nrow(mat) > 0L) {
+  ## Rarefied richness depends only on a sample's nonzero counts, so each sample is handled on its own
+  ## a dense sample-by-OTU matrix would not fit in memory for large runs
+  counts <- otu[, .(Abundance = sum(Abundance)), by = .(SampleID, OTU)]
+  counts <- split(counts$Abundance, counts$SampleID)
+  counts <- counts[sort(names(counts), method = "radix")]   # C-locale order, independent of the system locale
+  if (length(counts) > 0L) {
     ## One curve per sample, thinned to a manageable number of points.
-    series <- lapply(seq_len(nrow(mat)), function(i) {
-      n <- sum(mat[i, ])
+    series <- lapply(names(counts), function(s) {
+      v <- counts[[s]]
+      n <- sum(v)
       if (n < 2) return(NULL)
       steps <- unique(round(seq(1, n, length.out = min(60L, n))))
-      y <- as.numeric(vegan::rarefy(mat[i, , drop = FALSE], sample = steps))
-      list(name = rownames(mat)[[i]], x = steps, y = round(y, 2))
+      y <- as.numeric(vegan::rarefy(v, sample = steps))
+      list(name = s, x = steps, y = round(y, 2))
     })
     series <- Filter(Negate(is.null), series)
     if (length(series) > 0L) {
@@ -271,38 +271,119 @@ if (length(runs) < 2L) sample_tbl[, RunID := NULL]
 
 ## ----------------------------------------------------------------- OTUs
 
+## Ranks by which half and nine tenths of all reads are accounted for
+cum_reads <- cumsum(otu_tot$Total)
+rank_q <- vapply(c(0.5, 0.9), function(q) which(cum_reads >= q * n_reads)[1L], integer(1))
+
 rank_fig <- {
+  ## Tied totals form flat steps
+  ## the first and last rank of each step reproduce the curve exactly with a few thousand points instead of one per OTU
+  r <- rle(otu_tot$Total)
+  last  <- cumsum(r$lengths)
+  first <- last - r$lengths + 1L
+  rk <- c(rbind(first, last))
+  rv <- rep(r$values, each = 2L)
+  keep <- !duplicated(rk)
   o <- list(
     grid = list(left = 8, right = 20, top = 22, bottom = 10),
     tooltip = list(trigger = "item", formatter = js_fn("scatterPoint", "rank", "reads", "")),
-    xAxis = list(type = "value", name = "Rank", nameLocation = "middle", nameGap = 30, min = 1),
+    xAxis = list(type = "log", name = "Rank (log scale)", nameLocation = "middle", nameGap = 30, min = 1),
     yAxis = list(type = "log", name = "Reads", nameLocation = "middle", nameGap = 50),
     series = list(list(type = "line", showSymbol = FALSE, smooth = FALSE,
                        lineStyle = list(width = 2, color = PAL[[1L]]),
                        areaStyle = list(color = "var(--viz-wash)"),
-                       data = Map(function(a, b) list(a, b), seq_len(n_otu), otu_tot$Total))))
-  if (n_otu > 200L) {
-    o$dataZoom <- list(list(type = "inside"), list(type = "slider", height = 18, bottom = 4))
-    o$grid$bottom <- 40
+                       data = Map(function(a, b) list(a, b), rk[keep], rv[keep]))))
+  ## Reference lines only where they fall inside the plotted range and do not coincide
+  marks <- unique(rank_q[is.finite(rank_q) & rank_q > 1L])
+  if (length(marks) > 0L) {
+    labs <- c("50% of reads", "90% of reads")[match(marks, rank_q)]
+    o$series[[1L]]$markLine <- list(silent = TRUE, symbol = "none",
+      lineStyle = list(color = "var(--viz-ref)", type = "dashed", width = 1.2),
+      label = list(position = "insideEndTop", fontSize = 10, formatter = "{b}"),
+      data = lapply(seq_along(marks), function(i) list(xAxis = marks[[i]], name = labs[[i]])))
   }
+  if (n_otu > 200L) o$dataZoom <- list(list(type = "inside"))
   echart(o, height = 320, title = paste0("Rank abundance of all ", fmt_int(n_otu), " ", unit),
-    caption = "Total reads per OTU against its abundance rank, on a log scale. A long flat tail of ones is the singleton pool.")
+    caption = paste0(
+      "Total reads per ", unit, " against its abundance rank, both on log scales. ",
+      "Half of all reads are in the top ", fmt_int(rank_q[[1L]]), " ", unit,
+      " (", fmt_pct(safe_pct(rank_q[[1L]], n_otu), 2), "), nine tenths in the top ",
+      fmt_int(rank_q[[2L]]), " (", fmt_pct(safe_pct(rank_q[[2L]], n_otu), 2), "). ",
+      "The flat tail at one read is the singleton pool."))
 }
 
+## Occupancy: the summary sentence, the chart and the table share these numbers
+occ_one     <- otu_tot$Samples == 1L
+wide_cut    <- max(2L, ceiling(0.1 * n_samples))
+occ_callout <- callout(paste0(
+  fmt_pct(safe_pct(sum(occ_one), n_otu)), " of ", unit, " (holding ",
+  fmt_pct(safe_pct(sum(otu_tot$Total[occ_one]), n_reads)), " of reads) occur in a single sample; ",
+  fmt_int(sum(otu_tot$Samples >= wide_cut)), " occur in at least ", fmt_int(wide_cut),
+  " samples (10% or more)."))
+
 occ_fig <- {
-  pts <- lapply(seq_len(nrow(otu_tot)), function(i) list(
-    x = otu_tot$Samples[[i]], y = otu_tot$Total[[i]], name = otu_tot$OTU[[i]], size = 16))
-  o <- scatter_option(pts, "Samples occupied", "Total reads",
-                      size_name = NULL)
-  o$yAxis$type <- "log"
-  o$yAxis$min <- NULL
-  o$xAxis$min <- 0
-  o$xAxis$minInterval <- 1
-  o$series[[1L]]$symbolSize <- 6
-  o$series[[1L]]$large <- TRUE
-  o$series[[1L]]$largeThreshold <- 2000
-  echart(o, height = 340, title = "Occupancy versus abundance",
-    caption = "Abundant OTUs found in only one sample are the classic signature of an artefact or a contaminant.")
+  ## Many OTUs share the same occupancy and total (most are one read in one sample), 
+  ## so one point per distinct pair keeps the picture at a fraction of the size
+  agg <- otu_tot[, .(N = .N, OTU = OTU[1L]), by = .(Samples, Total)]
+  binned <- nrow(agg) > 5000L
+  if (binned) {
+    ## Very large runs: snap totals to 1/8-decade steps so the point count stays bounded
+    agg <- otu_tot[, .(Total = 10^(round(log10(Total) * 8) / 8), Samples)][
+      , .(N = .N, OTU = NA_character_), by = .(Samples, Total)]
+    agg[, Total := signif(Total, 4)]
+  }
+  setorder(agg, -N)   # single-OTU points are drawn last, on top of the dense core
+  data <- lapply(seq_len(nrow(agg)), function(i) {
+    d <- list(value = list(agg$Samples[[i]], agg$Total[[i]], agg$N[[i]]))
+    ## A point that is a single OTU keeps its ID for the tooltip
+    if (agg$N[[i]] == 1L && !is.na(agg$OTU[[i]])) d$name <- agg$OTU[[i]]
+    d
+  })
+  ## The palest sequential steps vanish against the light surface, so the scale starts at --seq-2
+  brk <- list(
+    list(min = 1, max = 1, label = "1"),
+    list(min = 2, max = 9, label = "2–9"),
+    list(min = 10, max = 99, label = "10–99"),
+    list(min = 100, label = "≥ 100"))
+  for (k in seq_along(brk)) brk[[k]]$color <- sprintf("var(--seq-%d)", k + 1L)
+  o <- list(
+    grid = list(left = 8, right = 22, top = 34, bottom = 10),
+    tooltip = list(trigger = "item",
+                   formatter = js_fn("occPoint", "Samples occupied", "Total reads", unit, n_samples)),
+    visualMap = list(type = "piecewise", dimension = 2L, pieces = brk,
+                     orient = "horizontal", top = 0, right = 10, itemWidth = 12, itemHeight = 10,
+                     text = list("", paste0(unit, " per point:")), textGap = 6),
+    xAxis = list(type = "log", name = "Samples occupied (log scale)", min = 1,
+                 nameLocation = "middle", nameGap = 30),
+    yAxis = list(type = "log", name = "Total reads", min = 1, nameLocation = "end", nameGap = 12,
+                 nameTextStyle = list(align = "left")),
+    series = list(list(type = "scatter", data = data, symbolSize = 7,
+                       itemStyle = list(opacity = 0.85),
+                       emphasis = list(focus = "self", itemStyle = list(opacity = 1)))))
+  if (length(data) > 2000L) {
+    o$series[[1L]]$large <- TRUE
+    o$series[[1L]]$largeThreshold <- 2000
+  }
+  echart(o, height = 360, title = "Occupancy versus abundance",
+    caption = paste0(
+      "Each point is one combination of occupancy (number of samples) and total read count; ",
+      "colour shows how many ", unit, " share it",
+      if (binned) " (totals rounded to 1/8-decade steps)" else "", ". ",
+      "The mass at the bottom left is unreplicated low-count sequences: PCR or sequencing noise, or genuinely rare taxa. ",
+      "Low read counts spread across many samples can point to cross-contamination or tag-jumps. ",
+      "Abundant ", unit, " confined to one sample are often genuine local dominants, ",
+      "but deserve a look if that sample is a control."))
+}
+
+top_tbl <- {
+  t <- head(otu_tot, 50L)
+  data.table(
+    OTU         = t$OTU,
+    Reads       = t$Total,
+    Reads_pct   = safe_pct(t$Total, n_reads),
+    Samples     = t$Samples,
+    Samples_pct = safe_pct(t$Samples, n_samples),
+    Top_share   = safe_pct(t$Max, t$Total))
 }
 
 len_fig <- if (is_usable_file(opt$otus) && requireNamespace("Biostrings", quietly = TRUE)) {
@@ -402,7 +483,18 @@ sections <- list(
       subs = list(c("samples-table", "Totals table"))),
 
   sec("otus", unit,
-      rank_fig, occ_fig, len_fig),
+      rank_fig, occ_callout, occ_fig,
+      subhead("otus-top", paste0("Most abundant ", unit)),
+      dt_table(top_tbl,
+        labels = c("ID", "Reads", "% of reads", "Samples", "% of samples", "Largest single-sample share"),
+        fmt = list(Reads_pct = "pct", Samples_pct = "pct", Top_share = "pct"),
+        bar_cols = "Reads", search = FALSE, download = "step2_top_otus.tsv",
+        caption = paste0(
+          "The ", min(50L, n_otu), " ", unit, " with the most reads. Present in many samples with a low ",
+          "single-sample share: widespread taxa, and the usual place to look for contaminants or tag-jump sources. ",
+          "A share near 100% means nearly all reads come from one sample.")),
+      len_fig,
+      subs = list(c("otus-top", "Most abundant"))),
 
   if (!is.null(lulu_section)) sec("lulu", "LULU curation", lulu_section),
 
