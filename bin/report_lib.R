@@ -400,6 +400,13 @@ echart <- function(option, height = 340, title = NULL, caption = NULL,
   json <- toJSON(spec, auto_unbox = TRUE, null = "null", na = "null", digits = 6)
   ## `</script>` inside a JSON string would close the block early
   json <- gsub("</", "<\\/", json, fixed = TRUE)
+  ## Per-point data that scales with the number of OTUs or reads should be aggregated in R
+  ## A chart this large makes the report slow to open, so flag it in the task log
+  bytes <- nchar(json, type = "bytes")
+  if (bytes > 1e6) {
+    message("Warning: chart '", title %||% id, "' embeds ",
+            format(round(bytes / 2^20, 1), nsmall = 1), " MB of data")
+  }
 
   tags$figure(class = "fig",
     if (!is.null(title) || !is.null(controls))
